@@ -30,7 +30,8 @@ partial pixels are cropped at the image edges. Each product is written twice:
 | Dataset | Native resolution | Date / period | Source | Products |
 |---|---|---|---|---|
 | `landsat` | 30 m (pan 15 m, thermal 100 m) | 2024-08-27 | Planetary Computer (L2), AWS requester-pays (L1 pan) | truecolor, cir, veg, urban, lst, pan |
-| `viirs-lst` | 375 m swath | 2026-10-02 (NRT only) | LANCE VJ221IMG_NRT | lst |
+| `viirs-lst` | 750 m swath | 2026-06-03 17:52 UTC | VNP21 v002 (Suomi NPP) | lst |
+| `goes-lst` | 2 km at nadir (~2.1×3.1 km here) | 2026-06-03 18:01 UTC | GOES-19 ABI-L2-LSTC (NOAA AWS) | lst |
 | `viirs-nightlights` | 15″ (~350×460 m) | 2025 annual | Black Marble VNP46A4 | radiance |
 | `smap` | 9 km | 2026-07-30 | SPL4SMGP v008 | sm_rootzone |
 | `chirps` | 0.05° | 2026-07-29 | CHIRPS v3 daily | precip |
