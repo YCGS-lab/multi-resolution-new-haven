@@ -1,25 +1,40 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["numpy", "rasterio", "pyproj", "matplotlib", "pillow", "requests", "earthaccess"]
+# dependencies = ["numpy", "rasterio", "pyproj", "earthaccess"]
 # ///
-"""VIIRS 375 m land surface temperature swath: one NOAA-21 daytime granule.
+"""VIIRS 750 m land surface temperature swath: one S-NPP daytime granule.
 
-Product: VJ221IMG_NRT v002 ("VIIRS/JPSS2 Land Surface Temperature and
-Emissivity 6-Min L2 Swath 375m NRT", LANCE). There is no standard (non-NRT)
-375 m LST collection in CMR (only VNP21IMG_NRT / VJ121IMG_NRT /
-VJ221IMG_NRT), and LANCE keeps only a rolling ~7-day archive, so a summer
-scene is not available; this granule was the best of 2026-09-25..10-02.
+Product: VNP21 v002, "VIIRS/NPP Land Surface Temperature and Emissivity 6-Min
+L2 Swath 750m V002" (LP DAAC, CMR C2545314550-LPCLOUD). The standard
+(science-quality) LST product, TES algorithm on the M14-M16 bands. The file
+carries per-pixel latitude/longitude (M-band geolocation, as in VNP03MOD)
+and the sensor zenith angle, so no separate geolocation granule is needed.
 
-Selected granule: VJ221IMG_NRT.A2026275.1748 = 2026-10-02 17:48-17:54 UTC
-(13:48 EDT). Why: the clearest day of the week over New Haven (GIBS true
-color: the other days were overcast), and the only near-nadir overpass of
-that day (view angle 5.5-7 deg over the view, so pixels are ~375 m; the
-S-NPP 16:42 and NOAA-20 17:00 passes were at 54-68 deg and fully cloudy
-over the view). Over the greater view ~55% of pixels have LST (cloud over
-parts of the south and east, water not retrieved).
+Selected granule: VNP21.A2026154.1748.002 = 2026-06-03 17:48-17:54 UTC;
+New Haven is scanned at ~17:52:40 UTC (13:52 EDT).
 
-The 6-min swath file (~260 MB, includes per-pixel Latitude/Longitude) is
-downloaded whole to data/viirs-lst/; LANCE offers no server-side subsetting.
+How it was chosen (summer 2026, Jun-Aug, daytime, S-NPP / NOAA-20 / NOAA-21):
+1. All 417 daytime VNP21/VJ121/VJ221 granules intersecting New Haven were
+   screened by view angle, estimated from the cross-track distance of New
+   Haven to the granule centerline (CMR footprint polygons): 35 granules are
+   within ~7 deg of nadir.
+2. Those were ranked by cloudiness over the greater view in the GIBS VIIRS
+   corrected-reflectance true color of each satellite/day; 6 near-nadir
+   scenes were completely clear (2026-06-03 S-NPP, 06-04 N20, 06-08 S-NPP,
+   07-01 N20, 07-17 N20, 07-25 N21).
+3. Those 6 were downloaded and scored on the LST QC over the views: all have
+   LST for 100% of land pixels with 87-93% "best quality" mandatory QA (the
+   rest "nominal", flagged as near cloud) and 100% best quality over the
+   central view. 2026-06-03 S-NPP was picked as the closest to nadir (sensor
+   zenith 2.5-4 deg over the greater view, so pixels are ~750 m and nearly
+   square), as it is the S-NPP VNP21 product itself, with a median LST error
+   estimate of 0.96 K, and because the GOES-19 LST at the nearest hour
+   (18:01 UTC) is also cloud-free and high quality (scripts/goes-lst/).
+   Runners-up: VJ221 2026-07-25 17:42 (4-6 deg, 93% best QA) and VJ121
+   2026-07-17 17:42 (3-4.5 deg, 88%).
+
+The 6-min swath file (~83 MB) is downloaded whole to data/viirs-lst/; the
+LP DAAC cloud archive offers no spatial subsetting for this L2 swath.
 """
 
 import sys
@@ -31,9 +46,9 @@ import earthaccess
 from common import config, views
 
 DATASET = "viirs-lst"
-SHORT_NAME = "VJ221IMG_NRT"
-GRANULE = "VJ221IMG_NRT.A2026275.1748.002"  # file name prefix (+ production time)
-TEMPORAL = ("2026-10-02T17:48:00Z", "2026-10-02T17:53:59Z")
+SHORT_NAME, VERSION = "VNP21", "002"
+GRANULE = "VNP21.A2026154.1748.002"  # file name prefix (+ production time)
+TEMPORAL = ("2026-06-03T17:48:00Z", "2026-06-03T17:53:59Z")
 
 
 def main():
@@ -44,14 +59,14 @@ def main():
         return
     earthaccess.login(strategy="netrc")
     granules = earthaccess.search_data(
-        short_name=SHORT_NAME, temporal=TEMPORAL, bounding_box=views.all_bounds_lonlat(1000.0)
+        short_name=SHORT_NAME,
+        version=VERSION,
+        temporal=TEMPORAL,
+        bounding_box=views.all_bounds_lonlat(1500.0),
     )
-    links = [u for g in granules for u in g.data_links() if u.rsplit("/", 1)[1].startswith(GRANULE)]
+    links = [u for g in granules for u in g.data_links() if u.rsplit("/", 1)[1].startswith(GRANULE) and u.endswith(".nc")]
     if not links:
-        sys.exit(
-            f"{GRANULE} not found in CMR: LANCE NRT data are only kept for ~7 days. "
-            "Pick a newer granule (see the selection notes above)."
-        )
+        sys.exit(f"{GRANULE} not found in CMR")
     print(f"  downloading {links[0].rsplit('/', 1)[1]}")
     paths = earthaccess.download(links[:1], str(out_dir))
     print(f"  {Path(paths[0]).relative_to(config.REPO)}")
