@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Tweed Airport",
+    "lat": 41.262611,
+    "lon": -72.885634,
+    "osm": "way/111291140",
+    "display_name": "Tweed New Haven Airport, Roma Street, Momauguin, East Haven, South Central Connecticut Planning Region, Connecticut, 06512, United States"
+  },
+  {
+    "name": "New Haven Green",
+    "lat": 41.308017,
+    "lon": -72.927059,
+    "osm": "relation/11597767",
+    "display_name": "New Haven Green, Dixwell, New Haven, South Central Connecticut Planning Region, Connecticut, 06510, United States"
+  },
+  {
+    "name": "Science Hill",
+    "lat": 41.317239,
+    "lon": -72.922549,
+    "osm": "way/228325196",
+    "display_name": "Kline Tower, 219, Prospect Street, Prospect Hill Historic District, Dixwell, New Haven, Connecticut, 06511, United States"
+  },
+  {
+    "name": "Sterling Memorial Library",
+    "lat": 41.311184,
+    "lon": -72.929022,
+    "osm": "relation/2840329",
+    "display_name": "Sterling Library, Rose Walk, Downtown, Dixwell, New Haven, South Central Connecticut Planning Region, Connecticut, 06511, United States"
+  }
+]

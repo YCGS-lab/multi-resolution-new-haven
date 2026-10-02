@@ -1,4 +1,7 @@
-/data/
+# Downloaded data is not tracked, except small hand-curated inputs
+/data/*
+!/data/landmarks.json
+/figures/
 /_credentials.toml
 
 # Byte-compiled / optimized / DLL files
