@@ -246,7 +246,11 @@ def arcgis_source(
 
 
 def xyz_source(url: str, max_zoom: int, attribution: str | None = None, tile_size: int = 256) -> dict:
-    """XYZ (slippy map) tiles, {z}/{x}/{y}; RGB(A) images shown with `identity()`."""
+    """XYZ (slippy map) tiles, {z}/{x}/{y}: map images shown with `identity()`.
+
+    The website picks the zoom level so that map labels come out at about their
+    design size (tile_size=512 for "@2x" tiles) and scales the tiles smoothly.
+    """
     native_res = 2 * math.pi * 6378137.0 / (tile_size * 2**max_zoom)
     return dict(
         type="xyz",
@@ -257,6 +261,7 @@ def xyz_source(url: str, max_zoom: int, attribution: str | None = None, tile_siz
         res=native_res,
         pixel_m=native_res / EXTENT_VIEW.merc_scale,
         attribution=attribution,
+        smooth=True,
     )
 
 

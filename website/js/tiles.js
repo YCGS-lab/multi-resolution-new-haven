@@ -173,7 +173,12 @@ class XyzSource {
 
   async read(box, res, bands, { signal } = {}) {
     const { url, tile_size: ts, max_zoom } = this.spec;
-    const z = Math.max(0, Math.min(max_zoom, Math.ceil(Math.log2(CIRCUMFERENCE / (ts * res)) - 1e-9)));
+    // Map tiles are designed to be shown at 256 CSS pixels (512-pixel tiles are
+    // the @2x versions): pick the zoom whose labels come out at about their
+    // design size. A tile is shown at 0.5-1x its resolution `res`, and
+    // res * 2^ZOOM_OFFSET is its size in CSS pixels at its own zoom.
+    const zCss = Math.log2(CIRCUMFERENCE / (256 * res * 2 ** ZOOM_OFFSET)) - 0.5;
+    const z = Math.max(0, Math.min(max_zoom, Math.round(zCss)));
     const span = CIRCUMFERENCE / 2 ** z;
     const O = CIRCUMFERENCE / 2;
     const tx0 = Math.floor((box[0] + O) / span);
@@ -443,6 +448,18 @@ function resample(rgba, win, box, w, h) {
   return out;
 }
 
+/** Like resample, but with smooth (bilinear / mipmapped) scaling, for map tiles with text. */
+function resampleSmooth(rgba, win, box, w, h) {
+  const src = new OffscreenCanvas(win.width, win.height);
+  src.getContext("2d").putImageData(new ImageData(rgba, win.width, win.height), 0, 0);
+  const ctx = new OffscreenCanvas(w, h).getContext("2d");
+  ctx.imageSmoothingQuality = "high";
+  const sx = (box[0] - win.x0) / win.res;
+  const sy = (win.y1 - box[3]) / win.res;
+  ctx.drawImage(src, sx, sy, (box[2] - box[0]) / win.res, (box[3] - box[1]) / win.res, 0, 0, w, h);
+  return ctx.getImageData(0, 0, w, h).data;
+}
+
 /** Grow opaque pixels into transparent ones within r pixels (square neighborhood). */
 function dilate(rgba, w, h, r) {
   const pass = (src, horizontal) => {
@@ -500,7 +517,7 @@ export async function renderTile(catalog, product, box, w, h, signal) {
     const needsNeighbors = r.hillshade || (r.shade && !r.shade.precomputed);
     const win = await src.read(b, res, renderBands(r, src.spec.bands), { pad: needsNeighbors ? 1 : 0, signal });
     if (!win) continue;
-    let rgba = resample(colorize(r, win), win, b, W, H);
+    let rgba = (src.spec.smooth ? resampleSmooth : resample)(colorize(r, win), win, b, W, H);
     if (m) rgba = crop(dilate(rgba, W, H, m), W, m, w, h);
     if (out) over(out, rgba);
     else out = rgba;
@@ -523,6 +540,8 @@ function maxTileZoom(catalog, product) {
  */
 export function productLayer(id, catalog, product, { loading, props = {} } = {}) {
   const [ox, oy] = catalog.origin;
+  // Street maps are magnified smoothly; data keep sharp pixels.
+  const filter = product.layers.every((l) => catalog.sources[l.source].smooth) ? "linear" : "nearest";
   return new TileLayer({
     id,
     data: product.id, // a new product means new tiles
@@ -553,7 +572,7 @@ export function productLayer(id, catalog, product, { loading, props = {} } = {})
         data: null,
         image: p.data,
         bounds: [left, Math.min(top, bottom), right, Math.max(top, bottom)],
-        textureParameters: { minFilter: "nearest", magFilter: "nearest" },
+        textureParameters: { minFilter: filter, magFilter: filter },
       });
     },
     ...props,

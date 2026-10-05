@@ -63,8 +63,8 @@ each image itself, tile by tile, over the Greater New Haven extent, from
   backscatter, ...), written by each dataset's `create-cog.py` to `website/image-data/`, or
 - **image services read directly** (no local copy), declared by `website-layers.py`: the CT ECO
   ImageServers (orthoimagery and NAIP as the server's 8-bit band values, shown as is; lidar DEM / DSM
-  as float elevations), the USGS 3DEP ImageServer (float elevations), and OpenStreetMap tiles (the
-  ICESat-2 basemap).
+  as float elevations), the USGS 3DEP ImageServer (float elevations), and XYZ map tiles (the
+  ICESat-2 basemap, and the street maps).
 
 Each dataset's `.json` gives its sources and, per product, the *render spec* that turns values
 into colors: band combinations and stretches (e.g. Landsat composites, NISAR HH / HV / HH−HV in
@@ -85,7 +85,13 @@ range requests.
 | Script | Datasets |
 |---|---|
 | `create-cog.py` | landsat, viirs-lst, goes-lst, viirs-nightlights, smap, chirps, era5-land, prism, icesat2, nisar-gcov, planet, aster-dem, ct-impervious-2023 |
-| `website-layers.py` | ct-ortho-2023, naip, ct-lidar-2023, 3dep |
+| `website-layers.py` | ct-ortho-2023, naip, ct-lidar-2023, 3dep, streetmap |
+
+`streetmap` adds reference maps that need no credentials: OpenStreetMap Standard, Esri World
+Street Map, and the USGS National Map topographic base map (public domain). Map tiles are
+drawn at the zoom level that keeps their labels at about their design size, and scaled
+smoothly. (CARTO basemaps now need an API key; Google Maps tiles need a key and may only be
+used through Google's own map APIs.)
 
 COGs are on Web Mercator grids over the extent at the native resolution, or, for data coarser
 than 30 m, on a ~30 m grid (nearest neighbor) so each native pixel keeps its footprint.

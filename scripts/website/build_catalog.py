@@ -133,6 +133,12 @@ TREE = [
         "Night lights",
         item("viirs-nightlights", "radiance", "VIIRS Black Marble 2025 (500 m)", "VIIRS Black Marble night lights"),
     ),
+    group(
+        "Street maps",
+        item("streetmap", "osm", "OpenStreetMap"),
+        item("streetmap", "esri", "Esri World Street Map"),
+        item("streetmap", "usgs-topo", "USGS National Map topo"),
+    ),
 ]
 
 
