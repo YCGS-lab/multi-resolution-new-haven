@@ -1,17 +1,16 @@
 // Hierarchical image picker: a button that opens a searchable, collapsible
-// tree of groups -> products, with one chip per available view.
+// tree of groups -> products.
 
 const popup = () => document.getElementById("picker-popup");
 const collapsed = new Set(); // group paths collapsed by the user (shared by all pickers)
 let active = null; // the picker whose popup is open
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
-const VIEW_SHORT = { greater: "Greater", central: "Central" };
 
 export class Picker {
   /**
    * host: element to render the button into.
-   * onSelect({id, view}) is called when the user picks an image.
+   * onSelect(id) is called when the user picks an image.
    */
   constructor(host, catalog, { onSelect, placeholder = "Select an image", compact = false } = {}) {
     this.catalog = catalog;
@@ -33,20 +32,20 @@ export class Picker {
   }
 
   render() {
-    const r = this.catalog.resolve(this.sel);
+    const r = this.catalog.get(this.sel);
     if (!r) {
       this.button.innerHTML = `<span class="pb-label placeholder">${esc(this.placeholder)}</span><span class="caret">▾</span>`;
       this.button.title = "";
       return;
     }
-    const path = r.item.path.join(" › ");
+    const path = r.path.join(" › ");
     this.button.innerHTML = `
       <span class="pb-text">
         <span class="pb-path">${esc(path)}</span>
-        <span class="pb-label">${esc(r.item.label)} <span class="pb-view">${esc(VIEW_SHORT[r.view] ?? r.view)}</span></span>
+        <span class="pb-label">${esc(r.label)}</span>
       </span>
       <span class="caret">▾</span>`;
-    this.button.title = `${path} › ${r.item.label} (${this.catalog.views[r.view].title})`;
+    this.button.title = `${path} › ${r.label}`;
   }
 
   open() {
@@ -92,27 +91,19 @@ export class Picker {
   renderTree(query) {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     const matches = (item) => {
-      const hay = [...item.path, item.label, item.title, item.id].join(" ").toLowerCase();
+      const hay = [...item.path, item.label, item.title, item.menu_title, item.id].join(" ").toLowerCase();
       return words.every((w) => hay.includes(w));
     };
-    const cur = this.catalog.resolve(this.sel);
+    const cur = this.catalog.get(this.sel);
     const html = [];
     const walk = (node, depth, path) => {
-      if (node.images) {
+      if (node.layers) {
         if (!matches(node)) return false;
-        const isCur = cur && cur.item === node;
-        const chips = this.catalog
-          .viewNames(node)
-          .map(
-            (v) =>
-              `<button type="button" class="pk-chip${isCur && cur.view === v ? " on" : ""}" data-id="${esc(node.id)}" data-view="${v}"
-                title="${esc(this.catalog.views[v].title)}, ${this.catalog.views[v].pixel_size_m.toFixed(1)} m/pixel">${esc(VIEW_SHORT[v] ?? v)}</button>`,
-          )
-          .join("");
+        const isCur = cur === node;
         html.push(`
           <div class="pk-item${isCur ? " current" : ""}" style="--depth:${depth}">
-            <button type="button" class="pk-pick" data-id="${esc(node.id)}" role="option" aria-selected="${!!isCur}">${esc(node.label)}</button>
-            <span class="pk-chips">${chips}</span>
+            <button type="button" class="pk-pick" data-id="${esc(node.id)}" role="option" aria-selected="${isCur}"
+              title="${esc(node.title || node.menu_title)}">${esc(node.label)}</button>
           </div>`);
         return true;
       }
@@ -145,14 +136,12 @@ export class Picker {
         this.renderTree(popup().querySelector(".pk-search").value);
       }),
     );
-    const pick = (id, view) => {
-      const sel = this.catalog.select(id, view ?? this.sel?.view ?? "greater");
+    const pick = (id) => {
       close();
-      this.set(sel);
-      this.onSelect?.(sel);
+      this.set(id);
+      this.onSelect?.(id);
     };
     tree.querySelectorAll(".pk-pick").forEach((b) => b.addEventListener("click", () => pick(b.dataset.id)));
-    tree.querySelectorAll(".pk-chip").forEach((b) => b.addEventListener("click", () => pick(b.dataset.id, b.dataset.view)));
   }
 }
 

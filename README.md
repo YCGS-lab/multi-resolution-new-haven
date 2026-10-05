@@ -7,9 +7,10 @@ Showing what New Haven, CT looks like at different spatial resolutions.
 - `scripts/<dataset>/` — PEP 723 scripts, run with `uv run scripts/<dataset>/<script>.py`
   - `download.py` → `data/<dataset>/`, then `visualize.py` → `figures/<dataset>/`
   - `visualize-remote.py` for datasets read straight from a tile / image service (no download step)
-- `scripts/common/` — shared view definitions, resampling, figure output, and tile/ImageServer/WMS clients
-- `scripts/website/build_catalog.py` → `website/catalog.json`, the image menu for the web viewer in `website/`
-- `data/landmarks.json` — landmark coordinates (from `scripts/landmarks/geocode.py`); other data and all figures are not tracked
+  - `create-cog.py` → `website/image-data/<dataset>.tif` + `.json`, or `website-layers.py` → `website/image-data/<dataset>.json`, for the website
+- `scripts/common/` — shared view definitions, resampling, figure output, tile/ImageServer/WMS clients, and website data (`web.py`)
+- `scripts/website/` — `build_catalog.py` → `website/catalog.json` (the website's image menu), `serve.py` (local server)
+- `data/landmarks.json` — landmark coordinates (from `scripts/landmarks/geocode.py`); other data, figures and website image data are not tracked
 
 ## Views
 
@@ -24,9 +25,7 @@ figures of the same view are pixel-aligned across datasets:
 Data are subset to (at least) the view and resampled onto the grid with nearest
 neighbour when coarser than the output pixels, so native pixels show as blocks and
 partial pixels are cropped at the image edges. Each product is written twice:
-`<view>_<product>.png` (data only) and `<view>_<product>_labeled.png`, plus
-`<view>_<product>.json` with the labels' content (title, subtitle, colorbar or legend,
-source) for the website.
+`<view>_<product>.png` (data only) and `<view>_<product>_labeled.png`.
 
 ## Datasets
 
@@ -56,29 +55,57 @@ Some scripts have extra steps: `landsat/select_scene.py`, `nisar-gcov/select_gra
 
 ## Website
 
-`website/` is a static viewer for the data-only PNGs, built on [deck.gl](https://deck.gl)
-(loaded from unpkg). Titles, axes, colorbars and legends are HTML; landmarks and the scale
-bar are drawn by JavaScript and can be toggled with **Labels** (or `L`).
+`website/` is an interactive map viewer built on [deck.gl](https://deck.gl) (from unpkg) and
+[geotiff.js](https://geotiffjs.github.io/) (from jsDelivr). It does not use the figures: it draws
+each image itself, tile by tile, over the Greater New Haven extent, from
+
+- **local Cloud-Optimized GeoTIFFs** of the real values (temperature, reflectance, elevation,
+  backscatter, ...), written by each dataset's `create-cog.py` to `website/image-data/`, or
+- **image services read directly** (no local copy), declared by `website-layers.py`: the CT ECO
+  ImageServers (orthoimagery and NAIP as the server's 8-bit band values, shown as is; lidar DEM / DSM
+  as float elevations), the USGS 3DEP ImageServer (float elevations), and OpenStreetMap tiles (the
+  ICESat-2 basemap).
+
+Each dataset's `.json` gives its sources and, per product, the *render spec* that turns values
+into colors: band combinations and stretches (e.g. Landsat composites, NISAR HH / HV / HH−HV in
+dB), colormaps with their value ranges (also drawn as the colorbar), hillshading (computed in
+the browser for the lidar and 3DEP DEMs), and categorical colors (with a legend).
+`build_catalog.py` gathers them into `website/catalog.json`.
 
 ```sh
-uv run scripts/website/build_catalog.py   # figures/ -> website/catalog.json
-python -m http.server                     # from the repository root
+uv run scripts/<dataset>/create-cog.py        # or website-layers.py; see below
+uv run scripts/website/build_catalog.py       # website/image-data/*.json -> website/catalog.json
+uv run scripts/website/serve.py               # from anywhere; serves the repository root
 # open http://localhost:8000/website/
 ```
 
-- **Viewer**: pick an image from a grouped, searchable menu (each product has a
-  Greater / Central chip per view; `[` / `]` step through an image's group, e.g. the ERA5
-  timesteps). Pan and zoom are limited to the Greater New Haven extent; native pixels stay
-  sharp when zoomed in. **Compare** adds image B over A, revealed by a swipe divider, by
-  fading (opacity), or inside a lens that follows the cursor (spy).
+`serve.py` is needed instead of `python -m http.server` because the COGs are read with HTTP
+range requests.
+
+| Script | Datasets |
+|---|---|
+| `create-cog.py` | landsat, viirs-lst, goes-lst, viirs-nightlights, smap, chirps, era5-land, prism, icesat2, nisar-gcov, planet, aster-dem, ct-impervious-2023 |
+| `website-layers.py` | ct-ortho-2023, naip, ct-lidar-2023, 3dep |
+
+COGs are on Web Mercator grids over the extent at the native resolution, or, for data coarser
+than 30 m, on a ~30 m grid (nearest neighbor) so each native pixel keeps its footprint.
+Compression: LERC (lossy, with a per-dataset maximum error) for real values, JPEG for the
+Planet basemap (stored locally so the API key stays out of the browser), lossless DEFLATE for
+the rasterized impervious-surface classes (0.5 m). NISAR is stored locally because
+titiler-cmr is too slow for interactive tiles.
+
+- **Viewer**: pick an image from a grouped, searchable menu (`[` / `]` step through an image's
+  group, e.g. the ERA5 timesteps). Pan and zoom are limited to the Greater New Haven extent;
+  native pixels stay sharp blocks when zoomed in. **Compare** adds image B over A, revealed by
+  a swipe divider, by fading (opacity), or inside a lens that follows the cursor (spy).
 - **Grid**: any number of images with synchronized pan and zoom (one WebGL canvas, one
   deck.gl view per slot). Empty slots say "Add image"; **Add row** adds slots; **Rearrange**
   lets you drag images onto other slots to swap them.
-- The current images, comparison and grid are kept in the URL, so views can be shared.
+- Titles, axes, colorbars and legends are HTML; landmarks and the scale bar can be toggled
+  with **Labels** (or `L`). The current images, comparison and grid are kept in the URL.
 
-The menu's groups and labels are set in `TREE` in `build_catalog.py`; figures not listed
-there appear under "Other". Figures rendered before the `.json` sidecars existed are still
-shown, but without a colorbar or legend until their `visualize` script is re-run.
+The menu's groups and labels are set in `TREE` in `build_catalog.py`; products not listed
+there appear under "Other".
 
 ## Credentials
 

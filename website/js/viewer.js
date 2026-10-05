@@ -1,16 +1,15 @@
 // Single-image viewer with a Worldview-style comparison mode: image B is
 // revealed over image A by a swipe divider, by fading, or inside a lens (spy).
 
-import { loadImage } from "./catalog.js";
 import {
+  LoadingState,
   MapChrome,
   backgroundLayer,
   clampViewState,
-  fitZoom,
   homeViewState,
-  imageLayers,
   keyHTML,
   landmarkLayers,
+  productLayers,
   titleHTML,
   unproject,
 } from "./mapview.js";
@@ -30,10 +29,9 @@ export class Viewer {
     this.mapEl = root.querySelector("#viewer-map");
     this.chrome = new MapChrome(root.querySelector(".viewer-frame"), catalog);
     this.handle = root.querySelector(".swipe-handle");
-    this.message = root.querySelector(".map-message");
+    this.loading = new LoadingState(root.querySelector(".map-message"));
 
-    this.sel = { a: null, b: null };
-    this.shown = { a: null, b: null }; // { r, img } currently drawn
+    this.sel = { a: null, b: null }; // product ids
     this.compare = false;
     this.mode = "swipe";
     this.opacity = 0.5;
@@ -97,38 +95,14 @@ export class Viewer {
     return { a: this.sel.a, b: this.compare ? this.sel.b : null, mode: this.mode };
   }
 
-  select(k, sel, { fit = true } = {}) {
-    const prev = this.catalog.resolve(this.sel[k]);
-    this.sel[k] = sel;
-    this.pickers[k].set(sel);
-    const r = this.catalog.resolve(sel);
-    if (!r) return this.update();
-    // Zoom to a partial-extent (central view) image when switching to it.
-    if (fit && k === "a" && (!prev || prev.view !== r.view) && r.view !== this.catalog.data.extent) this.fitBounds(r.bounds);
-    this.message.hidden = false;
-    this.message.textContent = "Loading…";
-    loadImage(r.meta.src).then(
-      (img) => {
-        if (this.sel[k] !== sel) return;
-        this.shown[k] = { r, img };
-        this.message.hidden = true;
-        this.update();
-      },
-      () => {
-        if (this.sel[k] !== sel) return;
-        this.shown[k] = null;
-        this.message.hidden = false;
-        this.message.textContent = `Could not load ${r.meta.src}`;
-        this.update();
-      },
-    );
+  select(k, id) {
+    this.sel[k] = this.catalog.get(id) ? id : null;
+    this.pickers[k].set(this.sel[k]);
     this.update();
   }
 
   step(k, d) {
-    const sel = this.sel[k];
-    if (!sel) return;
-    this.select(k, this.catalog.select(this.catalog.sibling(sel.id, d), sel.view), { fit: false });
+    if (this.sel[k]) this.select(k, this.catalog.sibling(this.sel[k], d));
   }
 
   setCompare(on) {
@@ -137,10 +111,7 @@ export class Viewer {
     this.root.querySelector(".compare-controls").hidden = !on;
     this.root.querySelector(".tag-a").hidden = !on;
     this.root.classList.toggle("comparing", on);
-    if (on && !this.sel.b && this.sel.a) {
-      const a = this.sel.a;
-      this.select("b", this.catalog.select(this.catalog.sibling(a.id, 1), a.view));
-    }
+    if (on && !this.sel.b && this.sel.a) this.select("b", this.catalog.sibling(this.sel.a, 1));
     this.update();
   }
 
@@ -148,16 +119,6 @@ export class Viewer {
     this.mode = mode;
     this.root.querySelectorAll("#compare-mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
     this.root.querySelector("#opacity-slider").hidden = mode !== "opacity";
-    this.update();
-  }
-
-  fitBounds(b) {
-    const zoom = fitZoom(b, ...this.size);
-    this.viewState = clampViewState(
-      { ...this.viewState, target: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2, 0], zoom },
-      this.catalog.extent,
-      ...this.size,
-    );
     this.update();
   }
 
@@ -197,9 +158,9 @@ export class Viewer {
     const c = this.catalog;
     const [w, h] = this.size;
     const layers = [backgroundLayer("bg", c.extent)];
-    const a = this.shown.a;
-    if (a) layers.push(...imageLayers("a", a.r, a.img, c));
-    const b = this.compare && this.shown.b;
+    const a = c.get(this.sel.a);
+    if (a) layers.push(...productLayers("a", c, a, this.loading));
+    const b = this.compare && c.get(this.sel.b);
     if (b) {
       let props = null;
       let lens = null;
@@ -226,11 +187,11 @@ export class Viewer {
       if (props) {
         // B's own no-data background, so A does not show through B's transparent pixels.
         if (this.mode !== "opacity") layers.push(backgroundLayer("bg-b", c.extent).clone(props));
-        layers.push(...imageLayers("b", b.r, b.img, c, props));
+        layers.push(...productLayers("b", c, b, this.loading, props));
         if (lens) layers.push(lens);
       }
     }
-    if (this.settings.labels) layers.push(...landmarkLayers("landmarks", c, a?.r.meta.landmark_color));
+    if (this.settings.labels) layers.push(...landmarkLayers("landmarks", c, a?.landmark_color));
     return layers;
   }
 
@@ -254,14 +215,14 @@ export class Viewer {
     this.mapEl.classList.toggle("spy", this.compare && this.mode === "spy");
 
     // Titles and keys (HTML), only rebuilt when the selection changes.
-    const ra = c.resolve(this.sel.a);
-    const rb = this.compare ? c.resolve(this.sel.b) : null;
+    const ra = c.get(this.sel.a);
+    const rb = this.compare ? c.get(this.sel.b) : null;
     const key = JSON.stringify([this.sel.a, rb && this.sel.b]);
     if (key !== this.titlesKey) {
       this.titlesKey = key;
       const tag = (t) => (rb ? `<span class="slot-tag tag-${t.toLowerCase()}">${t}</span>` : "");
-      const col = (r, t) => (r ? `<div class="title-block">${titleHTML(r, c, { tag: tag(t) })}</div>` : "");
-      const keyCol = (r, t) => (r ? `<div class="key-block">${keyHTML(r, { tag: tag(t) })}</div>` : "");
+      const col = (p, t) => (p ? `<div class="title-block">${titleHTML(p, { tag: tag(t) })}</div>` : "");
+      const keyCol = (p, t) => (p ? `<div class="key-block">${keyHTML(p, c, { tag: tag(t) })}</div>` : "");
       this.root.querySelector(".viewer-titles").innerHTML = col(ra, "A") + col(rb, "B");
       this.root.querySelector(".viewer-legends").innerHTML = keyCol(ra, "A") + keyCol(rb, "B");
     }

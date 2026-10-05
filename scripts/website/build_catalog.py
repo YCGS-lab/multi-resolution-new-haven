@@ -4,32 +4,29 @@
 # ///
 """Write website/catalog.json: the image menu for the web viewer.
 
-Scans figures/<dataset>/<view>_<product>.png (the unlabeled figures) and their
-<view>_<product>.json sidecars (titles, colorbars, legends; written by
-render.save_figures). Figures without a sidecar (rendered before sidecars
-existed) are still listed, with the fallback title below and no colorbar;
-re-run the dataset's visualize script to get the full labels.
+Reads website/image-data/<dataset>.json, written by each dataset's
+create-cog.py (local COGs) or website-layers.py (image services the website
+reads directly): the data sources, and per product the layers with their
+render specs (band combinations, value ranges, colormaps) and the text
+around the image (title, subtitle, colorbar or legend, source).
 
-Images are grouped by the TREE below. Figures that exist but are not in TREE
-are listed under "Other".
+Products are grouped by the TREE below; products that exist but are not in
+TREE are listed under "Other".
 
     uv run scripts/website/build_catalog.py
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import config, render
-from common.views import CRS, VIEWS, load_landmarks
-
-WEBSITE = config.REPO / "website"
+from common import config, render, web
+from common.views import CRS, load_landmarks
 
 
 def item(dataset: str, product: str, label: str, title: str | None = None) -> dict:
-    """A menu entry: one product, available in one or more views."""
+    """A menu entry: one product."""
     return dict(dataset=dataset, product=product, label=label, title=title or label)
 
 
@@ -38,7 +35,7 @@ def group(label: str, *children) -> dict:
 
 
 # Menu hierarchy. Labels are short (the menu shows them with their parents);
-# the full title shown above the map comes from the figure's sidecar.
+# the full title shown above the map comes from the product spec.
 TREE = [
     group(
         "Optical imagery",
@@ -139,99 +136,70 @@ TREE = [
 ]
 
 
-def view_meta(view) -> dict:
-    return dict(
-        title=view.title,
-        bounds=list(view.bounds),
-        width=view.width_px,
-        height=view.height_px,
-        pixel_size_m=view.pixel_size_m,
-    )
+def load_specs() -> tuple[dict, dict]:
+    """Sources {"<dataset>/<name>": source} and products {"<dataset>/<product>": product}."""
+    sources, products = {}, {}
+    for path in sorted(web.WEB_DATA.glob("*.json")):
+        spec = json.loads(path.read_text())
+        ds = spec["dataset"]
+        for name, s in spec["sources"].items():
+            sources[f"{ds}/{name}"] = s
+        for name, p in spec["products"].items():
+            p["layers"] = [{**l, "source": f"{ds}/{l['source']}"} for l in p["layers"]]
+            products[f"{ds}/{name}"] = p
+    return sources, products
 
 
-def find_images(dataset: str, product: str) -> dict:
-    """{view name: image entry} for the figures of one product that exist."""
-    images = {}
-    for view in VIEWS.values():
-        png = config.FIGURES / dataset / f"{view.name}_{product}.png"
-        if not png.exists():
-            continue
-        sidecar = png.with_suffix(".json")
-        meta = json.loads(sidecar.read_text()) if sidecar.exists() else {}
-        meta["src"] = os.path.relpath(png, WEBSITE).replace(os.sep, "/")
-        meta.setdefault("bounds", list(view.bounds))
-        labeled = png.with_name(f"{png.stem}_labeled.png")
-        if labeled.exists():
-            meta["labeled"] = os.path.relpath(labeled, WEBSITE).replace(os.sep, "/")
-        images[view.name] = meta
-    return images
-
-
-def resolve(node: dict, seen: set) -> dict | None:
-    """Attach images to items; drop items and groups with nothing to show."""
+def resolve(node: dict, products: dict, seen: set) -> dict | None:
+    """Attach products to items; drop items and groups with nothing to show."""
     if "children" in node:
-        children = [c for c in (resolve(c, seen) for c in node["children"]) if c]
+        children = [c for c in (resolve(c, products, seen) for c in node["children"]) if c]
         return dict(label=node["label"], children=children) if children else None
-    seen.add((node["dataset"], node["product"]))
-    images = find_images(node["dataset"], node["product"])
-    if not images:
+    pid = f"{node['dataset']}/{node['product']}"
+    seen.add(pid)
+    if pid not in products:
         return None
-    return dict(
-        id=f"{node['dataset']}/{node['product']}",
-        label=node["label"],
-        title=node["title"],
-        images=images,
-    )
-
-
-def unlisted(seen: set) -> list[dict]:
-    """Map figures on disk that TREE does not mention."""
-    out = []
-    for png in sorted(config.FIGURES.glob("*/*.png")):
-        view, _, product = png.stem.partition("_")
-        if view not in VIEWS or product.endswith("_labeled") or (png.parent.name, product) in seen:
-            continue
-        seen.add((png.parent.name, product))
-        out.append(item(png.parent.name, product, f"{png.parent.name}: {product}"))
-    return out
+    return dict(id=pid, label=node["label"], menu_title=node["title"], **products[pid])
 
 
 def main():
+    sources, products = load_specs()
     seen = set()
-    tree = [n for n in (resolve(g, seen) for g in TREE) if n]
-    other = [n for n in (resolve(i, seen) for i in unlisted(seen)) if n]
+    tree = [n for n in (resolve(g, products, seen) for g in TREE) if n]
+    other = [resolve(item(*pid.split("/", 1), pid.replace("/", ": ")), products, seen) for pid in products if pid not in seen]
     if other:
         tree.append(dict(label="Other", children=other))
 
-    n_items = n_images = n_sidecars = 0
-
-    def count(node):
-        nonlocal n_items, n_images, n_sidecars
-        for c in node.get("children", []):
-            count(c)
-        if "images" in node:
-            n_items += 1
-            n_images += len(node["images"])
-            n_sidecars += sum("title" in m for m in node["images"].values())
-
-    for node in tree:
-        count(node)
-
+    v = web.EXTENT_VIEW
     catalog = dict(
         crs=CRS,
-        extent="greater",
-        views={name: view_meta(v) for name, v in VIEWS.items()},
+        extent=dict(title=v.title, bounds=list(v.bounds)),
         landmarks=[
-            dict(name=l["name"], lon=l["lon"], lat=l["lat"], label_left=l["name"] in render._LABEL_LEFT)
-            for l in load_landmarks()
+            dict(name=l["name"], lon=l["lon"], lat=l["lat"], label_left=l["name"] in render._LABEL_LEFT) for l in load_landmarks()
         ],
+        sources=sources,
         tree=tree,
     )
-    out = WEBSITE / "catalog.json"
+    out = config.REPO / "website" / "catalog.json"
     out.write_text(json.dumps(catalog, indent=1, ensure_ascii=False) + "\n")
-    print(f"wrote {out.relative_to(config.REPO)}: {n_items} products, {n_images} images ({n_sidecars} with labels)")
-    if n_sidecars < n_images:
-        print("  images without a .json sidecar get a fallback title and no colorbar or legend; re-run their visualize script")
+    kinds = {}
+    for s in sources.values():
+        kinds[s["type"]] = kinds.get(s["type"], 0) + 1
+    print(
+        f"wrote {out.relative_to(config.REPO)}: {len(products)} products from {len(sources)} sources "
+        f"({', '.join(f'{n} {k}' for k, n in sorted(kinds.items()))})"
+    )
+    missing = sorted({f"{n['dataset']}/{n['product']}" for n in _items(TREE)} - set(products))
+    if missing:
+        print(f"  not built yet (run the dataset's create-cog.py / website-layers.py): {', '.join(missing)}")
+
+
+def _items(nodes):
+    for n in nodes:
+        if "children" in n:
+            yield from _items(n["children"])
+        else:
+            yield n
 
 
 if __name__ == "__main__":

@@ -5,13 +5,10 @@ import { Viewer } from "./viewer.js";
 
 const settings = { labels: true };
 
-// Selections in the URL hash: "<dataset>/<product>@<view>".
-const enc = (sel) => (sel ? `${sel.id}@${sel.view}` : "");
-const dec = (s, catalog) => {
-  if (!s) return null;
-  const [id, view] = s.split("@");
-  return catalog.select(id, view);
-};
+// Selections in the URL hash: "<dataset>/<product>" (an "@<view>" suffix from
+// older links is ignored).
+const enc = (id) => id ?? "";
+const dec = (s, catalog) => (s && catalog.get(s.split("@")[0]) ? s.split("@")[0] : null);
 
 async function main() {
   let catalog;
@@ -20,24 +17,25 @@ async function main() {
   } catch (err) {
     return fatal(
       `Could not load <code>catalog.json</code> (${err.message}).`,
-      "Build it with <code>uv run scripts/website/build_catalog.py</code>, then serve the repository root, e.g. <code>python -m http.server</code>, and open <code>/website/</code>.",
+      "Build it with <code>uv run scripts/website/build_catalog.py</code>, then serve the repository root with <code>uv run scripts/website/serve.py</code> and open <code>/website/</code>.",
     );
   }
   if (catalog.isEmpty) {
     return fatal(
-      "No figures found.",
-      "Render some with the <code>visualize</code> scripts, then re-run <code>uv run scripts/website/build_catalog.py</code>.",
+      "No images in the catalog.",
+      "Run the datasets' <code>create-cog.py</code> / <code>website-layers.py</code> scripts, then re-run <code>uv run scripts/website/build_catalog.py</code>.",
     );
   }
 
   const viewer = new Viewer(document.getElementById("viewer"), catalog, settings);
   const grid = new Grid(document.getElementById("grid"), catalog, settings);
+  window.app = { catalog, viewer, grid }; // for debugging from the console
 
   // ----- restore state from the URL -----------------------------------
   const params = new URLSearchParams(location.hash.slice(1));
   if (params.get("labels") === "0") settings.labels = false;
   document.getElementById("labels-toggle").checked = settings.labels;
-  viewer.select("a", dec(params.get("a"), catalog) ?? catalog.select(catalog.order[0], catalog.data.extent));
+  viewer.select("a", dec(params.get("a"), catalog) ?? catalog.order[0]);
   if (params.get("mode")) viewer.setMode(params.get("mode"));
   if (params.get("b")) {
     viewer.select("b", dec(params.get("b"), catalog));

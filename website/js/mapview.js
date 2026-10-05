@@ -1,12 +1,14 @@
-// Pieces shared by the viewer and the grid: deck.gl layers for an image and
-// its landmarks, pan/zoom limits, and the HTML around a map (axes, scale bar,
-// title block, colorbar / legend).
+// Pieces shared by the viewer and the grid: deck.gl layers for a product and
+// the landmarks, pan/zoom limits, loading state, and the HTML around a map
+// (axes, scale bar, title block, colorbar / legend).
 
-const { BitmapLayer, ScatterplotLayer, TextLayer, SolidPolygonLayer, PathLayer } = deck;
+import { productLayer } from "./tiles.js";
 
-// Deepest zoom: 2^4 = 16 screen pixels per Web Mercator meter, i.e. ~12 px per
-// 1 m pixel of the central view.
-export const MAX_ZOOM = 4;
+const { ScatterplotLayer, TextLayer, SolidPolygonLayer } = deck;
+
+// Deepest zoom: 2^6 = 64 screen pixels per Web Mercator meter, i.e. ~5 px per
+// 7.6 cm pixel of the CT orthoimagery.
+export const MAX_ZOOM = 6;
 const NODATA_FILL = [208, 208, 208]; // same gray as NODATA_FACE in render.py
 
 /** Zoom at which the whole extent just fits in a w x h px map. */
@@ -57,36 +59,53 @@ export function backgroundLayer(id, extent) {
   return new SolidPolygonLayer({ id, data: [{ polygon: rect(extent) }], getPolygon: (d) => d.polygon, getFillColor: NODATA_FILL });
 }
 
+/** The product's tiled layer (see tiles.js); `props` go to its tiles, e.g. clipping. */
+export function productLayers(id, catalog, product, loading, props = {}) {
+  return [productLayer(id, catalog, product, { loading, props })];
+}
+
 /**
- * The image, drawn with nearest-neighbour magnification so native pixels stay
- * sharp blocks when zoomed in. `r` is a resolved selection (Catalog.resolve).
+ * Counts a map's tile requests and shows "Loading…" (after a short delay, to
+ * avoid flicker) in its .map-message element while any are pending.
  */
-export function imageLayers(id, r, image, catalog, props = {}) {
-  const layers = [
-    new BitmapLayer({
-      id,
-      image,
-      bounds: r.bounds,
-      textureParameters: { minFilter: "linear", mipmapFilter: "linear", magFilter: "nearest" },
-      ...props,
-    }),
-  ];
-  // Outline images that cover only part of the extent (central view).
-  const e = catalog.extent;
-  if (r.bounds.some((v, i) => Math.abs(v - e[i]) > 1)) {
-    layers.push(
-      new PathLayer({
-        id: `${id}-outline`,
-        data: [{ path: [...rect(r.bounds), rect(r.bounds)[0]] }],
-        getPath: (d) => d.path,
-        getColor: [60, 60, 60, 200],
-        getWidth: 1,
-        widthUnits: "pixels",
-        ...props,
-      }),
-    );
+export class LoadingState {
+  constructor(messageEl) {
+    this.el = messageEl;
+    this.pending = 0;
+    this.errors = 0;
+    this.timer = null;
   }
-  return layers;
+
+  start() {
+    if (this.pending++ === 0) {
+      this.errors = 0;
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => this.show(), 250);
+    }
+  }
+
+  end(error) {
+    if (error) this.errors++;
+    if (--this.pending === 0) {
+      clearTimeout(this.timer);
+      this.show();
+    }
+  }
+
+  show() {
+    const msg = this.pending ? "Loading…" : this.errors ? `${this.errors} tile${this.errors > 1 ? "s" : ""} failed to load` : "";
+    this.el.hidden = !msg;
+    this.el.textContent = msg;
+    this.el.classList.toggle("error", !this.pending && !!this.errors);
+  }
+
+  /** Forget pending state (e.g. when the product changes and old requests are dropped). */
+  reset() {
+    this.pending = 0;
+    this.errors = 0;
+    clearTimeout(this.timer);
+    this.show();
+  }
 }
 
 /** Landmark markers and names, as in render.add_landmarks. */
@@ -209,23 +228,18 @@ export class MapChrome {
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
-/** Title, subtitle and view line for a resolved selection. */
-export function titleHTML(r, catalog, { tag = "", compact = false } = {}) {
-  const view = catalog.views[r.view];
-  const sub = r.meta.subtitle;
-  const viewLine = `${view.title} · ${view.pixel_size_m.toFixed(1)} m/pixel`;
-  const link = r.meta.labeled
-    ? ` · <a href="${esc(r.meta.labeled)}" target="_blank" rel="noopener" title="Open the matplotlib-labeled figure">labeled PNG</a>`
-    : "";
+/** Title, subtitle and native-resolution line of a product. */
+export function titleHTML(p, { tag = "", compact = false } = {}) {
+  const sub = p.subtitle;
   const subHTML = sub
     ? compact
       ? `<div class="subtitle compact" title="${esc(sub)}">${esc(sub.split("\n")[0])}</div>`
       : `<div class="subtitle">${esc(sub)}</div>`
     : "";
   return `
-    <div class="title-row">${tag}<h2 class="title">${esc(catalog.title(r))}</h2></div>
+    <div class="title-row">${tag}<h2 class="title">${esc(p.title || p.menu_title)}</h2></div>
     ${subHTML}
-    <div class="view-line">${esc(viewLine)}${link}</div>`;
+    ${p.native ? `<div class="view-line">Native resolution: ${esc(p.native)}</div>` : ""}`;
 }
 
 function linearTicks(lo, hi, n = 5) {
@@ -284,13 +298,12 @@ function legendHTML(lg) {
 }
 
 /** Colorbar or legend, plus the source line. */
-export function keyHTML(r, { tag = "", source = true } = {}) {
-  const m = r.meta;
+export function keyHTML(p, catalog, { tag = "", source = true } = {}) {
   const parts = [];
-  if (m.colorbar) parts.push(colorbarHTML(m.colorbar));
-  if (m.legend) parts.push(legendHTML(m.legend));
-  if (!m.title)
-    parts.push(`<div class="no-meta">No colorbar / legend: re-run this dataset's visualize script to write its .json sidecar.</div>`);
-  if (source && m.source) parts.push(`<div class="source">Source: ${esc(m.source)}</div>`);
+  const cb = catalog.colorbar(p);
+  if (cb) parts.push(colorbarHTML(cb));
+  if (p.legend) parts.push(legendHTML(p.legend));
+  const credits = [p.source, ...catalog.attributions(p)].filter(Boolean).join(". ");
+  if (source && credits) parts.push(`<div class="source">Source: ${esc(credits)}</div>`);
   return parts.length ? `${tag}<div class="key-body">${parts.join("")}</div>` : "";
 }

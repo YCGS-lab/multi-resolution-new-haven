@@ -266,16 +266,6 @@ main {
   font-weight: 500;
 }
 
-.pb-view {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-radius: 3px;
-  padding: 0 4px;
-  margin-left: 2px;
-}
-
 .caret {
   color: var(--muted);
 }
@@ -360,33 +350,6 @@ main {
 
 .pk-item.current .pk-pick {
   font-weight: 650;
-}
-
-.pk-chips {
-  display: flex;
-  gap: 3px;
-  padding-right: 6px;
-}
-
-.pk-chip {
-  font-size: 11px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  border-radius: 10px;
-  padding: 1px 7px;
-  cursor: pointer;
-  color: var(--muted);
-}
-
-.pk-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.pk-chip.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
 }
 
 .pk-empty {
@@ -490,16 +453,33 @@ main {
 
 .map-message {
   position: absolute;
-  top: 50%;
+  top: 10px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 3;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 4px 12px;
+  border-radius: 12px;
   background: rgba(29, 35, 48, 0.85);
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
+  white-space: nowrap;
   pointer-events: none;
+}
+
+.map-message.error {
+  background: rgba(160, 30, 30, 0.9);
+}
+
+#drag-label {
+  position: fixed;
+  left: -1000px;
+  top: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* ---------- viewer ---------- */
@@ -790,8 +770,7 @@ main {
   flex: none;
 }
 
-.source,
-.no-meta {
+.source {
   font-size: 11px;
   color: var(--muted);
   align-self: flex-end;

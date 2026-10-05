@@ -1,8 +1,8 @@
 // The image catalog (catalog.json, written by scripts/website/build_catalog.py).
 //
-// World coordinates used by every map: EPSG:3857 meters relative to the center
-// of the extent view ("greater"), with y up. Images are placed by their
-// EPSG:3857 bounds, so figures of either view line up.
+// World coordinates used by every map: EPSG:3857 meters relative to the
+// center of the extent (Greater New Haven), with y up. `origin` is that
+// center in absolute EPSG:3857 meters.
 
 const R = 6378137; // Web Mercator sphere radius (m)
 
@@ -15,16 +15,16 @@ export async function loadCatalog(url = "catalog.json") {
 export class Catalog {
   constructor(data) {
     this.data = data;
-    this.views = data.views;
-    const b = data.views[data.extent].bounds;
+    this.sources = data.sources;
+    const b = data.extent.bounds;
     this.origin = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
     this.extent = this.worldBounds(b);
-    this.extentTitle = data.views[data.extent].title;
+    this.extentTitle = data.extent.title;
     this.tree = data.tree;
-    this.items = new Map(); // id -> item (with .path: ancestor labels, .parent: group)
-    this.order = []; // item ids, menu order
+    this.items = new Map(); // id -> product (with .path: ancestor labels, .parent: group)
+    this.order = []; // product ids, menu order
     const walk = (node, path, parent) => {
-      if (node.images) {
+      if (node.layers) {
         node.path = path;
         node.parent = parent;
         this.items.set(node.id, node);
@@ -70,55 +70,26 @@ export class Catalog {
     return Math.cos((this.worldToLat(y) * Math.PI) / 180);
   }
 
-  viewNames(item) {
-    return Object.keys(this.views).filter((v) => item.images[v]);
+  /** The product with this id, or null. */
+  get(id) {
+    return (id && this.items.get(id)) || null;
   }
 
-  /** Resolve a selection {id, view} to {item, view, meta}, or null. */
-  resolve(sel) {
-    if (!sel) return null;
-    const item = this.items.get(sel.id);
-    if (!item) return null;
-    const view = item.images[sel.view] ? sel.view : this.viewNames(item)[0];
-    const meta = item.images[view];
-    return { item, view, meta, bounds: this.worldBounds(meta.bounds) };
-  }
-
-  /** Selection for an item, keeping `view` when the item has it. */
-  select(id, view) {
-    const item = this.items.get(id);
-    if (!item) return null;
-    return { id, view: item.images[view] ? view : this.viewNames(item)[0] };
-  }
-
-  /** The item `step` places away from `id` among its siblings in the menu (wrapping). */
+  /** The id `step` places away from `id` among its siblings in the menu (wrapping). */
   sibling(id, step) {
     const item = this.items.get(id);
-    const sibs = item.parent ? item.parent.children.filter((c) => c.images) : this.order.map((i) => this.items.get(i));
+    const sibs = item.parent ? item.parent.children.filter((c) => c.layers) : this.order.map((i) => this.items.get(i));
     const i = sibs.indexOf(item);
     return sibs[(i + step + sibs.length) % sibs.length].id;
   }
 
-  /** Title for a resolved selection: sidecar title, else the menu's fallback. */
-  title(r) {
-    return r.meta.title || r.item.title;
+  /** Colorbar of a product: the first layer render spec with a label. */
+  colorbar(p) {
+    return p.layers.map((l) => l.render).find((r) => r.type === "colormap" && r.label) ?? null;
   }
-}
 
-// Image cache: one decode per file, shared by all maps.
-const images = new Map();
-
-export function loadImage(src) {
-  if (!images.has(src)) {
-    const p = new Promise((resolve, reject) => {
-      const img = new Image();
-      img.decoding = "async";
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error(`could not load ${src}`));
-      img.src = src;
-    });
-    images.set(src, p);
-    p.catch(() => images.delete(src));
+  /** Attributions of a product's service layers (e.g. a basemap). */
+  attributions(p) {
+    return [...new Set(p.layers.map((l) => this.sources[l.source]?.attribution).filter(Boolean))];
   }
-  return images.get(src);
 }

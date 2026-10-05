@@ -187,7 +187,8 @@ def main():
             )
             if present
         ]
-        labels = dict(
+        render.add_labels(
+            ax, view,
             title=f"GOES-{platform[1:]} ABI land surface temperature (2 km)",
             subtitle=(
                 f"Scan {when}, view zenith {vza:.0f}°; ABI-L2-LSTC (CONUS), 2 km at nadir, "
@@ -198,9 +199,7 @@ def main():
             source=SOURCE,
             landmark_color="cyan",
         )  # fmt: skip
-        render.add_labels(ax, view, **labels)
         render.save_figure(fig, labeled)
-        render.save_metadata(view, plain, **labels)
         print(f"  wrote {plain.relative_to(config.REPO)} and {labeled.name}")
 
 

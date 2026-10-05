@@ -6,8 +6,17 @@
 // transparent hole that lets pointer events through to deck.gl. This keeps a
 // single WebGL context however many slots there are.
 
-import { loadImage } from "./catalog.js";
-import { MapChrome, backgroundLayer, clampViewState, homeViewState, imageLayers, keyHTML, landmarkLayers, titleHTML } from "./mapview.js";
+import {
+  LoadingState,
+  MapChrome,
+  backgroundLayer,
+  clampViewState,
+  homeViewState,
+  keyHTML,
+  landmarkLayers,
+  productLayers,
+  titleHTML,
+} from "./mapview.js";
 import { Picker } from "./picker.js";
 
 const { Deck, OrthographicView } = deck;
@@ -84,7 +93,7 @@ export class Grid {
   }
 
   newSlot() {
-    return { uid: `s${nextUid++}`, sel: null, shown: null, error: null };
+    return { uid: `s${nextUid++}`, sel: null }; // sel: product id
   }
 
   addRows(n) {
@@ -112,29 +121,9 @@ export class Grid {
     }
   }
 
-  select(slot, sel, render = true) {
-    slot.sel = sel;
-    slot.error = null;
-    const r = this.catalog.resolve(sel);
-    if (r) {
-      loadImage(r.meta.src).then(
-        (img) => {
-          if (slot.sel !== sel) return;
-          slot.shown = { r, img };
-          this.renderSlot(slot);
-          this.layout();
-        },
-        () => {
-          if (slot.sel !== sel) return;
-          slot.shown = null;
-          slot.error = `Could not load ${r.meta.src}`;
-          this.renderSlot(slot);
-          this.layout();
-        },
-      );
-    } else {
-      slot.shown = null;
-    }
+  select(slot, id, render = true) {
+    slot.sel = this.catalog.get(id) ? id : null;
+    slot.loading?.reset();
     if (render) {
       this.renderSlot(slot);
       this.layout();
@@ -202,6 +191,7 @@ export class Grid {
       <div class="slot-key"></div>`;
     slot.el = el;
     slot.map = el.querySelector(".slot-map");
+    slot.loading = new LoadingState(el.querySelector(".map-message"));
     slot.chrome = new MapChrome(el.querySelector(".slot-frame"), this.catalog, { tickSpacing: [96, 44] });
     slot.picker = new Picker(el.querySelector(".picker-host"), this.catalog, {
       placeholder: "Select an image",
@@ -218,7 +208,7 @@ export class Grid {
   renderSlot(slot) {
     const el = slot.el;
     if (!el) return;
-    const r = this.catalog.resolve(slot.sel);
+    const r = this.catalog.get(slot.sel);
     slot.picker.set(slot.sel);
     el.classList.toggle("empty", !r);
     el.draggable = this.rearrange && !!r;
@@ -227,12 +217,9 @@ export class Grid {
     const key = JSON.stringify(slot.sel);
     if (slot.titleKey !== key) {
       slot.titleKey = key;
-      el.querySelector(".slot-title").innerHTML = r ? titleHTML(r, this.catalog, { compact: true }) : "";
-      el.querySelector(".slot-key").innerHTML = r ? keyHTML(r, { source: false }) : "";
+      el.querySelector(".slot-title").innerHTML = r ? titleHTML(r, { compact: true }) : "";
+      el.querySelector(".slot-key").innerHTML = r ? keyHTML(r, this.catalog, { source: false }) : "";
     }
-    const msg = el.querySelector(".map-message");
-    msg.hidden = !(r && (!slot.shown || slot.error));
-    msg.textContent = slot.error || "Loading…";
     if (!r) el.querySelectorAll(".axis").forEach((a) => (a.innerHTML = ""));
     if (!r) el.querySelector(".scalebar").hidden = true;
   }
@@ -245,7 +232,7 @@ export class Grid {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", String(index()));
       el.classList.add("dragging");
-      if (slot.shown) e.dataTransfer.setDragImage(thumbnail(slot.shown.img), 96, 54);
+      e.dataTransfer.setDragImage(dragLabel(this.catalog.get(slot.sel)), 12, 12);
     });
     el.addEventListener("dragend", () => {
       el.classList.remove("dragging");
@@ -307,7 +294,8 @@ export class Grid {
     const layers = [];
     for (const s of this.slots) {
       if (!s.map) continue;
-      if (!s.shown) continue;
+      const p = c.get(s.sel);
+      if (!p) continue;
       const b = s.map.getBoundingClientRect();
       if (b.bottom < canvas.top || b.top > canvas.bottom || b.right < canvas.left || b.left > canvas.right) continue;
       views.push(
@@ -321,28 +309,23 @@ export class Grid {
           controller: this.rearrange ? false : { inertia: 250 },
         }),
       );
-      layers.push(backgroundLayer(`${s.uid}-bg`, c.extent), ...imageLayers(`${s.uid}-image`, s.shown.r, s.shown.img, c));
-      if (this.settings.labels) layers.push(...landmarkLayers(`${s.uid}-landmarks`, c, s.shown.r.meta.landmark_color));
+      layers.push(backgroundLayer(`${s.uid}-bg`, c.extent), ...productLayers(`${s.uid}-image`, c, p, s.loading));
+      if (this.settings.labels) layers.push(...landmarkLayers(`${s.uid}-landmarks`, c, p.landmark_color));
     }
     const viewState = Object.fromEntries(views.map((v) => [v.id, this.viewState]));
     this.deck.setProps({ views, viewState, layers });
-    for (const s of this.slots) if (s.shown && s.chrome) s.chrome.update(this.viewState, w, h, this.settings.labels);
+    for (const s of this.slots) if (s.sel && s.chrome) s.chrome.update(this.viewState, w, h, this.settings.labels);
   }
 }
 
-function thumbnail(img) {
-  let canvas = document.getElementById("drag-thumbnail");
-  if (!canvas) {
-    canvas = document.createElement("canvas");
-    canvas.id = "drag-thumbnail";
-    canvas.width = 192;
-    canvas.height = 108;
-    canvas.style.cssText = "position:fixed;left:-1000px;top:0";
-    document.body.append(canvas);
+/** Drag image: a small card with the product's name. */
+function dragLabel(p) {
+  let el = document.getElementById("drag-label");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "drag-label";
+    document.body.append(el);
   }
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#d0d0d0";
-  ctx.fillRect(0, 0, 192, 108);
-  ctx.drawImage(img, 0, 0, 192, 108);
-  return canvas;
+  el.textContent = p ? p.label : "";
+  return el;
 }

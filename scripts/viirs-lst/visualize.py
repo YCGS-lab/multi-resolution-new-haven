@@ -187,7 +187,8 @@ def main():
             )
             if present
         ]
-        labels = dict(
+        render.add_labels(
+            ax, view,
             title="VIIRS land surface temperature (Suomi NPP, 750 m)",
             subtitle=(
                 f"{when}, view angle {vza.min():.1f}-{vza.max():.1f}°; VNP21 v002 750 m M-band pixels (nearest neighbour)"
@@ -197,9 +198,7 @@ def main():
             source=SOURCE,
             landmark_color="cyan",
         )  # fmt: skip
-        render.add_labels(ax, view, **labels)
         render.save_figure(fig, labeled)
-        render.save_metadata(view, plain, **labels)
         print(f"  wrote {plain.relative_to(config.REPO)} and {labeled.name}")
 
 

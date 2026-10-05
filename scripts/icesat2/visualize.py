@@ -115,7 +115,6 @@ def save_map(fig_fn, view, product, **label_kwargs):
             render.add_labels(ax, view, **label_kwargs)
         render.save_figure(fig, path)
     assert Image.open(plain).size == (view.width_px, view.height_px)
-    render.save_metadata(view, plain, **label_kwargs)
     print(f"  wrote {plain.relative_to(config.REPO)} and {labeled.name}")
 
 
