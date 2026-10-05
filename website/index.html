@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>New Haven at many resolutions</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="https://unpkg.com/deck.gl@9.4.0/dist.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>New Haven at many resolutions</h1>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="viewer" aria-selected="true">Viewer</button>
+        <button role="tab" data-tab="grid" aria-selected="false">Grid</button>
+      </nav>
+      <div class="header-options">
+        <label class="toggle" title="Landmarks and scale bar (L)">
+          <input type="checkbox" id="labels-toggle" checked />
+          <span>Labels</span>
+        </label>
+      </div>
+    </header>
+
+    <main>
+      <!-- Single-image viewer, with optional comparison -->
+      <section id="viewer" class="tab-panel" role="tabpanel">
+        <div class="viewer-controls">
+          <div class="control-group">
+            <span class="slot-tag tag-a" hidden>A</span>
+            <div class="picker-host" id="picker-a"></div>
+            <button class="icon-btn" id="prev-a" title="Previous image in this group ([)">&#9664;</button>
+            <button class="icon-btn" id="next-a" title="Next image in this group (])">&#9654;</button>
+          </div>
+          <label class="toggle compare-toggle">
+            <input type="checkbox" id="compare-toggle" />
+            <span>Compare</span>
+          </label>
+          <div class="control-group compare-controls" hidden>
+            <span class="slot-tag tag-b">B</span>
+            <div class="picker-host" id="picker-b"></div>
+            <button class="icon-btn" id="prev-b" title="Previous image in this group">&#9664;</button>
+            <button class="icon-btn" id="next-b" title="Next image in this group">&#9654;</button>
+            <div class="segmented" id="compare-mode" role="radiogroup" aria-label="Comparison mode">
+              <button data-mode="swipe" aria-pressed="true" title="Drag the divider to reveal B">Swipe</button>
+              <button data-mode="opacity" aria-pressed="false" title="Fade between A and B">Opacity</button>
+              <button data-mode="spy" aria-pressed="false" title="B is shown inside a lens that follows the cursor">Spy</button>
+            </div>
+            <input type="range" id="opacity-slider" min="0" max="100" value="50" hidden aria-label="Opacity of B" />
+          </div>
+        </div>
+        <div class="viewer-titles"></div>
+        <div class="map-frame viewer-frame">
+          <div class="axis axis-left"></div>
+          <div class="map" id="viewer-map">
+            <div class="swipe-handle" hidden tabindex="0" role="slider" aria-label="Swipe divider: arrow keys move it">
+              <div class="swipe-grip"></div>
+            </div>
+            <div class="scalebar"></div>
+            <div class="map-message" hidden></div>
+            <div class="map-buttons">
+              <button id="viewer-zoom-in" title="Zoom in">+</button>
+              <button id="viewer-zoom-out" title="Zoom out">−</button>
+              <button id="viewer-reset" title="Full extent (0)">⤢</button>
+            </div>
+          </div>
+          <div class="axis-corner"></div>
+          <div class="axis axis-bottom"></div>
+        </div>
+        <div class="viewer-legends"></div>
+      </section>
+
+      <!-- Grid of synchronized images -->
+      <section id="grid" class="tab-panel" role="tabpanel" hidden>
+        <div class="grid-toolbar">
+          <label class="field">
+            Columns
+            <select id="grid-cols">
+              <option>1</option>
+              <option selected>2</option>
+              <option>3</option>
+              <option>4</option>
+              <option>5</option>
+              <option>6</option>
+            </select>
+          </label>
+          <label class="toggle rearrange-toggle">
+            <input type="checkbox" id="rearrange-toggle" />
+            <span>Rearrange</span>
+          </label>
+          <span class="rearrange-banner" hidden
+            >Rearrange mode: drag an image onto another slot to swap them. Pan and zoom are paused.</span
+          >
+          <span class="spacer"></span>
+          <button class="btn" id="grid-reset" title="Zoom out to the full extent">Reset view</button>
+        </div>
+        <div class="grid-slots"></div>
+        <div class="grid-actions">
+          <button class="btn" id="add-row">+ Add row</button>
+          <button class="btn subtle" id="remove-row" title="Remove the last row (only when it is empty)">Remove empty row</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- One WebGL canvas for all grid slots (one deck.gl view per slot) -->
+    <div id="grid-deck" hidden></div>
+    <!-- Shared popup for every image picker -->
+    <div id="picker-popup" class="picker-popup" hidden></div>
+  </body>
+</html>

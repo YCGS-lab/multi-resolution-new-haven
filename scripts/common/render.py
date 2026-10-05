@@ -13,7 +13,9 @@ straddling the view edge are cut off by the image frame ("crop the image, not
 the data"). Fine data are downsampled by averaging.
 """
 
+import json
 import math
+import re
 from pathlib import Path
 
 import matplotlib
@@ -328,14 +330,103 @@ def save_figure(fig, path: Path) -> Path:
     return path
 
 
+# --------------------------------------------------------------------------
+# Metadata sidecars (for the website, which draws its own labels)
+# --------------------------------------------------------------------------
+
+
+def _hex(color) -> str:
+    return mcolors.to_hex(color, keep_alpha=mcolors.to_rgba(color)[3] < 1)
+
+
+def _mathtext_to_unicode(s: str) -> str:
+    """'nW cm$^{-2}$ sr$^{-1}$' -> 'nW cm⁻² sr⁻¹' (simple super/subscripts only)."""
+    sup = str.maketrans("0123456789-+=()n", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺⁼⁽⁾ⁿ")
+    sub = str.maketrans("0123456789-+=()", "₀₁₂₃₄₅₆₇₈₉₋₊₌₍₎")
+    s = re.sub(r"\$\^\{?([^}$]*)\}?\$", lambda m: m.group(1).translate(sup), s)
+    s = re.sub(r"\$_\{?([^}$]*)\}?\$", lambda m: m.group(1).translate(sub), s)
+    return s.replace("$", "")
+
+
+def _colorbar_meta(cmap, norm, label: str, extend="neither", ticks=None) -> dict | None:
+    """Colorbar as plain data: 256 colors sampled evenly in normalized space."""
+    cmap = plt.get_cmap(cmap) if isinstance(cmap, str) else cmap
+    if isinstance(norm, mcolors.LogNorm):
+        scale = "log"
+    elif type(norm) is mcolors.Normalize:
+        scale = "linear"
+    else:
+        print(f"  warning: no colorbar metadata for {type(norm).__name__}")
+        return None
+    meta = dict(
+        label=_mathtext_to_unicode(label),
+        vmin=float(norm.vmin),
+        vmax=float(norm.vmax),
+        scale=scale,
+        extend=extend,
+        colors=[_hex(c) for c in cmap(np.linspace(0, 1, 256))],
+        under=_hex(cmap.get_under()),
+        over=_hex(cmap.get_over()),
+    )
+    if ticks is not None:
+        meta["ticks"] = [float(t) for t in ticks]
+    return meta
+
+
+def save_metadata(
+    view: View,
+    plain: Path,
+    title: str,
+    subtitle: str | None = None,
+    colorbar: dict | None = None,
+    legend: dict | None = None,
+    source: str | None = None,
+    landmarks: bool = True,
+    landmark_color: str = "white",
+) -> Path:
+    """Write <plain>.json next to a data-only PNG: everything `add_labels` would draw.
+
+    Takes the same arguments as `add_labels`, so the website can draw titles,
+    colorbars, legends and landmarks itself on top of the unlabeled image.
+    """
+    plain = Path(plain)
+    meta = dict(
+        image=plain.name,
+        view=view.name,
+        bounds=list(view.bounds),
+        crs=CRS,
+        width=view.width_px,
+        height=view.height_px,
+        pixel_size_m=view.pixel_size_m,
+        title=title,
+        subtitle=subtitle,
+        source=source,
+        landmarks=landmarks,
+        landmark_color=_hex(landmark_color),
+    )
+    if colorbar and (cb := _colorbar_meta(**colorbar)):
+        meta["colorbar"] = cb
+    if legend:
+        meta["legend"] = dict(
+            title=legend.get("title"),
+            ncol=legend.get("ncol", 1),
+            entries=[dict(color=_hex(c), label=l) for c, l in legend["entries"]],
+        )
+    path = plain.with_suffix(".json")
+    path.write_text(json.dumps(meta, indent=1, ensure_ascii=False) + "\n")
+    return path
+
+
 def save_figures(img: np.ndarray, view: View, dataset: str, product: str, **label_kwargs) -> tuple[Path, Path]:
-    """Write figures/<dataset>/<view>_<product>.png (data only) and ..._labeled.png.
+    """Write figures/<dataset>/<view>_<product>.png (data only) and ..._labeled.png,
+    plus <view>_<product>.json with the labels' content (see `save_metadata`).
 
     `label_kwargs` go to `add_labels` (title is required).
     """
     plain, labeled = config.figure_paths(dataset, view.name, product)
     assert img.shape[:2] == view.shape, f"image {img.shape[:2]} != view {view.shape}"
     save_png(img, plain)
+    save_metadata(view, plain, **label_kwargs)
     fig, ax = map_figure(view, img)
     add_labels(ax, view, **label_kwargs)
     save_figure(fig, labeled)

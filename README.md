@@ -8,6 +8,7 @@ Showing what New Haven, CT looks like at different spatial resolutions.
   - `download.py` → `data/<dataset>/`, then `visualize.py` → `figures/<dataset>/`
   - `visualize-remote.py` for datasets read straight from a tile / image service (no download step)
 - `scripts/common/` — shared view definitions, resampling, figure output, and tile/ImageServer/WMS clients
+- `scripts/website/build_catalog.py` → `website/catalog.json`, the image menu for the web viewer in `website/`
 - `data/landmarks.json` — landmark coordinates (from `scripts/landmarks/geocode.py`); other data and all figures are not tracked
 
 ## Views
@@ -23,7 +24,9 @@ figures of the same view are pixel-aligned across datasets:
 Data are subset to (at least) the view and resampled onto the grid with nearest
 neighbour when coarser than the output pixels, so native pixels show as blocks and
 partial pixels are cropped at the image edges. Each product is written twice:
-`<view>_<product>.png` (data only) and `<view>_<product>_labeled.png`.
+`<view>_<product>.png` (data only) and `<view>_<product>_labeled.png`, plus
+`<view>_<product>.json` with the labels' content (title, subtitle, colorbar or legend,
+source) for the website.
 
 ## Datasets
 
@@ -50,6 +53,32 @@ partial pixels are cropped at the image edges. Each product is written twice:
 Some scripts have extra steps: `landsat/select_scene.py`, `nisar-gcov/select_granule.py`, `era5-land/select_day.py`,
 `chirps/find_rainy_days.py` pick the scene/date; the rest read their choice from code or
 `data/`.
+
+## Website
+
+`website/` is a static viewer for the data-only PNGs, built on [deck.gl](https://deck.gl)
+(loaded from unpkg). Titles, axes, colorbars and legends are HTML; landmarks and the scale
+bar are drawn by JavaScript and can be toggled with **Labels** (or `L`).
+
+```sh
+uv run scripts/website/build_catalog.py   # figures/ -> website/catalog.json
+python -m http.server                     # from the repository root
+# open http://localhost:8000/website/
+```
+
+- **Viewer**: pick an image from a grouped, searchable menu (each product has a
+  Greater / Central chip per view; `[` / `]` step through an image's group, e.g. the ERA5
+  timesteps). Pan and zoom are limited to the Greater New Haven extent; native pixels stay
+  sharp when zoomed in. **Compare** adds image B over A, revealed by a swipe divider, by
+  fading (opacity), or inside a lens that follows the cursor (spy).
+- **Grid**: any number of images with synchronized pan and zoom (one WebGL canvas, one
+  deck.gl view per slot). Empty slots say "Add image"; **Add row** adds slots; **Rearrange**
+  lets you drag images onto other slots to swap them.
+- The current images, comparison and grid are kept in the URL, so views can be shared.
+
+The menu's groups and labels are set in `TREE` in `build_catalog.py`; figures not listed
+there appear under "Other". Figures rendered before the `.json` sidecars existed are still
+shown, but without a colorbar or legend until their `visualize` script is re-run.
 
 ## Credentials
 

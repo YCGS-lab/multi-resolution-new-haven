@@ -2,6 +2,7 @@
 /data/*
 !/data/landmarks.json
 /figures/
+/website/catalog.json
 /_credentials.toml
 
 # Byte-compiled / optimized / DLL files
