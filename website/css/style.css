@@ -1,23 +1,35 @@
 :root {
-  --header-h: 52px;
-  --bg: #f4f5f7;
+  /* Yale palette, as on geospatial.yale.edu (YaleSites) */
+  --yale-blue: #00356b;
+  --blue-medium: #276bbe;
+  --blue-light: #63aaff;
+  --blue-soft: #e8f1f8;
+  --gray-100: #f7f7f7;
+  --gray-200: #d9d9d9;
+  --gray-300: #bababa;
+  --gray-500: #757575;
+  --gray-700: #4a4a4a;
+  --gray-900: #1c1c1c;
+
+  --header-top-h: 46px;
+  --header-main-h: 56px;
+  --header-h: calc(var(--header-top-h) + var(--header-main-h));
+  --bg: var(--gray-100);
   --panel: #ffffff;
-  --ink: #1d2330;
-  --muted: #5d6677;
-  --line: #d9dde4;
-  --accent: #2463eb;
-  --accent-soft: #e5edff;
-  --a: #2463eb;
-  --b: #d9480f;
+  --ink: var(--gray-900);
+  --muted: var(--gray-500);
+  --line: var(--gray-200);
+  --accent: var(--blue-medium);
+  --accent-soft: var(--blue-soft);
+  --a: var(--yale-blue);
+  --b: #b8432c;
   --nodata: #d0d0d0;
   --axis-w: 62px;
   --axis-h: 22px;
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  --serif: YaleNew, Georgia, "Times New Roman", serif;
+  --sans: "Mallory Compact", Mallory, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--sans);
+  font-size: 15px;
   color: var(--ink);
   background: var(--bg);
 }
@@ -38,52 +50,83 @@ input {
   color: inherit;
 }
 
+a {
+  color: var(--accent);
+}
+
 [hidden] {
   display: none !important;
 }
 
-/* ---------- header ---------- */
+/* ---------- header (as geospatial.yale.edu: Yale blue, two tiers) ---------- */
 
 .app-header {
   position: fixed;
   inset: 0 0 auto 0;
   height: var(--header-h);
   z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 0 16px;
-  background: #1d2330;
+  padding: 0 24px;
+  background: var(--yale-blue);
   color: #fff;
 }
 
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: var(--header-top-h);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.75);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+}
+
+.brand img {
+  display: block;
+  height: 22px;
+  width: auto;
+}
+
+.header-main {
+  display: flex;
+  align-items: stretch;
+  gap: 36px;
+  height: var(--header-main-h);
+}
+
 .app-header h1 {
-  font-size: 17px;
-  font-weight: 650;
+  align-self: center;
   margin: 0;
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 400;
   white-space: nowrap;
 }
 
 .tabs {
   display: flex;
-  gap: 4px;
-  height: 100%;
-  align-items: flex-end;
+  gap: 8px;
 }
 
 .tabs button {
   border: 0;
   background: transparent;
-  color: #c9cfdb;
-  padding: 8px 16px 12px;
+  color: #fff;
+  padding: 10px 8px 0;
   border-bottom: 3px solid transparent;
   cursor: pointer;
-  font-weight: 550;
+  font-size: 19px;
+}
+
+.tabs button:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .tabs button[aria-selected="true"] {
-  color: #fff;
-  border-bottom-color: #6c9bff;
+  border-bottom-color: var(--blue-light);
 }
 
 .header-options {
@@ -92,6 +135,22 @@ input {
 
 .app-header .toggle {
   color: #fff;
+}
+
+/* outlined pill, like the YaleSites "Search this site" control */
+.toggle.pill {
+  padding: 4px 14px 4px 10px;
+  border: 1.5px solid #fff;
+  border-radius: 18px;
+  font-size: 15px;
+}
+
+.toggle.pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.toggle.pill input {
+  accent-color: var(--blue-light);
 }
 
 main {
@@ -108,7 +167,6 @@ main {
   gap: 6px;
   cursor: pointer;
   user-select: none;
-  font-weight: 550;
 }
 
 .toggle input {
@@ -119,16 +177,18 @@ main {
 
 .btn,
 .icon-btn {
-  border: 1px solid var(--line);
+  border: 1px solid var(--gray-300);
   background: var(--panel);
-  border-radius: 6px;
+  border-radius: 2px;
   padding: 5px 12px;
+  color: var(--yale-blue);
   cursor: pointer;
 }
 
 .btn:hover,
 .icon-btn:hover {
-  border-color: #aab2c0;
+  border-color: var(--yale-blue);
+  background: var(--blue-soft);
 }
 
 .btn:disabled {
@@ -150,13 +210,13 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-weight: 550;
+  font-weight: 500;
 }
 
 .field select {
   padding: 3px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--gray-300);
+  border-radius: 2px;
   background: var(--panel);
 }
 
@@ -166,8 +226,8 @@ main {
 
 .segmented {
   display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--gray-300);
+  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -183,7 +243,7 @@ main {
 }
 
 .segmented button[aria-pressed="true"] {
-  background: var(--accent);
+  background: var(--yale-blue);
   color: #fff;
 }
 
@@ -192,8 +252,8 @@ main {
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 4px;
-  font-weight: 700;
+  border-radius: 2px;
+  font-weight: 500;
   font-size: 13px;
   color: #fff;
   flex: none;
@@ -221,8 +281,8 @@ main {
   max-width: 100%;
   min-height: 40px;
   padding: 3px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--gray-300);
+  border-radius: 2px;
   background: var(--panel);
   cursor: pointer;
   text-align: left;
@@ -235,7 +295,7 @@ main {
 
 .picker-button:hover,
 .picker-button.open {
-  border-color: var(--accent);
+  border-color: var(--yale-blue);
 }
 
 .pb-text {
@@ -255,7 +315,7 @@ main {
 
 .pb-label {
   flex: 1;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -276,17 +336,17 @@ main {
   display: flex;
   flex-direction: column;
   background: var(--panel);
-  border: 1px solid #b9c0cc;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(20, 30, 50, 0.22);
+  border: 1px solid var(--gray-300);
+  border-radius: 2px;
+  box-shadow: 0 10px 30px rgba(0, 30, 60, 0.22);
   overflow: hidden;
 }
 
 .pk-search {
   margin: 8px;
   padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--gray-300);
+  border-radius: 18px;
 }
 
 .pk-tree {
@@ -311,9 +371,12 @@ main {
 }
 
 .pk-group[style*="--depth:0"] {
-  color: var(--ink);
-  font-size: 13px;
-  margin-top: 4px;
+  color: var(--yale-blue);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 6px;
 }
 
 .pk-caret {
@@ -331,7 +394,7 @@ main {
 
 .pk-item:hover,
 .pk-item:focus-within {
-  background: #f0f3f8;
+  background: var(--gray-100);
 }
 
 .pk-item.current {
@@ -349,7 +412,7 @@ main {
 }
 
 .pk-item.current .pk-pick {
-  font-weight: 650;
+  font-weight: 500;
 }
 
 .pk-empty {
@@ -375,12 +438,12 @@ main {
 }
 
 .axis-left {
-  border-right: 1px solid #8c94a3;
+  border-right: 1px solid var(--gray-300);
 }
 
 .axis-bottom {
   grid-column: 2;
-  border-top: 1px solid #8c94a3;
+  border-top: 1px solid var(--gray-300);
 }
 
 .axis-left .tick {
@@ -397,7 +460,7 @@ main {
   right: 0;
   top: 50%;
   width: 4px;
-  border-top: 1px solid #8c94a3;
+  border-top: 1px solid var(--gray-300);
 }
 
 .axis-bottom .tick {
@@ -414,7 +477,7 @@ main {
   top: 0;
   left: 50%;
   height: 4px;
-  border-left: 1px solid #8c94a3;
+  border-left: 1px solid var(--gray-300);
 }
 
 .map {
@@ -441,7 +504,7 @@ main {
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.85);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   pointer-events: none;
 }
 
@@ -459,7 +522,7 @@ main {
   z-index: 3;
   padding: 4px 12px;
   border-radius: 12px;
-  background: rgba(29, 35, 48, 0.85);
+  background: rgba(0, 53, 107, 0.9);
   color: #fff;
   font-size: 12px;
   white-space: nowrap;
@@ -479,7 +542,7 @@ main {
   background: var(--panel);
   border: 1px solid var(--accent);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* ---------- viewer ---------- */
@@ -529,15 +592,17 @@ main {
 }
 
 .title {
-  font-size: 19px;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 400;
   margin: 0;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .subtitle {
   white-space: pre-line;
-  font-size: 13px;
-  color: #39404d;
+  font-size: 14px;
+  color: var(--gray-700);
   margin-top: 2px;
 }
 
@@ -561,12 +626,12 @@ main {
   flex: 1;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 2px;
   padding: 8px 10px 4px 0;
 }
 
 #viewer-map {
-  background: #9aa1ad;
+  background: var(--gray-300);
 }
 
 .key-block {
@@ -590,7 +655,7 @@ main {
   z-index: 5;
   display: flex;
   flex-direction: column;
-  border-radius: 6px;
+  border-radius: 2px;
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
@@ -611,7 +676,7 @@ main {
 
 .map-buttons button:hover {
   background: #fff;
-  color: var(--accent);
+  color: var(--yale-blue);
 }
 
 /* swipe divider */
@@ -674,7 +739,7 @@ main {
 
 .cb-label {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 3px;
 }
 
@@ -746,7 +811,7 @@ main {
 }
 
 .lg-title {
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 3px;
 }
 
@@ -797,7 +862,7 @@ main {
   padding: 4px 10px;
   border-radius: 5px;
   background: #fff4d6;
-  border: 1px solid #f0c24b;
+  border: 1px solid #ffd55c;
   color: #6b4e00;
   font-size: 13px;
 }
@@ -815,7 +880,8 @@ main {
   min-width: 0;
   padding: 8px 10px 8px 0;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 2px;
+  /* no background: the grid's maps are drawn on a canvas behind the slots */
 }
 
 .slot-head {
@@ -842,7 +908,7 @@ main {
 }
 
 .slot-title .title {
-  font-size: 14px;
+  font-size: 18px;
 }
 
 .slot-title .subtitle {
@@ -863,7 +929,7 @@ main {
 }
 
 .slot.empty .slot-map {
-  border: 2px dashed #b8bfcc;
+  border: 2px dashed var(--gray-300);
   border-radius: 4px;
 }
 
@@ -882,7 +948,7 @@ main {
   background: transparent;
   color: var(--muted);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -920,7 +986,7 @@ main {
 
 .grid-actions #add-row {
   padding: 8px 28px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* The grid's deck.gl canvas sits behind the page; the slots' map areas are
@@ -961,7 +1027,7 @@ body.grid-active .axis {
 #grid.rearranging .slot {
   pointer-events: auto;
   border: 2px dashed var(--accent);
-  background: repeating-linear-gradient(135deg, transparent 0 10px, rgba(36, 99, 235, 0.05) 10px 20px);
+  background: repeating-linear-gradient(135deg, transparent 0 10px, rgba(39, 107, 190, 0.06) 10px 20px);
 }
 
 #grid.rearranging .slot:not(.empty) {
@@ -978,17 +1044,17 @@ body.grid-active .axis {
   position: absolute;
   inset: 0;
   z-index: 5;
-  background: rgba(36, 99, 235, 0.12);
-  box-shadow: inset 0 0 0 2px rgba(36, 99, 235, 0.6);
+  background: rgba(39, 107, 190, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(39, 107, 190, 0.6);
 }
 
 .rearrange-overlay span {
   padding: 5px 12px;
   border-radius: 14px;
-  background: rgba(29, 35, 48, 0.8);
+  background: rgba(0, 53, 107, 0.85);
   color: #fff;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 #grid.rearranging .slot.dragging {
@@ -998,7 +1064,7 @@ body.grid-active .axis {
 #grid.rearranging .slot.drop-target {
   border-style: solid;
   border-color: var(--b);
-  box-shadow: 0 0 0 3px rgba(217, 72, 15, 0.25);
+  box-shadow: 0 0 0 3px rgba(184, 67, 44, 0.25);
 }
 
 #grid.rearranging .slot.empty .add-image {
@@ -1011,6 +1077,6 @@ body.grid-active .axis {
   padding: 20px 24px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 2px;
   line-height: 1.5;
 }

@@ -56,7 +56,9 @@ Some scripts have extra steps: `landsat/select_scene.py`, `nisar-gcov/select_gra
 ## Website
 
 `website/` is an interactive map viewer built on [deck.gl](https://deck.gl) (from unpkg) and
-[geotiff.js](https://geotiffjs.github.io/) (from jsDelivr). It does not use the figures: it draws
+[geotiff.js](https://geotiffjs.github.io/) (from jsDelivr), styled after
+[geospatial.yale.edu](https://geospatial.yale.edu/) (Yale blue header with the YCGS wordmark,
+Yale typefaces from yale-webfonts.yalespace.org). It does not use the figures: it draws
 each image itself, tile by tile, over the Greater New Haven extent, from
 
 - **local Cloud-Optimized GeoTIFFs** of the real values (temperature, reflectance, elevation,

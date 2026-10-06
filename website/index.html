@@ -3,23 +3,32 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>New Haven at many resolutions</title>
+    <title>New Haven at many resolutions | Yale Center for Geospatial Solutions</title>
+    <!-- Yale typefaces (YaleNew, Mallory), as on yale.edu sites -->
+    <link rel="stylesheet" href="https://yale-webfonts.yalespace.org/fonts.min.css" />
     <link rel="stylesheet" href="css/style.css" />
     <script src="https://unpkg.com/deck.gl@9.4.0/dist.min.js"></script>
     <script type="module" src="js/main.js"></script>
   </head>
   <body>
     <header class="app-header">
-      <h1>New Haven at many resolutions</h1>
-      <nav class="tabs" role="tablist">
-        <button role="tab" data-tab="viewer" aria-selected="true">Viewer</button>
-        <button role="tab" data-tab="grid" aria-selected="false">Grid</button>
-      </nav>
-      <div class="header-options">
-        <label class="toggle" title="Landmarks and scale bar (L)">
-          <input type="checkbox" id="labels-toggle" checked />
-          <span>Labels</span>
-        </label>
+      <div class="header-top">
+        <a class="brand" href="https://geospatial.yale.edu/" title="Yale Center for Geospatial Solutions">
+          <img src="img/ycgs-wordmark-white.png" alt="Yale Center for Geospatial Solutions" />
+        </a>
+        <div class="header-options">
+          <label class="toggle pill" title="Landmarks and scale bar (L)">
+            <input type="checkbox" id="labels-toggle" checked />
+            <span>Labels</span>
+          </label>
+        </div>
+      </div>
+      <div class="header-main">
+        <h1>New Haven at many resolutions</h1>
+        <nav class="tabs" role="tablist">
+          <button role="tab" data-tab="viewer" aria-selected="true">Viewer</button>
+          <button role="tab" data-tab="grid" aria-selected="false">Grid</button>
+        </nav>
       </div>
     </header>
 
