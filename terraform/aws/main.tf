@@ -52,6 +52,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "site" {
 }
 
 data "aws_iam_policy_document" "site_bucket" {
+  # Only allow access over HTTPS, not HTTP
   statement {
     sid       = "DenyInsecureTransport"
     effect    = "Deny"
