@@ -115,6 +115,31 @@ titiler-cmr is too slow for interactive tiles.
 The menu's groups and labels are set in `TREE` in `build_catalog.py`; products not listed
 there appear under "Other".
 
+## Deploying
+
+`website/` is static: `terraform/aws/` puts it in a private S3 bucket behind CloudFront (which,
+like `serve.py`, serves range requests), and makes an IAM user whose access key can only assume
+a deploy role, which can only sync the bucket and invalidate the distribution. Works with
+Terraform or OpenTofu (`tofu`); run as an AWS admin:
+
+```sh
+cd terraform/aws
+terraform init && terraform apply
+terraform output -raw aws_config                # -> ~/.aws/config
+terraform output deploy_access_key_id           # -> ~/.aws/credentials, with:
+terraform output -raw deploy_secret_access_key
+terraform output -raw deploy_commands           # sync + invalidate, from the repository root
+```
+
+The site is then at `terraform output url` (`https://<id>.cloudfront.net/`; the Yale webfonts
+only load on `yale.edu` hosts and localhost). The state holds the deploy user's secret key, so
+keep `terraform.tfstate` private (it is git-ignored).
+
+For a custom hostname, set `domain_name` (see `terraform.tfvars.example`) and apply, which requests
+an ACM certificate; have `certificate_validation_records` and a CNAME from the hostname to
+`distribution_domain_name` added to DNS; once `certificate_status` is `ISSUED` (re-run
+`terraform apply` to refresh it), set `attach_domain = true` and apply again.
+
 ## Credentials
 
 - NASA Earthdata: `~/.netrc` (used by `earthaccess`)

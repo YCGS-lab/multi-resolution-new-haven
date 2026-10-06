@@ -1,0 +1,10 @@
+# cp terraform.tfvars.example terraform.tfvars
+
+# environment = "Prod"
+# price_class = "PriceClass_100"
+
+# Custom hostname: set domain_name and apply, have the certificate_validation_records and a
+# CNAME domain_name -> distribution_domain_name added to DNS, then (once certificate_status is
+# ISSUED) set attach_domain = true and apply again.
+# domain_name   = "newhaven.geospatial.yale.edu"
+# attach_domain = true

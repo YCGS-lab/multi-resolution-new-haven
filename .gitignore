@@ -6,6 +6,13 @@
 /website/image-data/
 /_credentials.toml
 
+# Terraform / OpenTofu (state holds the deploy user's secret key)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
