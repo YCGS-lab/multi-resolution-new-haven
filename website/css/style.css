@@ -131,6 +131,8 @@ a {
 
 .header-options {
   margin-left: auto;
+  display: flex;
+  align-items: center;
 }
 
 .app-header .toggle {
