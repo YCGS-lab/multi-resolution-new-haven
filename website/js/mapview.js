@@ -216,15 +216,17 @@ export class MapChrome {
         const mPerPx = c.groundScale(ty) / s; // ground meters per screen pixel
         const len = niceLength((w / 5) * mPerPx);
         const [value, unit] = len >= 1000 ? [len / 1000, "km"] : [len, "m"];
-        this.scalebar.innerHTML =
-          `<div class="scale" style="width:${(len / mPerPx).toFixed(1)}px">` +
-            `<div class="ticks">` +
-              `<span>0</span>` +
-              `<span>${value}</span>` +
-            `</div>` +
-            `<div class="bar"></div>` +
-          `</div>` +
-          `<span class="unit">${unit}</span>`;
+        const barLength = (len / mPerPx).toFixed(1);
+        this.scalebar.innerHTML = `
+          <div class="scale" style="width:${barLength}px">
+            <div class="ticks">
+              <span>0</span>
+              <span>${value}</span>
+            </div>
+            <div class="bar"></div>
+          </div>
+          <span class="unit">${unit}</span>
+        `.trim();
       }
     }
   }
