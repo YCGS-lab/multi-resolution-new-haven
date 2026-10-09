@@ -36,10 +36,10 @@ const RUNS = +opt("runs", 5);
 const LATENCY = +opt("latency", 0);
 const OUT = opt("out", null);
 const CHROME = opt("chrome", process.env.CHROME ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome");
+const PRODUCTS = opt("products", "landsat/truecolor,ct-impervious-2023/classes,fixtures/jpeg,fixtures/dem,fixtures/tracks").split(",");
 const sites = args.map((a) => a.split("=", 2));
 if (!sites.length) throw new Error("usage: node bench.mjs [--runs N] [--latency MS] NAME=URL ...");
 
-const PRODUCTS = opt("products", "landsat/truecolor,ct-impervious-2023/classes,fixtures/jpeg,fixtures/dem,fixtures/tracks").split(",");
 const SWITCH = ["landsat/truecolor", "landsat/cir", "landsat/veg", "landsat/urban", "landsat/lst"];
 const GRID = ["landsat/truecolor", "fixtures/jpeg", "fixtures/dem", "prism/tmean"];
 
@@ -50,17 +50,23 @@ function instrument() {
     type: "longtask",
     buffered: true,
   });
-  // Wrap a LoadingState (see mapview.js) to count tile requests.
-  window.__wrap = (ls) => {
-    if (ls.__wrapped) return;
-    ls.__wrapped = true;
-    ls.__started = 0;
-    const start = ls.start.bind(ls);
-    ls.start = () => {
-      ls.__started++;
-      start();
-    };
-  };
+  // Count tile requests: patch LoadingState (mapview.js) when main.js sets
+  // window.app, before any tile is requested.
+  window.__started = 0;
+  let app;
+  Object.defineProperty(window, "app", {
+    configurable: true,
+    get: () => app,
+    set(v) {
+      app = v;
+      const proto = Object.getPrototypeOf(v.viewer.loading);
+      const start = proto.start;
+      proto.start = function () {
+        window.__started++;
+        return start.call(this);
+      };
+    },
+  });
   window.__states = () => {
     const app = window.app;
     if (!app) return [];
@@ -79,29 +85,29 @@ function instrument() {
   };
 }
 
-/** Wait until every map is settled (after at least `minStarted` new tile requests). */
-async function settle(page, { minStarted = 1, timeout = 120000 } = {}) {
+/**
+ * Wait until every map is settled, after at least `minStarted` tile requests
+ * (counted from page load if `fromLoad`, else from now).
+ */
+async function settle(page, { minStarted = 1, fromLoad = false, timeout = 120000 } = {}) {
   await page.waitForFunction(() => window.app, null, { timeout });
-  await page.evaluate(() => window.__states().forEach(window.__wrap));
   return page.evaluate(
-    async ({ minStarted, timeout }) => {
+    async ({ minStarted, fromLoad, timeout }) => {
       const t0 = performance.now();
-      const base = window.__states().map((s) => s.__started);
+      const base = fromLoad ? 0 : window.__started;
       let stableSince = null;
       for (;;) {
         await new Promise((r) => setTimeout(r, 25));
-        const states = window.__states();
-        states.forEach(window.__wrap);
-        const started = states.reduce((n, s, i) => n + s.__started - (base[i] ?? 0), 0);
-        const idle = started >= minStarted && states.every((s) => s.pending === 0) && window.__deckLoaded();
+        const started = window.__started - base;
+        const idle = started >= minStarted && window.__states().every((s) => s.pending === 0) && window.__deckLoaded();
         const now = performance.now();
         if (!idle) stableSince = null;
         else if (stableSince === null) stableSince = now;
         else if (now - stableSince >= 300) return { ms: stableSince - t0, at: stableSince, started };
-        if (now - t0 > timeout) return { ms: NaN, started, timeout: true };
+        if (now - t0 > timeout) return { ms: NaN, at: NaN, started, timeout: true };
       }
     },
-    { minStarted, timeout },
+    { minStarted, fromLoad, timeout },
   );
 }
 
@@ -146,7 +152,7 @@ const scenarios = {
       if (/\.(m?js|wasm)(\?|$)|\/\+esm$/.test(r.url())) bodies.push(r.body().then((b) => [r.url(), b], () => null));
     });
     await page.goto(`${url}#a=${PRODUCTS[0]}`);
-    await settle(page);
+    await settle(page, { fromLoad: true });
     const files = (await Promise.all(bodies)).filter(Boolean);
     await context.close();
     return {
@@ -159,7 +165,7 @@ const scenarios = {
   async load(browser, url, product) {
     const { context, page } = await newPage(browser);
     await page.goto(`${url}#a=${product}`);
-    const s = await settle(page);
+    const s = await settle(page, { fromLoad: true });
     const snap = await snapshot(page);
     await context.close();
     // settleMs: from navigation start (the page's time origin)
@@ -169,12 +175,12 @@ const scenarios = {
   async zoom(browser, url, product) {
     const { context, page } = await newPage(browser);
     await page.goto(`${url}#a=${product}`);
-    await settle(page);
+    await settle(page, { fromLoad: true });
     const a = await snapshot(page);
     let ms = 0;
     for (let i = 0; i < 4; i++) {
       await page.evaluate(() => window.app.viewer.zoomBy(1));
-      const s = await settle(page);
+      const s = await settle(page, { minStarted: 0 }); // past the finest overview, no new tiles
       ms += s.ms;
     }
     const r = { settleMs: ms, ...delta(a, await snapshot(page)) };
@@ -185,9 +191,9 @@ const scenarios = {
   async pan(browser, url, product) {
     const { context, page } = await newPage(browser);
     await page.goto(`${url}#a=${product}`);
-    await settle(page);
+    await settle(page, { fromLoad: true });
     await page.evaluate(() => window.app.viewer.zoomBy(3));
-    await settle(page);
+    await settle(page, { minStarted: 0 });
     const a = await snapshot(page);
     const box = await page.locator("#viewer-map").boundingBox();
     await page.evaluate(() => {
@@ -231,12 +237,12 @@ const scenarios = {
   async switch(browser, url) {
     const { context, page } = await newPage(browser);
     await page.goto(`${url}#a=${SWITCH[0]}`);
-    await settle(page);
+    await settle(page, { fromLoad: true });
     const a = await snapshot(page);
     let ms = 0;
     for (const p of SWITCH.slice(1)) {
       await page.evaluate((p) => window.app.viewer.select("a", p), p);
-      ms += (await settle(page)).ms;
+      ms += (await settle(page, { minStarted: 0 })).ms;
     }
     const r = { settleMs: ms, ...delta(a, await snapshot(page)) };
     await context.close();
@@ -246,7 +252,7 @@ const scenarios = {
   async grid(browser, url) {
     const { context, page } = await newPage(browser);
     await page.goto(`${url}#tab=grid&cols=2&g=${GRID.join("|")}`);
-    const s = await settle(page, { minStarted: 4 });
+    const s = await settle(page, { minStarted: 4, fromLoad: true });
     const r = { settleMs: s.at, ...delta({ requests: 0, bytes: 0, longTasks: [] }, await snapshot(page)) };
     await context.close();
     return r;

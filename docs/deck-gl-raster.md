@@ -39,7 +39,8 @@ the code, so the API used here was read from the **source of the v0.8.1 tag**
      no `OrthographicView` support, which the website used.
 2. **Build test data.** The real COGs need credentials for most datasets, so
    the comparison used the ones that build without them (Landsat L2: 7-band
-   LERC float; GOES LST; PRISM) plus `scripts/website/benchmark/fixtures.py`,
+   LERC float; GOES LST; PRISM; the 0.5 m CT impervious-surface classes, a
+   40 MB uint8 DEFLATE COG) plus `scripts/website/benchmark/fixtures.py`,
    which writes COGs exercising every other render path: a JPEG COG (like
    Planet), a DEM with a stored hillshade (like ASTER), a log color scale (like
    VIIRS night lights), uint8 DEFLATE classes (like the impervious surfaces),
@@ -170,6 +171,10 @@ deck.gl-raster provides the reading and tiling; the rest is ours:
   1x). Growth stops at COG tile edges (512 source pixels), where the CPU
   renderer read across them; it no longer drops points between tiles, which
   the old nearest-neighbor tile resampling sometimes did.
+- High-frequency data seen zoomed out (the impervious-surface classes at the
+  full extent) differ pixel by pixel: both renderers nearest-sample an
+  overview about twice as fine as the screen, at a different phase. Neither
+  is systematically different once the overview choice matches (issue 3).
 - In **opacity** compare mode, a multi-layer product (ICESat-2: basemap plus
   points) is now faded layer by layer rather than as one composited image.
 - The lightened, desaturated basemap uses deck.gl's luminance weights for
@@ -180,7 +185,7 @@ deck.gl-raster provides the reading and tiling; the rest is ours:
 
 ## Upstream issues found
 
-Worth reporting to deck.gl-raster (both are worked around in `cog.js`):
+Worth reporting to deck.gl-raster (all worked around in `cog.js`):
 
 1. **Multi-band, pixel-interleaved LERC decodes to one array.** GDAL writes
    such tiles as one LERC blob with the bands as "depth"; `lerc.decode` returns
@@ -190,6 +195,20 @@ Worth reporting to deck.gl-raster (both are worked around in `cog.js`):
 2. Because of (1), `fetchTile(..., {boundless: false})` **clips only the first
    band's rows** on edge tiles of such COGs. `cog.js` fetches boundless tiles
    and clips them itself.
+
+3. **Overviews up to 2x too coarse.** The tile traversal's
+   `getMetersPerPixel(lat, zoom)` divides by `2^(zoom + 8)`, i.e. a 256-px
+   world (the OSM convention, as `dev-docs/lod-and-pixel-matching.md` says), but
+   deck.gl's `viewport.zoom` is for a 512-px world. Screen pixels are taken to
+   be twice their real size, so the "coarsest overview not coarser than a
+   screen pixel" is up to twice as coarse as the screen. (It also compares
+   source pixels in CRS units, Web Mercator meters for us, against screen
+   pixels in ground meters, which leans 1/cos(lat) = 1.33x finer here.) On the
+   0.5 m impervious-surface COG at the full extent it read the 21.3 m overview
+   where the old renderer read 10.65 m, and thin roads vanished from the
+   mode-resampled overview. `FinerCOGLayer` in `cog.js` doubles the pixel ratio
+   the traversal uses, by wrapping the tileset's (private) `getPixelRatio`;
+   overview choice then matches the old renderer.
 
 Also of note: `GeoTIFF.fromArrayBuffer` and the reader need browser APIs
 (`DOMParser`), so tests of the reader have to run in a browser.
@@ -224,9 +243,13 @@ migration:
    `image.width/height/tileWidth/tileHeight`, `cachedTags`; `DecoderPool({createWorker})`,
    `PerOriginSemaphore`, `parseWkt`; the shader injection hook
    `fs:DECKGL_FILTER_COLOR` with `geometry.uv`, and pipelines compared by module
-   name. Also check whether issues (1) and (2) above are fixed (then the
-   workarounds in `bandArrays` / `clip` can go), and whether new GPU modules
-   could replace parts of the generated shader.
+   name; and, for `FinerCOGLayer`, that `COGLayer.renderLayers()` returns a
+   `TileLayer` whose `TilesetClass` is a `RasterTileset2D` with a
+   `getPixelRatio` field (it throws if that field is gone). Check whether the
+   upstream issues above are fixed: then the workarounds (`bandArrays` /
+   `clip`, `FinerCOGLayer`) can go; for (3), compare which overview each
+   version reads, e.g. by logging `image.width` in `getTileData`. Also check
+   whether new GPU modules could replace parts of the generated shader.
 2. **Bump the versions** in `scripts/website/vendor/package.json` (all
    `@developmentseed/*` packages to the same version; deck.gl to the version
    their `peerDependencies` ask for), then
