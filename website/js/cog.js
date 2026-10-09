@@ -357,6 +357,36 @@ function lutTexture(prog, device) {
 }
 
 /**
+ * COGLayer with finer overviews. deck.gl-raster 0.8.1 takes a screen pixel to
+ * cover 2^-(zoom + 8) of the world, but deck.gl's world is 512 * 2^zoom
+ * pixels wide, so it picks overviews up to twice as coarse as the screen
+ * (thin features, e.g. roads in the impervious-surface classes, drop out).
+ * Doubling the pixel ratio its tile traversal uses compensates. This reaches
+ * into the tileset's `getPixelRatio` (a private field); see
+ * docs/deck-gl-raster.md before updating.
+ */
+const LOD_PIXEL_RATIO = 2;
+
+class FinerCOGLayer extends COGLayer {
+  static layerName = "FinerCOGLayer";
+
+  renderLayers() {
+    const tileLayer = super.renderLayers();
+    if (!tileLayer) return tileLayer;
+    const Tileset = tileLayer.props.TilesetClass;
+    class FinerTileset extends Tileset {
+      constructor(...args) {
+        super(...args);
+        const ratio = this.getPixelRatio;
+        if (typeof ratio !== "function") throw new Error("deck.gl-raster changed: RasterTileset2D.getPixelRatio is gone");
+        this.getPixelRatio = () => LOD_PIXEL_RATIO * ratio();
+      }
+    }
+    return tileLayer.clone({ TilesetClass: FinerTileset });
+  }
+}
+
+/**
  * The deck.gl layer for one product layer on a COG source, or null while the
  * COG is opening. `loading` ({start(), end(error)}) is told about each tile
  * request; `props` (e.g. clip / mask extensions, opacity) go to the layer.
@@ -365,7 +395,7 @@ export function cogLayer(id, spec, layer, { loading, props = {} } = {}) {
   const tiff = geotiff(spec);
   if (!tiff) return null;
   const prog = program(layer, spec, tiff);
-  return new COGLayer({
+  return new FinerCOGLayer({
     id,
     geotiff: tiff,
     epsgResolver,

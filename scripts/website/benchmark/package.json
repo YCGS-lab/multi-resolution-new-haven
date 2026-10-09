@@ -1,0 +1,9 @@
+{
+  "name": "newhaven-website-benchmark",
+  "private": true,
+  "description": "Playwright benchmark of the website's map rendering (see docs/deck-gl-raster.md)",
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.64.0"
+  }
+}

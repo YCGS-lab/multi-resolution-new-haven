@@ -1,6 +1,6 @@
 // Benchmarks the website's map rendering in headless Chromium.
 //
-//   node bench.mjs [--runs 5] [--latency 40] [--out results.json] NAME=URL ...
+//   node bench.mjs [--runs 5] [--latency 40] [--out results.json] [--products a/b,c/d] NAME=URL ...
 //
 // e.g. node bench.mjs before=http://localhost:8001/website/ after=http://localhost:8000/website/
 //
@@ -9,12 +9,13 @@
 // drives it through window.app (see main.js), timing until the maps settle:
 // no tile requests pending and every deck.gl layer loaded, for 300 ms.
 //
-// Scenarios (COG products; see fixtures.py for the fixture products):
+// Scenarios (COG products, --products; see fixtures.py for the fixture products):
 //   load:<product>   cold page load of the viewer at the full extent
 //   zoom:<product>   then four zoom-ins by 2x, settling after each
 //   pan:<product>    then a 3 s drag across the map at that zoom (frame times)
 //   switch           stepping through five Landsat products (one shared COG)
 //   grid             a 2 x 2 grid of four COG products
+//   payload          JavaScript and wasm loaded by the page (bytes, gzipped bytes)
 //
 // Reported per run: wall time to settle, bytes and count of requests to
 // image-data/ (the COGs), main-thread long tasks (> 50 ms, total blocking
@@ -23,6 +24,7 @@
 // a rough stand-in for a CDN.
 
 import { writeFileSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import { chromium } from "playwright";
 
 const args = process.argv.slice(2);
@@ -37,7 +39,7 @@ const CHROME = opt("chrome", process.env.CHROME ?? "/opt/pw-browsers/chromium-11
 const sites = args.map((a) => a.split("=", 2));
 if (!sites.length) throw new Error("usage: node bench.mjs [--runs N] [--latency MS] NAME=URL ...");
 
-const PRODUCTS = ["landsat/truecolor", "fixtures/jpeg", "fixtures/dem", "fixtures/tracks"];
+const PRODUCTS = opt("products", "landsat/truecolor,ct-impervious-2023/classes,fixtures/jpeg,fixtures/dem,fixtures/tracks").split(",");
 const SWITCH = ["landsat/truecolor", "landsat/cir", "landsat/veg", "landsat/urban", "landsat/lst"];
 const GRID = ["landsat/truecolor", "fixtures/jpeg", "fixtures/dem", "prism/tmean"];
 
@@ -95,7 +97,7 @@ async function settle(page, { minStarted = 1, timeout = 120000 } = {}) {
         const now = performance.now();
         if (!idle) stableSince = null;
         else if (stableSince === null) stableSince = now;
-        else if (now - stableSince >= 300) return { ms: stableSince - t0, started };
+        else if (now - stableSince >= 300) return { ms: stableSince - t0, at: stableSince, started };
         if (now - t0 > timeout) return { ms: NaN, started, timeout: true };
       }
     },
@@ -136,14 +138,32 @@ async function newPage(browser) {
 }
 
 const scenarios = {
+  /** Script and wasm bytes the page loads (decoded, and gzipped as a CDN would send them). */
+  async payload(browser, url) {
+    const { context, page } = await newPage(browser);
+    const bodies = [];
+    page.on("response", (r) => {
+      if (/\.(m?js|wasm)(\?|$)|\/\+esm$/.test(r.url())) bodies.push(r.body().then((b) => [r.url(), b], () => null));
+    });
+    await page.goto(`${url}#a=${PRODUCTS[0]}`);
+    await settle(page);
+    const files = (await Promise.all(bodies)).filter(Boolean);
+    await context.close();
+    return {
+      files: files.length,
+      bytes: files.reduce((n, [, b]) => n + b.length, 0),
+      gzipBytes: files.reduce((n, [, b]) => n + gzipSync(b).length, 0),
+    };
+  },
+
   async load(browser, url, product) {
     const { context, page } = await newPage(browser);
-    const t0 = Date.now();
     await page.goto(`${url}#a=${product}`);
     const s = await settle(page);
     const snap = await snapshot(page);
     await context.close();
-    return { ms: Date.now() - t0 - (Date.now() - t0 - s.ms - (snap.t - s.ms - snap.t)), settleMs: s.ms, ...delta({ requests: 0, bytes: 0, longTasks: [] }, snap) };
+    // settleMs: from navigation start (the page's time origin)
+    return { settleMs: s.at, ...delta({ requests: 0, bytes: 0, longTasks: [] }, snap) };
   },
 
   async zoom(browser, url, product) {
@@ -225,10 +245,9 @@ const scenarios = {
 
   async grid(browser, url) {
     const { context, page } = await newPage(browser);
-    const t0 = Date.now();
     await page.goto(`${url}#tab=grid&cols=2&g=${GRID.join("|")}`);
     const s = await settle(page, { minStarted: 4 });
-    const r = { settleMs: s.ms, wallMs: Date.now() - t0, ...delta({ requests: 0, bytes: 0, longTasks: [] }, await snapshot(page)) };
+    const r = { settleMs: s.at, ...delta({ requests: 0, bytes: 0, longTasks: [] }, await snapshot(page)) };
     await context.close();
     return r;
   },
@@ -239,11 +258,13 @@ const median = (xs) => {
   return v.length ? (v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2) : NaN;
 };
 
-const browser = await chromium.launch({
-  executablePath: CHROME,
-  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
-});
+const launch = () =>
+  chromium.launch({
+    executablePath: CHROME,
+    args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  });
 const jobs = [
+  ["payload", "payload"],
   ...PRODUCTS.flatMap((p) => ["load", "zoom", "pan"].map((s) => [`${s}:${p}`, s, p])),
   ["switch", "switch"],
   ["grid", "grid"],
@@ -253,11 +274,17 @@ for (const [label, scenario, product] of jobs) {
   results[label] = {};
   for (const [name, url] of sites) {
     const runs = [];
-    for (let i = 0; i < RUNS; i++) runs.push(await scenarios[scenario](browser, url, product));
+    for (let i = 0; i < RUNS; i++) {
+      const browser = await launch(); // a fresh browser per run: no shared caches
+      try {
+        runs.push(await scenarios[scenario](browser, url, product));
+      } finally {
+        await browser.close();
+      }
+    }
     const summary = Object.fromEntries(Object.keys(runs[0]).map((k) => [k, median(runs.map((r) => r[k]))]));
     results[label][name] = { median: summary, runs };
     console.log(`${label.padEnd(26)} ${name.padEnd(8)} ${JSON.stringify(summary)}`);
   }
 }
-await browser.close();
 if (OUT) writeFileSync(OUT, `${JSON.stringify({ runs: RUNS, latency: LATENCY, sites: Object.fromEntries(sites), results }, null, 1)}\n`);
