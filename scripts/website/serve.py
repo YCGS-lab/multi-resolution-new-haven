@@ -26,7 +26,12 @@ RANGE = re.compile(r"bytes=(\d*)-(\d*)$")
 class RangeHandler(SimpleHTTPRequestHandler):
     """SimpleHTTPRequestHandler plus single-range `Range: bytes=a-b` support."""
 
-    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".tif": "image/tiff", ".js": "text/javascript"}
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".tif": "image/tiff",
+        ".js": "text/javascript",
+        ".wasm": "application/wasm",
+    }
 
     def send_head(self):
         self._range = None

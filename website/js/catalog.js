@@ -1,8 +1,9 @@
 // The image catalog (catalog.json, written by scripts/website/build_catalog.py).
 //
-// World coordinates used by every map: EPSG:3857 meters relative to the
-// center of the extent (Greater New Haven), with y up. `origin` is that
-// center in absolute EPSG:3857 meters.
+// World coordinates used by the maps' pan / zoom logic, axes and scale bar:
+// EPSG:3857 meters relative to the center of the extent (Greater New Haven),
+// with y up. `origin` is that center in absolute EPSG:3857 meters. deck.gl
+// itself draws in longitude / latitude (MapView); see mapview.js.
 
 const R = 6378137; // Web Mercator sphere radius (m)
 
@@ -19,6 +20,7 @@ export class Catalog {
     const b = data.extent.bounds;
     this.origin = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
     this.extent = this.worldBounds(b);
+    this.lngLatExtent = [...this.worldToLngLat(this.extent[0], this.extent[1]), ...this.worldToLngLat(this.extent[2], this.extent[3])];
     this.extentTitle = data.extent.title;
     this.tree = data.tree;
     this.items = new Map(); // id -> product (with .path: ancestor labels, .parent: group)
@@ -34,7 +36,7 @@ export class Catalog {
       }
     };
     for (const n of this.tree) walk(n, [], null);
-    this.landmarks = data.landmarks.map((l) => ({ ...l, position: this.lonLatToWorld(l.lon, l.lat) }));
+    this.landmarks = data.landmarks.map((l) => ({ ...l, position: [l.lon, l.lat] }));
   }
 
   get isEmpty() {
@@ -59,6 +61,15 @@ export class Catalog {
 
   worldToLat(y) {
     return ((2 * Math.atan(Math.exp((y + this.origin[1]) / R)) - Math.PI / 2) * 180) / Math.PI;
+  }
+
+  worldToLngLat(x, y) {
+    return [this.worldToLon(x), this.worldToLat(y)];
+  }
+
+  /** deck.gl common space (Web Mercator, 512 units around the world) of a world x or y. */
+  worldToCommon(v, axis) {
+    return ((v + this.origin[axis]) / (2 * Math.PI * R) + 0.5) * 512;
   }
 
   latToWorldY(lat) {

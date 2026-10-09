@@ -6,20 +6,22 @@
 // transparent hole that lets pointer events through to deck.gl. This keeps a
 // single WebGL context however many slots there are.
 
+import { Deck, MapView } from "../vendor/deck-gl-raster.js";
 import {
+  CONTROLLER,
   LoadingState,
   MapChrome,
   backgroundLayer,
   clampViewState,
+  fromDeckViewState,
   homeViewState,
   keyHTML,
   landmarkLayers,
   productLayers,
   titleHTML,
+  toDeckViewState,
 } from "./mapview.js";
 import { Picker } from "./picker.js";
-
-const { Deck, OrthographicView } = deck;
 
 let nextUid = 0;
 
@@ -55,9 +57,9 @@ export class Grid {
       layers: [],
       layerFilter: ({ layer, viewport }) => layer.id.startsWith(`${viewport.id}-`),
       onViewStateChange: ({ viewState }) => {
-        this.viewState = clampViewState(viewState, catalog.extent, ...this.slotSize);
+        this.viewState = clampViewState(fromDeckViewState(viewState, catalog), catalog.extent, ...this.slotSize);
         this.update();
-        return this.viewState;
+        return toDeckViewState(this.viewState, catalog);
       },
     });
 
@@ -299,20 +301,20 @@ export class Grid {
       const b = s.map.getBoundingClientRect();
       if (b.bottom < canvas.top || b.top > canvas.bottom || b.right < canvas.left || b.left > canvas.right) continue;
       views.push(
-        new OrthographicView({
+        new MapView({
           id: s.uid,
           x: b.left - canvas.left,
           y: b.top - canvas.top,
           width: w,
           height: h,
-          flipY: false,
-          controller: this.rearrange ? false : { inertia: 250 },
+          controller: this.rearrange ? false : CONTROLLER,
         }),
       );
-      layers.push(backgroundLayer(`${s.uid}-bg`, c.extent), ...productLayers(`${s.uid}-image`, c, p, s.loading));
+      layers.push(backgroundLayer(`${s.uid}-bg`, c), ...productLayers(`${s.uid}-image`, c, p, s.loading));
       if (this.settings.labels) layers.push(...landmarkLayers(`${s.uid}-landmarks`, c, p.landmark_color));
     }
-    const viewState = Object.fromEntries(views.map((v) => [v.id, this.viewState]));
+    const deckViewState = toDeckViewState(this.viewState, c);
+    const viewState = Object.fromEntries(views.map((v) => [v.id, deckViewState]));
     this.deck.setProps({ views, viewState, layers });
     for (const s of this.slots) if (s.sel && s.chrome) s.chrome.update(this.viewState, w, h, this.settings.labels);
   }

@@ -1,20 +1,20 @@
-// Dynamic, tiled rendering of catalog products.
+// Tiled rendering of catalog products: one deck.gl layer per product layer.
 //
-// Each product is one deck.gl TileLayer. For every tile, each of the
-// product's layers reads its source for the tile's area at about the tile's
-// resolution -- a window of a local COG (at the matching overview), an ArcGIS
-// ImageServer exportImage request, or a mosaic of XYZ tiles -- colors the
-// values on the source's own pixel grid with the layer's render spec (band
-// combination, value range, colormap, hillshade; see scripts/common/web.py),
-// and resamples the colors onto the tile with nearest neighbor, so native
-// pixels stay sharp blocks. Layers are then composited bottom to top.
+// Layers on a local COG are deck.gl-raster COGLayers (cog.js). Layers on an
+// image service are deck.gl TileLayers over Web Mercator tiles:
+//
+//   - ArcGIS ImageServer: for every tile, an exportImage request for the
+//     tile's area at the tile's resolution, colored on the CPU with the
+//     layer's render spec (band combination, value range, colormap,
+//     hillshade; see scripts/common/web.py).
+//   - XYZ map tiles: the tiles themselves, scaled smoothly, optionally
+//     desaturated and lightened (as a basemap).
 //
 // Coordinates: sources and requests use absolute EPSG:3857 meters; deck.gl
-// world coordinates are EPSG:3857 relative to catalog.origin (see catalog.js).
+// layers use longitude / latitude (MapView).
 
-import * as GeoTIFF from "https://cdn.jsdelivr.net/npm/geotiff@2.1.3/+esm";
-
-const { TileLayer, BitmapLayer } = deck;
+import { BitmapLayer, GeoTIFF, SolidPolygonLayer, TileLayer } from "../vendor/deck-gl-raster.js";
+import { cogLayer } from "./cog.js";
 
 const R = 6378137;
 const CIRCUMFERENCE = 2 * Math.PI * R;
@@ -23,61 +23,15 @@ const CIRCUMFERENCE = 2 * Math.PI * R;
 const TILE_SIZE = 512;
 const ZOOM_OFFSET = window.devicePixelRatio > 1.5 ? 1 : 0;
 
+const mercX = (lon) => (R * lon * Math.PI) / 180;
+const mercY = (lat) => R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+
 // --------------------------------------------------------------------------
-// Sources: read(box, res, bands, {pad, signal}) -> window on the source grid
-//   box: [xmin, ymin, xmax, ymax] (EPSG:3857), res: wanted EPSG:3857 m / pixel
+// ArcGIS ImageServer: read(box, res) -> window on the requested grid
+//   box: [xmin, ymin, xmax, ymax] (EPSG:3857), res: EPSG:3857 m / pixel
 //   window: {data: {band: Float32Array (NaN = no data)} | rgba: Uint8ClampedArray,
 //            width, height, x0, y1, res}   (x0, y1: upper-left corner)
 // --------------------------------------------------------------------------
-
-class CogSource {
-  constructor(spec) {
-    this.spec = spec;
-    const nd = spec.nodata;
-    // Float COGs store no data as -9999 (LERC is lossy, so compare loosely).
-    this.isNodata = nd == null ? () => false : nd <= -9000 ? (v) => v < nd + 1 : (v) => v === nd;
-  }
-
-  open() {
-    this.levels ??= (async () => {
-      const tiff = await GeoTIFF.fromUrl(this.spec.url, { cacheSize: 2000 });
-      const n = await tiff.getImageCount();
-      const levels = [];
-      for (let i = 0; i < n; i++) {
-        const im = await tiff.getImage(i);
-        const w = im.getWidth();
-        levels.push({ im, w, h: im.getHeight(), res: (this.spec.res * this.spec.width) / w });
-      }
-      return levels.sort((a, b) => a.res - b.res);
-    })();
-    this.levels.catch(() => (this.levels = null));
-    return this.levels;
-  }
-
-  async read(box, res, bands, { pad = 1, signal } = {}) {
-    const levels = await this.open();
-    // Coarsest level still at least as fine as the tile.
-    let lv = levels[0];
-    for (const l of levels) if (l.res <= res * 1.0001) lv = l;
-    const [bx0, , , by1] = this.spec.bounds;
-    const r = lv.res;
-    const c0 = Math.max(0, Math.floor((box[0] - bx0) / r) - pad);
-    const c1 = Math.min(lv.w, Math.ceil((box[2] - bx0) / r) + pad);
-    const r0 = Math.max(0, Math.floor((by1 - box[3]) / r) - pad);
-    const r1 = Math.min(lv.h, Math.ceil((by1 - box[1]) / r) + pad);
-    if (c1 <= c0 || r1 <= r0) return null;
-    const samples = bands.map((b) => this.spec.bands.indexOf(b));
-    const rasters = await lv.im.readRasters({ window: [c0, r0, c1, r1], samples, interleave: false, signal });
-    const data = {};
-    bands.forEach((b, i) => {
-      const src = rasters[i];
-      const out = new Float32Array(src.length);
-      for (let k = 0; k < src.length; k++) out[k] = this.isNodata(src[k]) ? NaN : src[k];
-      data[b] = out;
-    });
-    return { data, width: c1 - c0, height: r1 - r0, x0: bx0 + c0 * r, y1: by1 - r0 * r, res: r };
-  }
-}
 
 class ArcgisSource {
   constructor(spec) {
@@ -85,7 +39,7 @@ class ArcgisSource {
   }
 
   /** Like _read, retried once: the services occasionally send a truncated image. */
-  async read(box, res, bands, opts = {}) {
+  async read(box, res, opts = {}) {
     try {
       return await this._read(box, res, opts);
     } catch (err) {
@@ -126,11 +80,7 @@ class ArcgisSource {
     if (!s.raw) return { ...win, rgba: await decodeImage(await resp.blob(), w, h) };
     let band;
     try {
-      const buf = await resp.arrayBuffer();
-      const im = await (await GeoTIFF.fromArrayBuffer(buf)).getImage();
-      band = im.fileDirectory.TileByteCounts?.includes(0)
-        ? readSparseTiles(im, buf)
-        : (await im.readRasters({ interleave: false, signal }))[0];
+      band = await readFloatTiff(await resp.arrayBuffer(), signal);
     } catch (err) {
       throw new Error(`${resp.url}: ${err.message}`);
     }
@@ -145,78 +95,31 @@ class ArcgisSource {
 }
 
 /**
- * Band 1 of an uncompressed float32 tiled TIFF with sparse tiles (byte count 0,
- * as ArcGIS writes for tiles without data), which geotiff.js cannot read.
+ * Band 1 of a tiled float32 TIFF (as exportImage writes), NaN where tiles are
+ * sparse (ArcGIS leaves out tiles without data).
  */
-function readSparseTiles(im, buf) {
-  const fd = im.fileDirectory;
-  if (fd.Compression !== 1 || fd.BitsPerSample[0] !== 32 || fd.SampleFormat?.[0] !== 3 || fd.SamplesPerPixel !== 1)
-    throw new Error("sparse tiles are only supported for uncompressed single-band float32");
-  const [W, H, tw, th] = [im.getWidth(), im.getHeight(), fd.TileWidth, fd.TileLength];
-  const nx = Math.ceil(W / tw);
-  const dv = new DataView(buf);
+async function readFloatTiff(buf, signal) {
+  const tiff = await GeoTIFF.fromArrayBuffer(buf);
+  const { width: W, height: H, tileWidth: tw, tileHeight: th } = tiff;
   const out = new Float32Array(W * H).fill(NaN);
-  fd.TileOffsets.forEach((off, i) => {
-    if (!fd.TileByteCounts[i]) return;
-    const x0 = (i % nx) * tw;
-    const y0 = Math.floor(i / nx) * th;
-    for (let r = 0; r < th && y0 + r < H; r++)
-      for (let c = 0; c < tw && x0 + c < W; c++) out[(y0 + r) * W + x0 + c] = dv.getFloat32(off + (r * tw + c) * 4, im.littleEndian);
-  });
+  const jobs = [];
+  for (let ty = 0; ty * th < H; ty++)
+    for (let tx = 0; tx * tw < W; tx++)
+      jobs.push(
+        tiff.fetchTile(tx, ty, { boundless: false, signal }).then(
+          ({ array }) => {
+            const data = array.layout === "band-separate" ? array.bands[0] : array.data;
+            const step = array.layout === "band-separate" ? 1 : array.count;
+            for (let r = 0; r < array.height; r++)
+              for (let c = 0; c < array.width; c++) out[(ty * th + r) * W + tx * tw + c] = data[(r * array.width + c) * step];
+          },
+          (err) => {
+            if (!/not found/.test(err.message)) throw err; // sparse tile: no data
+          },
+        ),
+      );
+  await Promise.all(jobs);
   return out;
-}
-
-class XyzSource {
-  constructor(spec) {
-    this.spec = spec;
-  }
-
-  async read(box, res, bands, { signal } = {}) {
-    const { url, tile_size: ts, max_zoom } = this.spec;
-    // Map tiles are designed to be shown at 256 CSS pixels (512-pixel tiles are
-    // the @2x versions): pick the zoom whose labels come out at about their
-    // design size. A tile is shown at 0.5-1x its resolution `res`, and
-    // res * 2^ZOOM_OFFSET is its size in CSS pixels at its own zoom.
-    const zCss = Math.log2(CIRCUMFERENCE / (256 * res * 2 ** ZOOM_OFFSET)) - 0.5;
-    const z = Math.max(0, Math.min(max_zoom, Math.round(zCss)));
-    const span = CIRCUMFERENCE / 2 ** z;
-    const O = CIRCUMFERENCE / 2;
-    const tx0 = Math.floor((box[0] + O) / span);
-    const tx1 = Math.floor((box[2] + O) / span - 1e-9);
-    const ty0 = Math.floor((O - box[3]) / span);
-    const ty1 = Math.floor((O - box[1]) / span - 1e-9);
-    const width = (tx1 - tx0 + 1) * ts;
-    const height = (ty1 - ty0 + 1) * ts;
-    const canvas = new OffscreenCanvas(width, height);
-    const ctx = canvas.getContext("2d");
-    const jobs = [];
-    for (let ty = ty0; ty <= ty1; ty++)
-      for (let tx = tx0; tx <= tx1; tx++) {
-        const src = url.replace("{z}", z).replace("{x}", tx).replace("{y}", ty);
-        jobs.push(loadTile(src, signal).then((img) => img && ctx.drawImage(img, (tx - tx0) * ts, (ty - ty0) * ts, ts, ts)));
-      }
-    await Promise.all(jobs);
-    const rgba = ctx.getImageData(0, 0, width, height).data;
-    return { rgba, width, height, x0: tx0 * span - O, y1: O - ty0 * span, res: span / ts };
-  }
-}
-
-const tileCache = new Map(); // url -> Promise<ImageBitmap | null>, oldest first
-
-function loadTile(url, signal) {
-  if (!tileCache.has(url)) {
-    const p = fetch(url, { signal })
-      .then((r) =>
-        r.status === 404 ? null : r.ok ? r.blob().then(createImageBitmap) : Promise.reject(new Error(`${url}: HTTP ${r.status}`)),
-      )
-      .catch((e) => {
-        tileCache.delete(url);
-        throw e;
-      });
-    tileCache.set(url, p);
-    if (tileCache.size > 600) tileCache.delete(tileCache.keys().next().value);
-  }
-  return tileCache.get(url);
 }
 
 async function decodeImage(blob, w, h) {
@@ -226,21 +129,16 @@ async function decodeImage(blob, w, h) {
   return ctx.getImageData(0, 0, w, h).data;
 }
 
-const sources = new Map();
+const arcgisSources = new Map();
 
-function getSource(catalog, id) {
-  if (!sources.has(id)) {
-    const spec = catalog.sources[id];
-    if (!spec) throw new Error(`unknown source ${id}`);
-    const Cls = { cog: CogSource, arcgis: ArcgisSource, xyz: XyzSource }[spec.type];
-    if (!Cls) throw new Error(`${id}: unsupported source type ${spec.type}`);
-    sources.set(id, new Cls(spec));
-  }
-  return sources.get(id);
+function arcgisSource(catalog, id) {
+  if (!arcgisSources.has(id)) arcgisSources.set(id, new ArcgisSource(catalog.sources[id]));
+  return arcgisSources.get(id);
 }
 
 // --------------------------------------------------------------------------
-// Render specs: window values -> RGBA on the source grid
+// Render specs: window values -> RGBA on the source grid (ArcGIS only; COG
+// layers do the same on the GPU, see cog.js)
 // --------------------------------------------------------------------------
 
 const exprCache = new Map();
@@ -252,23 +150,6 @@ function compileExpr(expr, bands) {
     exprCache.set(key, new Function(...bands, `const {log10, log, exp, sqrt, abs, min, max, pow} = Math; return (${expr});`));
   }
   return exprCache.get(key);
-}
-
-const identifiers = (expr) => expr.match(/[A-Za-z_]\w*/g) ?? [];
-
-/** Band names a render spec reads. */
-function renderBands(r, sourceBands) {
-  const names = new Set();
-  const add = (v) => {
-    if (v.band) names.add(v.band);
-    if (v.expr) identifiers(v.expr).forEach((n) => sourceBands.includes(n) && names.add(n));
-  };
-  if (r.type === "identity")
-    sourceBands.slice(0, 3).forEach((b) => names.add(b)); // RGB as stored
-  else if (r.type === "rgb") r.channels.forEach(add);
-  else if (r.type === "colormap" || r.type === "categorical") add(r);
-  if (r.shade) names.add(r.shade.band);
-  return [...names];
 }
 
 /** Values of a band or expression over the window. */
@@ -338,24 +219,10 @@ function normalizer(r) {
   return (v) => pow((v - lo) / span);
 }
 
-/** RGBA from the first three bands of a window (0-255 values, e.g. a JPEG COG). */
-function bandsToRgba(win) {
-  const [r, g, b] = Object.values(win.data);
-  const out = new Uint8ClampedArray(r.length * 4);
-  for (let k = 0; k < r.length; k++) {
-    if (Number.isNaN(r[k]) || Number.isNaN(g[k]) || Number.isNaN(b[k])) continue;
-    out[k * 4] = r[k];
-    out[k * 4 + 1] = g[k];
-    out[k * 4 + 2] = b[k];
-    out[k * 4 + 3] = 255;
-  }
-  return out;
-}
-
 function colorize(r, win) {
   const n = win.width * win.height;
   if (r.type === "identity") {
-    const rgba = win.rgba ? new Uint8ClampedArray(win.rgba) : bandsToRgba(win);
+    const rgba = new Uint8ClampedArray(win.rgba);
     const { desaturate: ds = 0, lighten: lt = 0 } = r;
     if (ds || lt)
       for (let k = 0; k < n * 4; k += 4) {
@@ -425,156 +292,122 @@ function colorize(r, win) {
 }
 
 // --------------------------------------------------------------------------
-// Tiles
+// Layers
 // --------------------------------------------------------------------------
 
-/** Nearest-neighbor resampling of window colors onto a w x h grid over box. */
-function resample(rgba, win, box, w, h) {
-  const res = (box[2] - box[0]) / w;
-  const cols = new Int32Array(w);
-  for (let j = 0; j < w; j++) cols[j] = Math.floor((box[0] + (j + 0.5) * res - win.x0) / win.res);
+/** Pixels [m, m + w) x [m, m + h) of a W-wide RGBA image. */
+function crop(rgba, W, m, w, h) {
+  if (!m) return rgba;
   const out = new Uint8ClampedArray(w * h * 4);
-  const src = new Uint32Array(rgba.buffer, rgba.byteOffset, rgba.length / 4);
-  const dst = new Uint32Array(out.buffer);
-  for (let i = 0; i < h; i++) {
-    const si = Math.floor((win.y1 - (box[3] - (i + 0.5) * res)) / win.res);
-    if (si < 0 || si >= win.height) continue;
-    const row = si * win.width;
-    for (let j = 0; j < w; j++) {
-      const sj = cols[j];
-      if (sj >= 0 && sj < win.width) dst[i * w + j] = src[row + sj];
-    }
-  }
+  for (let i = 0; i < h; i++) out.set(rgba.subarray(((i + m) * W + m) * 4, ((i + m) * W + m + w) * 4), i * w * 4);
   return out;
 }
 
-/** Like resample, but with smooth (bilinear / mipmapped) scaling, for map tiles with text. */
-function resampleSmooth(rgba, win, box, w, h) {
-  const src = new OffscreenCanvas(win.width, win.height);
-  src.getContext("2d").putImageData(new ImageData(rgba, win.width, win.height), 0, 0);
-  const ctx = new OffscreenCanvas(w, h).getContext("2d");
-  ctx.imageSmoothingQuality = "high";
-  const sx = (box[0] - win.x0) / win.res;
-  const sy = (win.y1 - box[3]) / win.res;
-  ctx.drawImage(src, sx, sy, (box[2] - box[0]) / win.res, (box[3] - box[1]) / win.res, 0, 0, w, h);
-  return ctx.getImageData(0, 0, w, h).data;
-}
-
-/** Grow opaque pixels into transparent ones within r pixels (square neighborhood). */
-function dilate(rgba, w, h, r) {
-  const pass = (src, horizontal) => {
-    const s = new Uint32Array(src.buffer);
-    const out = new Uint32Array(s);
-    for (let i = 0; i < h; i++)
-      for (let j = 0; j < w; j++) {
-        const k = i * w + j;
-        if (s[k] >>> 24) continue;
-        for (let d = 1; d <= r; d++) {
-          const a = horizontal ? (j - d >= 0 ? k - d : -1) : i - d >= 0 ? k - d * w : -1;
-          const b = horizontal ? (j + d < w ? k + d : -1) : i + d < h ? k + d * w : -1;
-          if (a >= 0 && s[a] >>> 24) { out[k] = s[a]; break; } // prettier-ignore
-          if (b >= 0 && s[b] >>> 24) { out[k] = s[b]; break; } // prettier-ignore
-        }
-      }
-    return new Uint8ClampedArray(out.buffer);
-  };
-  return pass(pass(rgba, true), false);
-}
-
-function crop(rgba, w, m, cw, ch) {
-  const out = new Uint8ClampedArray(cw * ch * 4);
-  for (let i = 0; i < ch; i++) out.set(rgba.subarray(((i + m) * w + m) * 4, ((i + m) * w + m + cw) * 4), i * cw * 4);
-  return out;
-}
-
-/** Alpha-composite `top` over `out` (straight alpha). */
-function over(out, top) {
-  for (let k = 0; k < out.length; k += 4) {
-    const a = top[k + 3] / 255;
-    if (!a) continue;
-    if (a === 1 || !out[k + 3]) {
-      out.set(top.subarray(k, k + 4), k);
-      continue;
-    }
-    const b = (out[k + 3] / 255) * (1 - a);
-    const ao = a + b;
-    for (let c = 0; c < 3; c++) out[k + c] = (top[k + c] * a + out[k + c] * b) / ao;
-    out[k + 3] = ao * 255;
-  }
-}
-
-/** RGBA image (ImageData, or null if empty) of a product over box (EPSG:3857), w x h pixels. */
-export async function renderTile(catalog, product, box, w, h, signal) {
-  const res = (box[2] - box[0]) / w;
-  let out = null;
-  for (const layer of product.layers) {
-    const src = getSource(catalog, layer.source);
-    const r = layer.render;
-    const m = layer.dilate_px || 0;
-    const W = w + 2 * m;
-    const H = h + 2 * m;
-    const b = [box[0] - m * res, box[1] - m * res, box[2] + m * res, box[3] + m * res];
-    const needsNeighbors = r.hillshade || (r.shade && !r.shade.precomputed);
-    const win = await src.read(b, res, renderBands(r, src.spec.bands), { pad: needsNeighbors ? 1 : 0, signal });
-    if (!win) continue;
-    let rgba = (src.spec.smooth ? resampleSmooth : resample)(colorize(r, win), win, b, W, H);
-    if (m) rgba = crop(dilate(rgba, W, H, m), W, m, w, h);
-    if (out) over(out, rgba);
-    else out = rgba;
-  }
-  if (!out) return null;
+/** RGBA image (ImageData, or null if empty) of an ArcGIS layer over box (EPSG:3857), w x h pixels. */
+export async function renderArcgisTile(catalog, layer, box, w, h, signal) {
+  const src = arcgisSource(catalog, layer.source);
+  const r = layer.render;
+  const pad = r.hillshade || (r.shade && !r.shade.precomputed) ? 1 : 0;
+  const win = await src.read(box, (box[2] - box[0]) / w, { pad, signal });
+  const out = crop(colorize(r, win), win.width, pad, w, h);
   for (let k = 3; k < out.length; k += 4) if (out[k]) return new ImageData(out, w, h);
   return null;
 }
 
-/** Deepest tile zoom worth requesting: tile pixels as fine as the finest source pixels. */
-function maxTileZoom(catalog, product) {
-  const res = Math.min(...product.layers.map((l) => catalog.sources[l.source].res));
-  return Math.ceil(Math.log2(1 / res) - 1e-6);
-}
+/** Deepest tile zoom worth requesting: tile pixels as fine as the source pixels. */
+const maxTileZoom = (res) => Math.ceil(Math.log2(CIRCUMFERENCE / (TILE_SIZE * res)) - 1e-6);
 
-/**
- * The deck.gl layer for a product. `loading` ({start(), end(error)}) is told
- * about each tile request; `props` (e.g. clip / mask extensions, opacity) go
- * to the tiles' bitmap layers.
- */
-export function productLayer(id, catalog, product, { loading, props = {} } = {}) {
-  const [ox, oy] = catalog.origin;
-  // Street maps are magnified smoothly; data keep sharp pixels.
-  const filter = product.layers.every((l) => catalog.sources[l.source].smooth) ? "linear" : "nearest";
+const tileBounds = ({ west, south, east, north }) => [west, south, east, north];
+
+function arcgisLayer(id, catalog, layer, { loading, props }) {
+  const spec = catalog.sources[layer.source];
   return new TileLayer({
     id,
-    data: product.id, // a new product means new tiles
     tileSize: TILE_SIZE,
     zoomOffset: ZOOM_OFFSET,
-    minZoom: -20,
-    maxZoom: maxTileZoom(catalog, product),
-    extent: catalog.extent,
+    maxZoom: maxTileZoom(spec.res),
+    extent: catalog.lngLatExtent,
     refinementStrategy: "no-overlap",
     maxRequests: 8,
     getTileData: async ({ bbox, signal }) => {
-      const box = [bbox.left + ox, Math.min(bbox.top, bbox.bottom) + oy, bbox.right + ox, Math.max(bbox.top, bbox.bottom) + oy];
+      const box = [mercX(bbox.west), mercY(bbox.south), mercX(bbox.east), mercY(bbox.north)];
       loading?.start();
       try {
-        const img = await renderTile(catalog, product, box, TILE_SIZE, TILE_SIZE, signal);
+        const img = await renderArcgisTile(catalog, layer, box, TILE_SIZE, TILE_SIZE, signal);
         loading?.end();
         return img;
       } catch (err) {
         loading?.end(signal?.aborted ? null : err);
-        if (!signal?.aborted) console.warn(`${product.id}: tile failed`, err);
+        if (!signal?.aborted) console.warn(`${spec.url}: tile failed`, err);
         return null;
       }
     },
-    renderSubLayers: (p) => {
-      if (!p.data) return null;
-      const { left, right, top, bottom } = p.tile.bbox;
-      return new BitmapLayer(p, {
+    renderSubLayers: (p) =>
+      p.data &&
+      new BitmapLayer(p, {
         data: null,
         image: p.data,
-        bounds: [left, Math.min(top, bottom), right, Math.max(top, bottom)],
-        textureParameters: { minFilter: filter, magFilter: filter },
-      });
-    },
+        bounds: tileBounds(p.tile.bbox),
+        textureParameters: { minFilter: "nearest", magFilter: "nearest" },
+      }),
     ...props,
+  });
+}
+
+/** Map tiles, drawn at about their design size (labels too), scaled smoothly. */
+function xyzLayers(id, catalog, layer, { props }) {
+  const spec = catalog.sources[layer.source];
+  const { desaturate = 0, lighten = 0 } = layer.render;
+  const layers = [
+    new TileLayer({
+      id,
+      data: spec.url,
+      tileSize: spec.tile_size,
+      maxZoom: spec.max_zoom,
+      extent: catalog.lngLatExtent,
+      maxRequests: 8,
+      renderSubLayers: (p) =>
+        p.data &&
+        new BitmapLayer(p, {
+          data: null,
+          image: p.data,
+          bounds: tileBounds(p.tile.bbox),
+          desaturate,
+        }),
+      ...props,
+    }),
+  ];
+  // Lightening (255 - (1 - l) * (255 - v)) is a white veil of opacity l.
+  if (lighten) {
+    const [w, s, e, n] = catalog.lngLatExtent;
+    layers.push(
+      new SolidPolygonLayer({
+        id: `${id}-lighten`,
+        data: [{ polygon: [[w, s], [e, s], [e, n], [w, n]] }], // prettier-ignore
+        getPolygon: (d) => d.polygon,
+        getFillColor: [255, 255, 255, Math.round(255 * lighten)],
+        ...props,
+        opacity: lighten * (props.opacity ?? 1),
+      }),
+    );
+  }
+  return layers;
+}
+
+/**
+ * The deck.gl layers of a product, bottom to top (COG layers whose file is
+ * still opening are left out until it is open; see onCogOpened).
+ * `loading` ({start(), end(error)}) is told about each tile request.
+ * `props(kind)` gives extra props (clip / mask extensions, opacity) for a
+ * layer drawn in "lnglat" or deck.gl "common" (COG) coordinates.
+ */
+export function productLayers(id, catalog, product, { loading, props = () => ({}) } = {}) {
+  return product.layers.flatMap((layer, i) => {
+    const lid = `${id}-${product.id}-${i}`;
+    const spec = catalog.sources[layer.source];
+    if (spec.type === "cog") return cogLayer(lid, spec, layer, { loading, props: props("common") }) ?? [];
+    if (spec.type === "arcgis") return arcgisLayer(lid, catalog, layer, { loading, props: props("lnglat") });
+    if (spec.type === "xyz") return xyzLayers(lid, catalog, layer, { props: props("lnglat") });
+    throw new Error(`${layer.source}: unsupported source type ${spec.type}`);
   });
 }

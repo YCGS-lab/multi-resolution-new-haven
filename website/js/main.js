@@ -1,4 +1,5 @@
 import { loadCatalog } from "./catalog.js";
+import { onCogOpened } from "./cog.js";
 import { Grid } from "./grid.js";
 import { isOpen } from "./picker.js";
 import { Viewer } from "./viewer.js";
@@ -30,6 +31,11 @@ async function main() {
   const viewer = new Viewer(document.getElementById("viewer"), catalog, settings);
   const grid = new Grid(document.getElementById("grid"), catalog, settings);
   window.app = { catalog, viewer, grid }; // for debugging from the console
+  // COG layers join the maps once their headers are read.
+  onCogOpened(() => {
+    viewer.update();
+    grid.update();
+  });
 
   // ----- restore state from the URL -----------------------------------
   const params = new URLSearchParams(location.hash.slice(1));

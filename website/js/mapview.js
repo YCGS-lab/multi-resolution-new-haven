@@ -1,15 +1,38 @@
 // Pieces shared by the viewer and the grid: deck.gl layers for a product and
 // the landmarks, pan/zoom limits, loading state, and the HTML around a map
 // (axes, scale bar, title block, colorbar / legend).
+//
+// View states here are in world coordinates (see catalog.js): {target: [x, y],
+// zoom}, with 2^zoom screen pixels per world (EPSG:3857) meter. deck.gl's
+// MapView, which deck.gl-raster needs, takes {longitude, latitude, zoom} with
+// 512 * 2^zoom pixels around the world; toDeckViewState / fromDeckViewState
+// convert.
 
-import { productLayer } from "./tiles.js";
-
-const { ScatterplotLayer, TextLayer, SolidPolygonLayer } = deck;
+import { ClipExtension, MaskExtension, ScatterplotLayer, SolidPolygonLayer, TextLayer } from "../vendor/deck-gl-raster.js";
+import { productLayers as tileLayers } from "./tiles.js";
 
 // Deepest zoom: 2^6 = 64 screen pixels per Web Mercator meter, i.e. ~5 px per
 // 7.6 cm pixel of the CT orthoimagery.
 export const MAX_ZOOM = 6;
 const NODATA_FILL = [208, 208, 208]; // same gray as NODATA_FACE in render.py
+
+// MapView zoom = world zoom + DECK_ZOOM_OFFSET.
+const DECK_ZOOM_OFFSET = Math.log2((2 * Math.PI * 6378137) / 512);
+
+/** Pan and zoom with the mouse / touch / keyboard, without rotating or tilting. */
+export const CONTROLLER = { inertia: 250, dragRotate: false, touchRotate: false, keyboard: { rotateSpeedX: 0, rotateSpeedY: 0 } };
+
+/** MapView view state of a world view state. */
+export function toDeckViewState(vs, catalog) {
+  const [longitude, latitude] = catalog.worldToLngLat(vs.target[0], vs.target[1]);
+  const off = (z) => (z == null ? z : z + DECK_ZOOM_OFFSET);
+  return { longitude, latitude, zoom: off(vs.zoom), minZoom: off(vs.minZoom), maxZoom: off(vs.maxZoom), pitch: 0, bearing: 0 };
+}
+
+/** World view state of a MapView view state. */
+export function fromDeckViewState(dvs, catalog) {
+  return { target: [...catalog.lonLatToWorld(dvs.longitude, dvs.latitude), 0], zoom: dvs.zoom - DECK_ZOOM_OFFSET };
+}
 
 /** Zoom at which the whole extent just fits in a w x h px map. */
 export function fitZoom(extent, w, h) {
@@ -54,14 +77,34 @@ const rect = (b) => [
   [b[0], b[3]],
 ];
 
-/** Gray "no data" background over the whole extent. */
-export function backgroundLayer(id, extent) {
-  return new SolidPolygonLayer({ id, data: [{ polygon: rect(extent) }], getPolygon: (d) => d.polygon, getFillColor: NODATA_FILL });
+/** Gray "no data" background over the whole extent; `props` as from overlayProps. */
+export function backgroundLayer(id, catalog, props = {}) {
+  const polygon = rect(catalog.lngLatExtent);
+  return new SolidPolygonLayer({ id, data: [{ polygon }], getPolygon: (d) => d.polygon, getFillColor: NODATA_FILL, ...props });
 }
 
-/** The product's tiled layer (see tiles.js); `props` go to its tiles, e.g. clipping. */
-export function productLayers(id, catalog, product, loading, props = {}) {
-  return [productLayer(id, catalog, product, { loading, props })];
+const clipExtension = new ClipExtension();
+const maskExtension = new MaskExtension();
+
+/**
+ * Props that show a layer only partly, for comparisons: `opacity`, only right
+ * of world x `clipX` (swipe), or only inside the mask layer `maskId` (spy).
+ * `kind`: the layer's coordinates, "lnglat" or deck.gl "common" (COG layers).
+ */
+export function overlayProps(catalog, { opacity, clipX, maskId } = {}, kind = "lnglat") {
+  if (opacity != null) return { opacity };
+  if (clipX != null) {
+    const clipBounds =
+      kind === "common" ? [catalog.worldToCommon(clipX, 0), 0, 512, 512] : [catalog.worldToLon(clipX), -90, 180, 90];
+    return { extensions: [clipExtension], clipBounds, clipByInstance: false };
+  }
+  if (maskId) return { extensions: [maskExtension], maskId };
+  return {};
+}
+
+/** The product's layers (see tiles.js); `overlay` as for overlayProps. */
+export function productLayers(id, catalog, product, loading, overlay) {
+  return tileLayers(id, catalog, product, { loading, props: (kind) => overlayProps(catalog, overlay, kind) });
 }
 
 /**
