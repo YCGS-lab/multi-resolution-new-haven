@@ -28,6 +28,7 @@ def main():
     paths = sorted(config.data_dir(DATASET).glob(FILE_GLOB))
     if not paths:
         sys.exit(f"no {FILE_GLOB} in data/{DATASET}/ - run download.py first")
+    # region swath-to-web-grid
     lst, qa, lat, lon, vza, row, attrs = read_subset(paths[-1])
     d_scan, d_track = pixel_spacing_m(lat, lon)
     radius = 0.6 * np.hypot(d_scan, d_track)
@@ -37,6 +38,7 @@ def main():
     data = kd_tree.resample_nearest(swath, lst, area, radius_of_influence=radius, fill_value=np.nan, epsilon=0)
     print(f"LST over the extent {np.nanmin(data):.1f} to {np.nanmax(data):.1f} degC ({np.isfinite(data).mean():.0%} valid)")
     sources = {"lst": web.write_cog(DATASET, data.astype("float32"), grid, ["lst"], max_z_error=0.01)}
+    # endregion swath-to-web-grid
     t = overpass_time(attrs, row).replace(second=0, microsecond=0)
     t_local = t.astimezone(ZoneInfo("America/New_York"))
     when = f"{t:%Y-%m-%d %H:%M} UTC ({t_local:%H:%M} {t_local.tzname()})"

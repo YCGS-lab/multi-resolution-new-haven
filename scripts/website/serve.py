@@ -33,6 +33,7 @@ class RangeHandler(SimpleHTTPRequestHandler):
         ".wasm": "application/wasm",
     }
 
+    # region range-requests
     def send_head(self):
         self._range = None
         m = RANGE.match(self.headers.get("Range", "").strip())
@@ -60,6 +61,7 @@ class RangeHandler(SimpleHTTPRequestHandler):
         self.send_header("Accept-Ranges", "bytes")
         self.end_headers()
         return f
+    # endregion range-requests
 
     def copyfile(self, source, outputfile):
         if self._range is None:

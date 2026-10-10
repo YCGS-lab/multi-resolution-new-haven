@@ -19,6 +19,7 @@ EDT = dt.timezone(dt.timedelta(hours=-4), "EDT")
 NEW_HAVEN = Observer(latitude=41.3083, longitude=-72.9279)  # New Haven Green
 
 
+# region sun-event-times
 def _round_hour(t: dt.datetime) -> dt.datetime:
     return (t + dt.timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
 
@@ -38,6 +39,7 @@ def sun_events(date: dt.date = DATE) -> dict[str, dt.datetime]:
 def product_times(date: dt.date = DATE) -> dict[str, tuple[dt.datetime, dt.datetime]]:
     """{product: (event time, nearest whole hour)} in EDT, product = t2m_<event>."""
     return {f"t2m_{k}": (t, _round_hour(t)) for k, t in sun_events(date).items()}
+# endregion sun-event-times
 
 
 if __name__ == "__main__":

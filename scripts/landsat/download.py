@@ -31,6 +31,7 @@ def pan_path(sc: dict) -> Path:
 
 def main():
     sc = scene_mod.load()
+    # region requester-pays-window
     creds = config.credentials()
     aws = AWSSession(
         aws_access_key_id=creds["aws_access_key_id"],
@@ -56,6 +57,7 @@ def main():
                 "blockysize": 256,
             }
             profile.pop("photometric", None)
+    # endregion requester-pays-window
     print(f"read {win.width}x{win.height} px window of {sc['l1_pan_s3'].rsplit('/', 1)[-1]}")
     with rasterio.open(out, "w", **profile) as dst:
         dst.write(pan, 1)

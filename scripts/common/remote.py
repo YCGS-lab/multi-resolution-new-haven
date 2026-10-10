@@ -27,6 +27,7 @@ EARTH_CIRCUMFERENCE = 2 * math.pi * 6378137.0
 ORIGIN = EARTH_CIRCUMFERENCE / 2
 
 
+# region session
 def session(headers: dict | None = None, auth=None) -> requests.Session:
     s = requests.Session()
     retry = Retry(total=5, backoff_factor=1.0, status_forcelist=(429, 500, 502, 503, 504))
@@ -37,6 +38,7 @@ def session(headers: dict | None = None, auth=None) -> requests.Session:
         s.headers.update(headers)
     s.auth = auth
     return s
+# endregion session
 
 
 def _chunks(view: View, max_size: int):
@@ -83,6 +85,7 @@ def auto_zoom(view: View, max_zoom: int = 19, tile_size: int = 256) -> int:
     return max(0, min(max_zoom, z))
 
 
+# region fetch-xyz
 def fetch_xyz(
     url_template: str,
     view: View,
@@ -140,6 +143,7 @@ def fetch_xyz(
         resampling=Resampling[resampling],
     )
     return np.moveaxis(out, 0, -1)
+# endregion fetch-xyz
 
 
 OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -156,6 +160,7 @@ def fetch_osm(view: View, zoom: int | None = None) -> np.ndarray:
 # --------------------------------------------------------------------------
 
 
+# region fetch-chunks
 def _fetch_chunks(view: View, max_size: int, workers: int, fetch) -> np.ndarray:
     """Run fetch(h, w, bounds) -> (bands, h, w) over view chunks; assemble."""
     chunks = list(_chunks(view, max_size))
@@ -170,8 +175,10 @@ def _fetch_chunks(view: View, max_size: int, workers: int, fetch) -> np.ndarray:
         out[:, r0 : r0 + h, c0 : c0 + w] = arr
     print(f"  fetched {len(chunks)} chunks")
     return out
+# endregion fetch-chunks
 
 
+# region arcgis-export-image
 def arcgis_export_image(
     service_url: str,
     view: View,
@@ -224,6 +231,7 @@ def arcgis_export_image(
         return _read_image_bytes(r.content)
 
     return _fetch_chunks(view, max_size, workers, fetch)
+# endregion arcgis-export-image
 
 
 # --------------------------------------------------------------------------

@@ -47,6 +47,7 @@ PRODUCTS = {
 }
 
 
+# region oversample-block-average
 def fetch_bands(view) -> np.ndarray:
     """Raw (4, h, w) band values on the view grid, block-averaged from 2x oversampling."""
     fine = dataclasses.replace(view, width_px=view.width_px * OVERSAMPLE, height_px=view.height_px * OVERSAMPLE)
@@ -55,6 +56,7 @@ def fetch_bands(view) -> np.ndarray:
     ).astype("float32")
     b, h, w = a.shape
     return a.reshape(b, h // OVERSAMPLE, OVERSAMPLE, w // OVERSAMPLE, OVERSAMPLE).mean(axis=(2, 4))
+# endregion oversample-block-average
 
 
 def acquisition_dates(view) -> list[str]:

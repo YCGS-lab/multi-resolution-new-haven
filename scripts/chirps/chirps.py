@@ -26,6 +26,7 @@ GDAL_ENV = dict(
 )
 
 
+# region chirps-urls-and-window
 def url(date: dt.date, stream: str = "final") -> str:
     """URL of the daily CHIRPS v3 (IMERG-disaggregated) file for `date`."""
     if stream == "final":
@@ -54,3 +55,4 @@ def read_window(src_url: str, bounds_lonlat) -> tuple[np.ndarray, Affine, dict]:
     arr[arr <= NODATA] = np.nan
     transform = Affine(RES, 0, -180 + col0 * RES, 0, -RES, 60 - row0 * RES)
     return arr, transform, tags
+# endregion chirps-urls-and-window

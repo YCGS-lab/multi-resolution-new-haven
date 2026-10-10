@@ -22,6 +22,7 @@ from common import config, remote
 DATASET = "nisar-gcov"
 GRANULE_JSON = config.DATA / DATASET / "granule.json"
 
+# region titiler-cmr-params
 TITILER_CMR = "https://openveda.cloud/api/titiler-cmr"  # production; same app/version as staging
 COLLECTION_CONCEPT_ID = "C2854338529-ASF"  # NISAR Provisional L2 GCOV
 SHORT_NAME = "NISAR_L2_GCOV_PROVISIONAL_V1"
@@ -31,6 +32,7 @@ VARIABLES = ["HHHH", "HVHV"]
 # titiler-cmr runs on AWS Lambda, whose responses are capped at 6 MB:
 # 640 x 640 px x 2 float32 bands = 3.3 MB per request.
 MAX_CHUNK_PX = 640
+# endregion titiler-cmr-params
 
 
 def load() -> dict:
@@ -39,6 +41,7 @@ def load() -> dict:
     return json.loads(GRANULE_JSON.read_text())
 
 
+# region native-grid-snapping
 def snap_bounds(bounds, posting: float, origin=(0.0, 0.0)):
     """Expand (xmin, ymin, xmax, ymax) outward onto the native pixel-edge grid."""
     x0, y0 = origin
@@ -47,8 +50,10 @@ def snap_bounds(bounds, posting: float, origin=(0.0, 0.0)):
     xmax = x0 + math.ceil((bounds[2] - x0) / posting) * posting
     ymax = y0 + math.ceil((bounds[3] - y0) / posting) * posting
     return xmin, ymin, xmax, ymax
+# endregion native-grid-snapping
 
 
+# region fetch-covariance
 def fetch_covariance(granule_ur: str, bounds, crs: str, pixel_m: float, workers: int = 4, sess=None) -> np.ndarray:
     """Raw HHHH and HVHV (linear power) for `bounds` in `crs`, at `pixel_m` pixels.
 
@@ -96,3 +101,4 @@ def fetch_covariance(granule_ur: str, bounds, crs: str, pixel_m: float, workers:
             out[:, r0 : r0 + h, c0 : c0 + w] = arr
     print(f"  fetched {width}x{height} px at {pixel_m:g} m in {len(chunks)} chunks")
     return np.where(out > 0, out, np.nan)  # log10 needs positive power; 0 / NaN = no data
+# endregion fetch-covariance

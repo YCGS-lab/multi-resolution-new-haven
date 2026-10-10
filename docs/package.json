@@ -1,0 +1,17 @@
+{
+  "name": "newhaven-docs",
+  "private": true,
+  "description": "Developer documentation for the New Haven multi-resolution project (VitePress)",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "node scripts/check-snippets.mjs && vitepress build",
+    "preview": "vitepress preview",
+    "check": "node scripts/check-snippets.mjs"
+  },
+  "devDependencies": {
+    "mermaid": "11.17.2",
+    "vitepress": "1.6.4",
+    "vitepress-plugin-mermaid": "2.0.17"
+  }
+}

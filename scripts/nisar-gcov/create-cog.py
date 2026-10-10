@@ -33,6 +33,7 @@ vr = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(vr)
 
 DATASET = gr.DATASET
+# region db-cog
 EXPR = {"hh": "hh", "hv": "hv", "ratio": "hh - hv"}  # channel -> expression of the dB bands
 
 
@@ -50,6 +51,7 @@ def main():
     db[~np.isfinite(db)] = np.nan
     print(f"valid fraction {np.isfinite(db).all(axis=0).mean():.3f}")
     sources = {"gcov": web.write_cog(DATASET, db, grid, ["hh", "hv"], max_z_error=0.01)}
+# endregion db-cog
 
     t = g["time_at_view_center_utc"]
     when = f"{t[:10]} {t[11:16]} UTC, {g['pass'].lower()} pass (track {g['track']}, frame {g['frame']}), {g['look_direction'].lower()}-looking, incidence {g['incidence_angle_deg']:.0f}°"  # fmt: skip

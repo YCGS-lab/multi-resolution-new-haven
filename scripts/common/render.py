@@ -54,6 +54,7 @@ def native_pixel_size_m(src_transform, src_crs, view: View) -> float:
     return math.sqrt(abs(x1 - x0) * abs(y1 - y0)) / view.merc_scale
 
 
+# region reproject-to-view
 def reproject_to_view(
     src: np.ndarray,
     src_transform,
@@ -92,6 +93,7 @@ def reproject_to_view(
         resampling=Resampling[resampling],
     )
     return dst[0] if squeeze else dst
+# endregion reproject-to-view
 
 
 # --------------------------------------------------------------------------
@@ -133,6 +135,7 @@ def colorize(data: np.ndarray, cmap, vmin=None, vmax=None, norm=None) -> np.ndar
     return out
 
 
+# region hillshade-and-blend
 def hillshade(dem: np.ndarray, dx: float, dy: float | None = None, azimuth=315.0, altitude=45.0, z_factor=1.0):
     """Hillshade (0-1) of a DEM with pixel spacing dx, dy in the DEM's z units."""
     dy = dx if dy is None else dy
@@ -150,6 +153,7 @@ def blend_hillshade(rgba: np.ndarray, hs: np.ndarray, strength: float = 0.6) -> 
     out = rgba.copy()
     out[..., :3] = np.clip(rgba[..., :3] * shade[..., None], 0, 255).astype("uint8")
     return out
+# endregion hillshade-and-blend
 
 
 # --------------------------------------------------------------------------
@@ -328,6 +332,7 @@ def save_figure(fig, path: Path) -> Path:
     return path
 
 
+# region save-figures
 def save_figures(img: np.ndarray, view: View, dataset: str, product: str, **label_kwargs) -> tuple[Path, Path]:
     """Write figures/<dataset>/<view>_<product>.png (data only) and ..._labeled.png.
 
@@ -341,3 +346,4 @@ def save_figures(img: np.ndarray, view: View, dataset: str, product: str, **labe
     save_figure(fig, labeled)
     print(f"  wrote {plain.relative_to(config.REPO)} and {labeled.name}")
     return plain, labeled
+# endregion save-figures

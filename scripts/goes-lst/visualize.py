@@ -53,6 +53,7 @@ LST_RANGE = styles.LST_RANGE
 SOURCE = "NOAA GOES-19 ABI L2 Land Surface Temperature (ABI-L2-LSTC), NOAA Open Data on AWS"
 
 
+# region abi-fixed-grid
 def geos_crs(d: netCDF4.Dataset) -> ProjCRS:
     p = d["goes_imager_projection"]
     return ProjCRS.from_proj4(
@@ -81,8 +82,10 @@ def grid_transform(d: netCDF4.Dataset):
     print(f"  pixel {dx:.1f} x {-dy:.1f} m (projection); edges vs x/y_image_bounds: max diff {err:.1f} m")
     assert err < 0.05 * abs(dx), "half-pixel convention mismatch"
     return transform, x, y
+# endregion abi-fixed-grid
 
 
+# region footprint-and-view-zenith
 def ground_footprint_m(crs, transform, lon, lat) -> tuple[float, float, float]:
     """Ground size (E-W, N-S) of one pixel at lon/lat, and the satellite view zenith angle."""
     to_geos = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
@@ -100,6 +103,7 @@ def ground_footprint_m(crs, transform, lon, lat) -> tuple[float, float, float]:
     gamma = math.acos(math.cos(math.radians(lat)) * math.cos(math.radians(lon - float(proj["lon_0"]))))
     vza = math.degrees(math.atan2(r_s * math.sin(gamma), r_s * math.cos(gamma) - r_e))
     return ew, ns, vza
+# endregion footprint-and-view-zenith
 
 
 MASK_COLORS = {2: (110, 110, 110), 3: (175, 175, 175), 4: (188, 215, 234)}  # low quality, cloud, water/other

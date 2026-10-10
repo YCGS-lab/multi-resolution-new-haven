@@ -16,6 +16,7 @@
 
 import { COGLayer, DecoderPool, GeoTIFF, PerOriginSemaphore, parseWkt } from "../vendor/deck-gl-raster.js";
 
+// #region epsg-resolver
 // Every COG is EPSG:3857; resolve it locally (the default resolver asks epsg.io).
 const WKT_3857 =
   'PROJCS["WGS 84 / Pseudo-Mercator",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],' +
@@ -28,7 +29,9 @@ async function epsgResolver(code) {
   if (code !== 3857) throw new Error(`EPSG:${code}: only EPSG:3857 COGs are supported`);
   return proj3857;
 }
+// #endregion epsg-resolver
 
+// #region pool-and-limiter
 // Tiles are decoded (LERC, JPEG, DEFLATE) in workers.
 const pool = new DecoderPool({
   createWorker: () => new Worker(new URL("../vendor/geotiff-worker.js", import.meta.url), { type: "module" }),
@@ -38,6 +41,7 @@ const pool = new DecoderPool({
 // tiles are many small requests, so allow more.
 const protocol = performance.getEntriesByType("navigation")[0]?.nextHopProtocol ?? "";
 const limiter = new PerOriginSemaphore({ maxRequests: /^h[23]/.test(protocol) ? 24 : 6 });
+// #endregion pool-and-limiter
 
 // No-data pixels are uploaded as this value (the shaders treat anything below -1e38 as no data).
 const NODATA_GPU = -3e38;
@@ -46,6 +50,7 @@ const NODATA_GPU = -3e38;
 // Opening COGs: one GeoTIFF (header) per URL, shared by every layer using it
 // --------------------------------------------------------------------------
 
+// #region open-cogs
 const opened = new Map(); // url -> {tiff: GeoTIFF | null, promise}
 const openListeners = new Set();
 
@@ -70,11 +75,13 @@ function geotiff(spec) {
   }
   return opened.get(url).tiff;
 }
+// #endregion open-cogs
 
 // --------------------------------------------------------------------------
 // Tile data: the bands a render spec reads, as one texture
 // --------------------------------------------------------------------------
 
+// #region band-arrays
 /** One typed array per band, from any layout the decoder returns. */
 function bandArrays(array, n) {
   if (array.layout === "pixel-interleaved") {
@@ -93,7 +100,9 @@ function bandArrays(array, n) {
   }
   return array.bands;
 }
+// #endregion band-arrays
 
+// #region clip
 /** Copy the top-left w x h pixels of a W-wide band (edge tiles are partly outside the image). */
 function clip(band, W, w, h) {
   if (w === W && band.length === w * h) return band;
@@ -101,6 +110,7 @@ function clip(band, W, w, h) {
   for (let i = 0; i < h; i++) out.set(band.subarray(i * W, i * W + w), i * w);
   return out;
 }
+// #endregion clip
 
 const SAMPLER = {
   minFilter: "nearest",
@@ -109,6 +119,7 @@ const SAMPLER = {
   addressModeV: "clamp-to-edge",
 };
 
+// #region load-tile
 /**
  * Reads tile (x, y) of a COG level and uploads the bands `prog` reads:
  * 8-bit RGB for "rgba8" programs, else up to four bands as float32 with
@@ -159,7 +170,9 @@ async function loadTile(image, { device, x, y, signal, pool }, prog, spec) {
   }
   return tile;
 }
+// #endregion load-tile
 
+// #region occupancy
 const BLOCK = 8; // texels per occupancy block (also in the dilate_px shader)
 
 /**
@@ -194,6 +207,7 @@ function occupancy(data, nc, w, h, device) {
     }
   return device.createTexture({ data: out, format: "rgba8unorm", width: bw, height: bh, sampler: SAMPLER });
 }
+// #endregion occupancy
 
 // --------------------------------------------------------------------------
 // Render specs -> GLSL
@@ -201,6 +215,7 @@ function occupancy(data, nc, w, h, device) {
 
 const MATH = { log10: "log10_", log: "log", exp: "exp", sqrt: "sqrt", abs: "abs", min: "min", max: "max", pow: "pow" };
 
+// #region glsl-expr
 /** A band expression ("hh - hv", "10 * log10(b)") as GLSL over the texel `v`. */
 function glslExpr(expr, bandIndex) {
   if (/[^\w\s.+\-*/(),]|\*\*/.test(expr)) throw new Error(`unsupported expression: ${expr}`);
@@ -211,6 +226,7 @@ function glslExpr(expr, bandIndex) {
     throw new Error(`unknown name ${tok} in expression: ${expr}`);
   });
 }
+// #endregion glsl-expr
 
 const identifiers = (expr) => expr.match(/[A-Za-z_]\w*/g) ?? [];
 
@@ -222,6 +238,7 @@ const hexRgba = (hex) => {
 const vec4 = (c) => `vec4(${c.map((x) => x.toFixed(6)).join(", ")})`;
 const f = (x) => Number(x).toPrecision(9).replace(/^(-?\d+)$/, "$1.0");
 
+// #region normalize-glsl
 /** GLSL (statements) leaving the 0-1 normalized value of `x` in `t`, as normalizer() in tiles.js. */
 function normalizeGlsl(r, x) {
   const g = 1 / (r.gamma ?? 1);
@@ -236,7 +253,9 @@ function normalizeGlsl(r, x) {
   if (g !== 1) s += ` if (t > 0.0 && t < 1.0) t = pow(t, ${f(g)});`;
   return s;
 }
+// #endregion normalize-glsl
 
+// #region lut
 /** Colors of a colormap or categorical spec as a 256 x 1 RGBA8 lookup texture. */
 function lutData(r) {
   const out = new Uint8Array(256 * 4);
@@ -253,6 +272,7 @@ function lutData(r) {
   }
   return out;
 }
+// #endregion lut
 
 let nextModule = 0;
 
@@ -274,6 +294,7 @@ function compile(layer, spec, tiff) {
   let lut = null;
   let texture = "float";
 
+  // #region compile-identity
   if (r.type === "identity") {
     bands = spec.bands.slice(0, 3);
     if (isUint8) {
@@ -286,7 +307,9 @@ function compile(layer, spec, tiff) {
     if (ds || lt)
       body += ` float gray = dot(c.rgb, vec3(0.299, 0.587, 0.114));
         c.rgb = 1.0 - ${f(1 - lt)} * (1.0 - mix(c.rgb, vec3(gray), ${f(ds)}));`;
+  // #endregion compile-identity
   } else {
+    // #region compile-bands
     // Bands the spec reads, in texture channel order.
     const names = new Set();
     const add = (v) => (v.band ? names.add(v.band) : identifiers(v.expr).forEach((n) => spec.bands.includes(n) && names.add(n)));
@@ -307,7 +330,9 @@ function compile(layer, spec, tiff) {
         ok: used.map((b) => `${ch(b)} > -1e38`).join(" && ") || "true",
       };
     };
+    // #endregion compile-bands
 
+    // #region compile-rgb
     if (r.type === "rgb") {
       const cs = r.channels.map(value);
       body = `vec4 c = vec4(0.0);
@@ -315,6 +340,8 @@ function compile(layer, spec, tiff) {
           ${cs.map((c, i) => `{ float x = ${c.x}; ${normalizeGlsl(r.channels[i], "x")} c.${"rgb"[i]} = clamp(t, 0.0, 1.0); }`).join("\n          ")}
           c.a = 1.0;
         }`;
+    // #endregion compile-rgb
+    // #region compile-categorical
     } else if (r.type === "categorical") {
       lut = lutData(r);
       const v = value(r);
@@ -323,6 +350,8 @@ function compile(layer, spec, tiff) {
           float x = ${v.x};
           if (x >= 0.0 && x <= 255.0 && x == floor(x)) c = textureLod(${L}, vec2((x + 0.5) / 256.0, 0.5), 0.0);
         }`;
+    // #endregion compile-categorical
+    // #region compile-colormap
     } else if (r.type === "colormap") {
       lut = lutData(r);
       const v = value(r);
@@ -337,11 +366,13 @@ function compile(layer, spec, tiff) {
             : textureLod(${L}, vec2((min(255.0, floor(t * 256.0)) + 0.5) / 256.0, 0.5), 0.0);
           ${shade}
         }`;
+    // #endregion compile-colormap
     } else {
       throw new Error(`unsupported render type ${r.type}`);
     }
   }
 
+  // #region dilate-shader
   // Grow data pixels into transparent ones within dilate_px pixels, taking
   // the nearest in the same row, else in the nearest row (as dilate(): a
   // horizontal, then a vertical pass). Offsets are in screen pixels (device
@@ -373,7 +404,9 @@ function compile(layer, spec, tiff) {
               }
       }`
     : `vec4 c = cogColor${id}(geometry.uv);`;
+  // #endregion dilate-shader
 
+  // #region shader-module
   const module = {
     name: `cogRender${id}`,
     inject: {
@@ -396,6 +429,7 @@ vec4 cogColor${id}(vec2 uv) {
     getUniforms: (p) => ({ [T]: p.bands, ...(lut ? { [L]: p.lut } : {}), ...(R ? { [O]: p.occupancy } : {}) }),
   };
   return { bands, texture, lut, dilate: R, module };
+  // #endregion shader-module
 }
 
 const programs = new WeakMap(); // layer spec -> compiled program
@@ -413,6 +447,7 @@ function lutTexture(prog, device) {
   return lutTextures.get(prog);
 }
 
+// #region finer-cog-layer
 /**
  * COGLayer with finer overviews. deck.gl-raster 0.8.1 takes a screen pixel to
  * cover 2^-(zoom + 8) of the world, but deck.gl's world is 512 * 2^zoom
@@ -442,12 +477,14 @@ class FinerCOGLayer extends COGLayer {
     return tileLayer.clone({ TilesetClass: FinerTileset });
   }
 }
+// #endregion finer-cog-layer
 
 /**
  * The deck.gl layer for one product layer on a COG source, or null while the
  * COG is opening. `loading` ({start(), end(error)}) is told about each tile
  * request; `props` (e.g. clip / mask extensions, opacity) go to the layer.
  */
+// #region cog-layer
 export function cogLayer(id, spec, layer, { loading, props = {} } = {}) {
   const tiff = geotiff(spec);
   if (!tiff) return null;
@@ -482,3 +519,4 @@ export function cogLayer(id, spec, layer, { loading, props = {} } = {}) {
     ...props,
   });
 }
+// #endregion cog-layer

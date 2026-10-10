@@ -65,6 +65,7 @@ def main():
             for name in z.namelist():  # keep the small metadata files
                 if not name.endswith((".tif", ".aux.xml")):
                     (out_dir / name).write_bytes((Path(tmp) / name).read_bytes())
+        # region clip-window
         with rasterio.open(Path(tmp) / f"{STEM}.tif") as src:
             west, south, east, north = views.all_bounds_in(src.crs, PAD_M)
             w = from_bounds(west, south, east, north, src.transform)
@@ -82,6 +83,7 @@ def main():
             profile = {k: v for k, v in profile.items() if v is not None}
             with rasterio.open(out, "w", **profile) as dst:
                 dst.write(data, 1)
+        # endregion clip-window
     print(f"wrote {out.relative_to(config.REPO)} ({win.width}x{win.height} px)")
 
 

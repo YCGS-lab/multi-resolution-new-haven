@@ -23,6 +23,7 @@ WIDTH_PX, HEIGHT_PX = 3840, 2160  # 16:9
 _to_merc = Transformer.from_crs("EPSG:4326", CRS, always_xy=True)
 
 
+# region view-class
 @dataclass(frozen=True)
 class View:
     name: str
@@ -86,12 +87,15 @@ class View:
     def to_xy(self, lon, lat):
         """Lon/lat (scalars or arrays) to EPSG:3857 x, y."""
         return _to_merc.transform(lon, lat)
+# endregion view-class
 
 
+# region views
 VIEWS = {
     "greater": View("greater", "Greater New Haven", 41.3038978, -72.9193273, 12092),
     "central": View("central", "Central New Haven and Yale", 41.3136326, -72.9238051, 2158),
 }
+# endregion views
 
 
 def all_bounds_lonlat(pad_m: float = 0.0) -> tuple[float, float, float, float]:

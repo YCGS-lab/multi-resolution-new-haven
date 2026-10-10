@@ -66,6 +66,7 @@ def export(service: str, grid: web.Grid, **params) -> np.ndarray:
     return out
 
 
+# region sparse-tracks
 def tracks(grid: web.Grid) -> tuple[np.ndarray, np.ndarray]:
     """Sparse points every 20 m along a few straight lines: (canopy, track number)."""
     rng = np.random.default_rng(0)
@@ -81,6 +82,7 @@ def tracks(grid: web.Grid) -> tuple[np.ndarray, np.ndarray]:
                 canopy[r, c] = rng.gamma(2.0, 6.0)
                 track[r, c] = n
     return canopy, track
+# endregion sparse-tracks
 
 
 def main():

@@ -284,9 +284,9 @@ What this shows:
   `COGLayer`.
 - **Switching products re-downloads tiles** (8.2 MB for five Landsat products
   that share one COG): each product is a new `COGLayer` with its own tile
-  cache, and `serve.py` sends no cache headers. CloudFront's
-  `Cache-Control: max-age=300` lets the browser cache the ranges on the
-  deployed site. A shared decoded-tile cache across layers would avoid it
+  cache, and `serve.py` sends `Cache-Control: no-cache`. On the deployed
+  site, `Cache-Control: max-age=300` lets the browser reuse the ranges
+  for five minutes. A shared decoded-tile cache across layers would avoid it
   altogether.
 - **Slower frames under software rendering.** With SwiftShader, each
   full-screen COG layer costs about twice the old `BitmapLayer` per frame.
@@ -373,7 +373,7 @@ migration:
    `--products` picks the COG products (default: Landsat true color, the
    impervious classes and the fixtures; leave out what you have not built),
    `--only REGEX` runs some scenarios, and `CHROME=/path/to/chrome` points at
-   another Chromium. Compare with [benchmarks/](benchmarks/); a full run takes
+   another Chromium. Compare with [benchmarks/](benchmarks/2026-10-10.md); a full run takes
    about 40 minutes.
 5. **Commit** `package.json`, `package-lock.json`, `website/vendor/`, the code
    changes, the results in `docs/benchmarks/<date>*`, and the version and any

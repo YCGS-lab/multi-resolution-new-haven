@@ -38,6 +38,7 @@ SOURCE = (
 )
 PAD_M = 30.0  # > 1 native pixel
 
+# region db-channel-ranges
 # channel: (label, dB range)
 CHANNELS = {
     "hh": ("HH", (-20.0, 0.0)),
@@ -56,6 +57,7 @@ COMPOSITES = {
 def channels_db(hh, hv) -> dict[str, np.ndarray]:
     with np.errstate(invalid="ignore", divide="ignore"):
         return {"hh": 10 * np.log10(hh), "hv": 10 * np.log10(hv), "ratio": 10 * np.log10(hh / hv)}
+# endregion db-channel-ranges
 
 
 def main():

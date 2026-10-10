@@ -38,12 +38,14 @@ def main():
         dqf = d["DQF"][sl].filled(3)
         t0, t1 = parse_time(d.time_coverage_start), parse_time(d.time_coverage_end)
         platform = d.platform_ID
+    # region geos-to-web-grid
     lst = np.where((dqf <= 1) & np.isfinite(lst_k), lst_k - 273.15, np.nan)
     win_transform = transform * Affine.translation(cols[0], rows[0])
     v = web.EXTENT_VIEW
     ew, ns, vza = ground_footprint_m(crs, transform, v.lon, v.lat)
     grid = web.fine_grid(ew)
     data = web.reproject(lst, win_transform, crs, grid)
+    # endregion geos-to-web-grid
     print(f"LST over the extent {np.nanmin(data):.1f} to {np.nanmax(data):.1f} degC; footprint {ew:.0f} x {ns:.0f} m")
     sources = {"lst": web.write_cog(DATASET, data, grid, ["lst"], max_z_error=0.01)}
     t_local = t0.astimezone(ZoneInfo("America/New_York"))

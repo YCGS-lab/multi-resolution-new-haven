@@ -61,6 +61,7 @@ def main():
     t = g["umm"]["TemporalExtent"]["RangeDateTime"]
     print(f"{name}: {t['BeginningDateTime']} to {t['EndingDateTime']}")
 
+    # region remote-hdf5-partial-read
     with h5py.File(earthaccess.open([g])[0], "r") as h:
         x, y = h["x"][:], h["y"][:]
         # The stored cell centers are float32-rounded; they must agree with the
@@ -79,6 +80,7 @@ def main():
         sm = ds[win.row_off : win.row_off + win.height, win.col_off : win.col_off + win.width].astype("float32")
         units = ds.attrs["units"].decode()
     sm[sm == FILL] = np.nan
+    # endregion remote-hdf5-partial-read
 
     out = config.data_dir(DATASET) / f"{Path(name).stem}.sm_rootzone.newhaven.tif"
     profile = dict(

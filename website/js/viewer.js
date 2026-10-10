@@ -71,6 +71,7 @@ export class Viewer {
       }
     });
 
+    // #region viewer-deck
     this.size = [this.mapEl.clientWidth || 800, this.mapEl.clientHeight || 450];
     this.viewState = homeViewState(catalog.extent, ...this.size);
     this.deck = new Deck({
@@ -89,6 +90,7 @@ export class Viewer {
       },
       layers: [],
     });
+    // #endregion viewer-deck
   }
 
   /** Current state, for the URL. */
@@ -133,6 +135,7 @@ export class Viewer {
     this.update();
   }
 
+  // #region swipe-handle
   initSwipe() {
     let dragging = false;
     const move = (e) => {
@@ -154,7 +157,9 @@ export class Viewer {
       }
     });
   }
+  // #endregion swipe-handle
 
+  // #region compare-layers
   layers() {
     const c = this.catalog;
     const [w, h] = this.size;
@@ -196,7 +201,9 @@ export class Viewer {
     if (this.settings.labels) layers.push(...landmarkLayers("landmarks", c, a?.landmark_color));
     return layers;
   }
+  // #endregion compare-layers
 
+  // #region render-throttle
   update() {
     if (this.pending) return;
     this.pending = requestAnimationFrame(() => {
@@ -204,6 +211,7 @@ export class Viewer {
       this.render();
     });
   }
+  // #endregion render-throttle
 
   render() {
     const c = this.catalog;

@@ -36,6 +36,7 @@ def main():
     gdf = gdf[gdf["CateTitle"].isin(codes)].to_crs(web.CRS)
     gdf = gdf.assign(code=gdf["CateTitle"].map(codes)).sort_values("code", kind="stable")
     print(f"{len(gdf)} polygons; rasterizing onto {grid}")
+    # region strip-rasterization
     out = np.zeros(grid.shape, dtype="uint8")
     t = grid.transform
     for r0 in range(0, grid.height, STRIP):
@@ -55,6 +56,7 @@ def main():
     frac = is_imperv[out].mean()
     print(f"{frac:.1%} of pixels impervious")
     sources = {"classes": web.write_cog(DATASET, out[None], grid, ["cls"], kind="categorical", nodata=None)}
+    # endregion strip-rasterization
 
     subtitle = "Polygons mapped from 2023 imagery"
     native = f"vector polygons, rasterized at {PIXEL_M} m"

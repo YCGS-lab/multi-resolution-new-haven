@@ -50,6 +50,7 @@ export class Grid {
     root.querySelector("#rearrange-toggle").addEventListener("change", (e) => this.setRearrange(e.target.checked));
     root.querySelector("#grid-reset").addEventListener("click", () => this.reset());
 
+    // #region grid-deck
     this.deck = new Deck({
       parent: this.deckEl,
       views: [],
@@ -62,6 +63,7 @@ export class Grid {
         return toDeckViewState(this.viewState, catalog);
       },
     });
+    // #endregion grid-deck
 
     window.addEventListener("scroll", () => this.active && this.layout(), { passive: true });
     window.addEventListener("resize", () => this.active && this.layout());
@@ -226,6 +228,7 @@ export class Grid {
     if (!r) el.querySelector(".scalebar").hidden = true;
   }
 
+  // #region grid-drag
   initDrag(slot) {
     const el = slot.el;
     const index = () => this.slots.indexOf(slot);
@@ -257,9 +260,11 @@ export class Grid {
       if (Number.isInteger(from) && from !== to && this.slots[from]) this.swap(from, to);
     });
   }
+  // #endregion grid-drag
 
   // ----- deck.gl views -------------------------------------------------
 
+  // #region grid-layout
   /** Place one deck.gl view over each visible slot map; re-render. */
   layout() {
     if (!this.active) return;
@@ -278,6 +283,7 @@ export class Grid {
     this.slotSize = size;
     this.update();
   }
+  // #endregion grid-layout
 
   update() {
     if (this.pending) return;
@@ -287,6 +293,7 @@ export class Grid {
     });
   }
 
+  // #region grid-render
   render() {
     if (!this.active || !this.slotSize) return;
     const c = this.catalog;
@@ -318,6 +325,7 @@ export class Grid {
     this.deck.setProps({ views, viewState, layers });
     for (const s of this.slots) if (s.sel && s.chrome) s.chrome.update(this.viewState, w, h, this.settings.labels);
   }
+  // #endregion grid-render
 }
 
 /** Drag image: a small card with the product's name. */

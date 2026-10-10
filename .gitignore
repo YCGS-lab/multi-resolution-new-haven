@@ -190,3 +190,7 @@ cython_debug/
 
 # website/vendor build tooling (scripts/website/vendor, scripts/website/benchmark)
 node_modules/
+
+# VitePress output (docs/)
+docs/.vitepress/dist/
+docs/.vitepress/cache/

@@ -52,10 +52,12 @@ def main():
     dates = acquisition_dates()
     flown = dates[0] if len(dates) == 1 else f"{dates[0]} to {dates[-1][5:]}"
     subtitle = f"Flown {flown} (leaf-on); 4-band; server 8-bit values shown as is"
+    # region server-values-as-is
     sources = {
         "truecolor": web.arcgis_source(SERVICE, NATIVE_M, band_ids=[0, 1, 2]),
         "cir": web.arcgis_source(SERVICE, NATIVE_M, band_ids=[3, 0, 1]),
     }
+    # endregion server-values-as-is
     products = {
         "truecolor": web.product(
             title="NAIP 2023, true color",

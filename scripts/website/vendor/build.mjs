@@ -16,6 +16,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, "../../../website/vendor");
 mkdirSync(out, { recursive: true });
 
+// #region bundle
 const common = {
   bundle: true,
   format: "esm",
@@ -34,10 +35,13 @@ await esbuild.build({
   entryPoints: [join(here, "node_modules/@developmentseed/geotiff/dist/pool/worker.js")],
   outfile: join(out, "geotiff-worker.js"),
 });
+// #endregion bundle
 
+// #region lerc-wasm
 // lerc locates its wasm relative to import.meta.url, i.e. next to the bundle.
 const require = createRequire(import.meta.url);
 copyFileSync(require.resolve("lerc/lerc-wasm.wasm"), join(out, "lerc-wasm.wasm"));
+// #endregion lerc-wasm
 
 const pkgs = new Set();
 for (const f of Object.keys(main.metafile.inputs)) {

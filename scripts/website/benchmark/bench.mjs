@@ -44,6 +44,7 @@ if (!sites.length) throw new Error("usage: node bench.mjs [--runs N] [--latency 
 const SWITCH = ["landsat/truecolor", "landsat/cir", "landsat/veg", "landsat/urban", "landsat/lst"];
 const GRID = ["landsat/truecolor", "fixtures/jpeg", "fixtures/dem", "prism/tmean"];
 
+// #region instrument
 // In-page helpers, installed before the app's scripts run.
 function instrument() {
   window.__bench = { longTasks: [], t0: performance.now() };
@@ -85,7 +86,9 @@ function instrument() {
     return { requests: rs.length, bytes: rs.reduce((s, r) => s + (r.transferSize || r.encodedBodySize || 0), 0) };
   };
 }
+// #endregion instrument
 
+// #region settle
 /**
  * Wait until every map is settled, after at least `minStarted` tile requests
  * (counted from page load if `fromLoad`, else from now).
@@ -111,6 +114,7 @@ async function settle(page, { minStarted = 1, fromLoad = false, timeout = 120000
     { minStarted, fromLoad, timeout },
   );
 }
+// #endregion settle
 
 async function snapshot(page) {
   return page.evaluate(() => ({ ...window.__cogBytes(), longTasks: window.__bench.longTasks.slice(), t: performance.now() }));

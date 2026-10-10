@@ -46,6 +46,7 @@ def main():
     if out.exists():
         print(f"{out.relative_to(config.REPO)} exists; skipping download")
         return
+    # region days-x-hours-subset
     times_utc = sorted(h.astimezone(dt.UTC).replace(tzinfo=None) for _, h in timing.product_times().values())
     days = sorted({t.date() for t in times_utc})
     hours = sorted({t.hour for t in times_utc})
@@ -70,6 +71,7 @@ def main():
         sub.attrs["selection"] = (
             f"{timing.DATE}: hours nearest the middle of the night, sunrise, solar noon and sunset in New Haven (EDT = UTC-4)"
         )
+    # endregion days-x-hours-subset
         sub.to_netcdf(out)
     print(f"wrote {out.relative_to(config.REPO)}: {[str(t)[:16] for t in sub.valid_time.values]} UTC")
 

@@ -48,6 +48,7 @@ class ArcgisSource {
     }
   }
 
+  // #region arcgis-request
   async _read(box, res, { pad = 0, signal } = {}) {
     const s = this.spec;
     const b = [box[0] - pad * res, box[1] - pad * res, box[2] + pad * res, box[3] + pad * res];
@@ -92,8 +93,10 @@ class ArcgisSource {
     }
     return { ...win, data: { [s.bands[0]]: out } };
   }
+  // #endregion arcgis-request
 }
 
+// #region read-float-tiff
 /**
  * Band 1 of a tiled float32 TIFF (as exportImage writes), NaN where tiles are
  * sparse (ArcGIS leaves out tiles without data).
@@ -121,6 +124,7 @@ async function readFloatTiff(buf, signal) {
   await Promise.all(jobs);
   return out;
 }
+// #endregion read-float-tiff
 
 async function decodeImage(blob, w, h) {
   const img = await createImageBitmap(blob);
@@ -170,6 +174,7 @@ function values(v, win) {
 
 const lat = (y) => (2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * (180 / Math.PI);
 
+// #region cpu-hillshade
 /** Hillshade (0-1) as in render.hillshade: azimuth 315, altitude 45, np.gradient differences. */
 function hillshade(z, win) {
   const { width: w, height: h } = win;
@@ -194,6 +199,7 @@ function hillshade(z, win) {
   }
   return out;
 }
+// #endregion cpu-hillshade
 
 const rgbCache = new Map();
 function hexRgb(hex) {
@@ -219,6 +225,7 @@ function normalizer(r) {
   return (v) => pow((v - lo) / span);
 }
 
+// #region cpu-colorize
 function colorize(r, win) {
   const n = win.width * win.height;
   if (r.type === "identity") {
@@ -290,6 +297,7 @@ function colorize(r, win) {
   }
   throw new Error(`unsupported render type ${r.type}`);
 }
+// #endregion cpu-colorize
 
 // --------------------------------------------------------------------------
 // Layers
@@ -303,6 +311,7 @@ function crop(rgba, W, m, w, h) {
   return out;
 }
 
+// #region render-arcgis-tile
 /** RGBA image (ImageData, or null if empty) of an ArcGIS layer over box (EPSG:3857), w x h pixels. */
 export async function renderArcgisTile(catalog, layer, box, w, h, signal) {
   const src = arcgisSource(catalog, layer.source);
@@ -313,7 +322,9 @@ export async function renderArcgisTile(catalog, layer, box, w, h, signal) {
   for (let k = 3; k < out.length; k += 4) if (out[k]) return new ImageData(out, w, h);
   return null;
 }
+// #endregion render-arcgis-tile
 
+// #region arcgis-layer
 /** Deepest tile zoom worth requesting: tile pixels as fine as the source pixels. */
 const maxTileZoom = (res) => Math.ceil(Math.log2(CIRCUMFERENCE / (TILE_SIZE * res)) - 1e-6);
 
@@ -353,7 +364,9 @@ function arcgisLayer(id, catalog, layer, { loading, props }) {
     ...props,
   });
 }
+// #endregion arcgis-layer
 
+// #region xyz-layers
 /** Map tiles, drawn at about their design size (labels too), scaled smoothly. */
 function xyzLayers(id, catalog, layer, { props }) {
   const spec = catalog.sources[layer.source];
@@ -393,7 +406,9 @@ function xyzLayers(id, catalog, layer, { props }) {
   }
   return layers;
 }
+// #endregion xyz-layers
 
+// #region product-layers
 /**
  * The deck.gl layers of a product, bottom to top (COG layers whose file is
  * still opening are left out until it is open; see onCogOpened).
@@ -411,3 +426,4 @@ export function productLayers(id, catalog, product, { loading, props = () => ({}
     throw new Error(`${layer.source}: unsupported source type ${spec.type}`);
   });
 }
+// #endregion product-layers

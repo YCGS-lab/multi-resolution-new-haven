@@ -13,6 +13,7 @@ export async function loadCatalog(url = "catalog.json") {
   return new Catalog(await res.json());
 }
 
+// #region catalog-class
 export class Catalog {
   constructor(data) {
     this.data = data;
@@ -38,11 +39,13 @@ export class Catalog {
     for (const n of this.tree) walk(n, [], null);
     this.landmarks = data.landmarks.map((l) => ({ ...l, position: [l.lon, l.lat] }));
   }
+// #endregion catalog-class
 
   get isEmpty() {
     return this.order.length === 0;
   }
 
+  // #region world-coordinates
   /** EPSG:3857 [xmin, ymin, xmax, ymax] -> world [left, bottom, right, top]. */
   worldBounds(b) {
     const [ox, oy] = this.origin;
@@ -75,6 +78,7 @@ export class Catalog {
   latToWorldY(lat) {
     return this.lonLatToWorld(0, lat)[1];
   }
+  // #endregion world-coordinates
 
   /** Ground meters per world (Web Mercator) meter at a world y. */
   groundScale(y) {
