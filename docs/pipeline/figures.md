@@ -50,6 +50,12 @@ meters first. `blend_hillshade` multiplies it into the colors, as in a
 shaded relief map. The browser has the same formula, for image services
 whose shading is computed live: see [Image-service layers](/website/image-services#cpu-coloring).
 
+::: danger Known issue: the light comes from the southeast
+The aspect formula does not match the azimuth conversion, so both copies
+actually shade as if the sun were in the southeast. See
+[Issues and improvements](/issues#hillshade-direction).
+:::
+
 ## Labeled figures <Badge type="tip" text="standard" />
 
 `save_figures` writes both files:

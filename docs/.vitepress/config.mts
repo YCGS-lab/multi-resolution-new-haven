@@ -26,6 +26,7 @@ export default withMermaid(
         { text: "Map viewer", link: "/website/" },
         { text: "Build & deploy", link: "/build/" },
         { text: "Old vs new", link: "/comparison/" },
+        { text: "Issues", link: "/issues" },
       ],
       sidebar: [
         {
@@ -34,6 +35,7 @@ export default withMermaid(
             { text: "Overview", link: "/" },
             { text: "How to read these docs", link: "/guide/reading" },
             { text: "Glossary", link: "/guide/glossary" },
+            { text: "Issues and improvements", link: "/issues" },
           ],
         },
         {

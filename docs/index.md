@@ -90,6 +90,16 @@ does itself, and how performance changed.
 
 → [Old vs new renderer](/comparison/)
 
+### 5. Issues and improvements
+
+Problems and possible improvements found while writing these docs,
+ranked by severity and marked as introduced by the migration or older.
+The most serious: hillshades are lit from the wrong direction, and
+`just preview` serves the whole repository, credentials included, to the
+network.
+
+→ [Issues and improvements](/issues)
+
 ## Key design decisions
 
 These choices shape everything else. Each is explained where it is
