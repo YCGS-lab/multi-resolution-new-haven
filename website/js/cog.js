@@ -33,8 +33,11 @@ async function epsgResolver(code) {
 const pool = new DecoderPool({
   createWorker: () => new Worker(new URL("../vendor/geotiff-worker.js", import.meta.url), { type: "module" }),
 });
-// At most 6 concurrent range requests per origin (the HTTP/1.1 browser limit).
-const limiter = new PerOriginSemaphore({ maxRequests: 6 });
+// Concurrent range requests per origin: 6 is the browsers' HTTP/1.1 limit;
+// over HTTP/2 or 3 (e.g. CloudFront) requests share one connection, and COG
+// tiles are many small requests, so allow more.
+const protocol = performance.getEntriesByType("navigation")[0]?.nextHopProtocol ?? "";
+const limiter = new PerOriginSemaphore({ maxRequests: /^h[23]/.test(protocol) ? 24 : 6 });
 
 // No-data pixels are uploaded as this value (the shaders treat anything below -1e38 as no data).
 const NODATA_GPU = -3e38;

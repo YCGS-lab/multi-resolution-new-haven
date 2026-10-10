@@ -100,8 +100,12 @@ website/
     spec**: band expressions are translated to GLSL; linear / log stretches with
     gamma; 256-color colormaps as a lookup texture with under / over colors;
     categorical codes as a lookup texture; multiplying by a stored hillshade;
-    and `dilate_px` as a search of neighboring screen pixels. Each spec gets a
-    uniquely named module (see the pipeline-name note above).
+    and `dilate_px` as a search of neighboring screen pixels, skipped far from
+    data with a per-tile occupancy texture (8 x 8-texel blocks with data
+    nearby). Each spec gets a uniquely named module (see the pipeline-name
+    note above).
+  - `FinerCOGLayer` (a `COGLayer` subclass) corrects the overview choice; see
+    [upstream issue 3](#upstream-issues-found).
 - **Compare modes.** Swipe uses `ClipExtension`, but its bounds are in each
   layer's coordinates: longitude / latitude for ordinary layers, common space
   for the COG meshes, and the mesh layer needs `clipByInstance: false`
@@ -123,10 +127,12 @@ website/
 | decoding and coloring on the main thread | decoding in workers, coloring on the GPU |
 
 The application JavaScript did **not** get shorter: `website/js/` went from
-1,861 to 2,150 lines. About 450 lines of reader, resampling, compositing and
-XYZ code went; `cog.js` (390 lines, mostly the render-spec → GLSL compiler and
-tile upload) and the MapView conversions came in. The win is in *where* the
-work runs and in correctness, not in code size.
+1,861 to 2,239 lines. About 450 lines of reader, resampling, compositing and
+XYZ code went; `cog.js` (480 lines: the render-spec → GLSL compiler, tile
+upload, the `dilate_px` occupancy texture, and the overview workaround below)
+and the MapView conversions came in. The gains are in *where* the work runs
+(workers and GPU instead of the main thread) and in correctness, not in code
+size.
 
 ## What the website still implements
 
@@ -215,7 +221,83 @@ Also of note: `GeoTIFF.fromArrayBuffer` and the reader need browser APIs
 
 ## Performance
 
-PERFORMANCE_PLACEHOLDER
+`scripts/website/benchmark/bench.mjs` drives both versions in headless
+Chromium 141 (Playwright 1.64) through `window.app`, over the same `catalog.json`
+and `image-data/`, each run in a fresh browser (no shared cache). "Before" is
+the previous commit (geotiff.js + CPU renderer), "after" is this version. A
+scenario "settles" when no tile request is pending and every deck.gl layer
+reports loaded, for 300 ms. Medians of 3 runs, on a 4-core container, served
+by `serve.py` locally, with and without 40 ms of added latency per request.
+All numbers, per run, are in [benchmarks/2026-10-10.md](benchmarks/2026-10-10.md)
+and the JSON files next to it.
+
+**Caveat: no GPU.** The container has no GPU, so Chromium renders WebGL with
+SwiftShader (on the CPU). That makes per-pixel GPU work look far more
+expensive than it is on real hardware, which matters here because the new
+version moves the coloring onto the GPU. Frame times below are therefore an
+upper bound, and should be re-measured on a real machine
+(`node bench.mjs ...` runs anywhere Chromium does; set `CHROME=`).
+
+Selected results (full extent of a 1400 × 900 window; "zoom" is four 2x
+zoom-ins, "pan" a 3 s drag at 8x; `switch` steps through five Landsat
+products; `grid` loads four COG products in a 2 × 2 grid):
+
+| scenario | before | after | after / before |
+|---|---:|---:|---:|
+| JavaScript + wasm loaded (gzipped) | 0.68 MB | 0.47 MB | 0.69x |
+| load, Landsat true color (7-band LERC): time to settle | 3.42 s | 2.25 s | 0.66x |
+| load, impervious classes (0.5 m uint8): time to settle | 3.39 s | 2.21 s | 0.65x |
+| load, JPEG imagery (4.8 m): time to settle | 4.90 s | 4.44 s | 0.91x |
+| load, DEM with shading: time to settle | 2.98 s | 2.16 s | 0.73x |
+| load, sparse tracks over a basemap: time to settle | 4.75 s | 3.22 s | 0.68x |
+| zoom, impervious classes: time to settle | 2.14 s | 1.63 s | 0.76x |
+| zoom, impervious classes, +40 ms latency | 2.44 s | 4.29 s | **1.76x** |
+| zoom, JPEG imagery: time to settle | 4.49 s | 2.71 s | 0.60x |
+| zoom, sparse tracks: time to settle | 4.55 s | 0.17 s | 0.04x |
+| switch products: time to settle | 1.94 s | 1.30 s | 0.67x |
+| switch products: main-thread blocking (long tasks) | 975 ms | 210 ms | 0.22x |
+| switch products: COG bytes downloaded | 0 | 8.2 MB | |
+| grid of four: time to settle | 5.49 s | 4.83 s | 0.88x |
+| COG requests, load of the JPEG imagery | 2 | 46 | 23x |
+| pan, single-layer products: frame time p50 (SwiftShader) | 67–83 ms | 133–150 ms | ~2x |
+| pan, sparse tracks (two `dilate_px` layers): frame p50 (SwiftShader) | 83 ms | 517 ms | 6.2x |
+
+What this shows:
+
+- **Faster to a finished map** in most scenarios (0.6–0.9x), mainly because
+  decoding runs in workers and coloring on the GPU: the CPU renderer colored
+  every tile pixel on the main thread and recomputed it whenever tiles changed
+  (the tracks zoom, where the old renderer re-dilated every tile on the CPU, is
+  25x faster). Switching between products on the same COG blocks the main
+  thread for a fifth as long.
+- **Less JavaScript**: one 1.3 MB bundle (deck.gl + deck.gl-raster) instead of
+  the 2.1 MB deck.gl UMD build plus geotiff.js and its decoders.
+- **Same bytes, many more requests.** deck.gl-raster fetches each 512 × 512
+  COG tile with its own range request; geotiff.js read large blocks and kept
+  them in a cache. Over local HTTP this costs nothing, but with 40 ms per
+  request and 6 requests at a time it made zooming into the 0.5 m impervious
+  COG **1.76x slower**. Production (CloudFront) speaks HTTP/2, so `cog.js`
+  allows 24 concurrent requests when the page came over HTTP/2 or 3 (not
+  measurable here; worth checking on the deployed site). deck.gl-raster's
+  unreleased `main` already batches and coalesces range requests
+  (`fetchTiles`, PRs #530/#531), which should help once released and used by
+  `COGLayer`.
+- **Switching products re-downloads tiles** (8.2 MB for five Landsat products
+  that share one COG): each product is a new `COGLayer` with its own tile
+  cache, and `serve.py` sends no cache headers. CloudFront's
+  `Cache-Control: max-age=300` lets the browser cache the ranges on the
+  deployed site. A shared decoded-tile cache across layers would avoid it
+  altogether.
+- **Slower frames under software rendering.** With SwiftShader, each
+  full-screen COG layer costs about twice the old `BitmapLayer` per frame.
+  Replacing the generated shader with a trivial one did not change that, and
+  deck.gl's own CPU time per frame stayed at 3–4 ms, so the cost is the
+  rasterization of deck.gl-raster's mesh-layer shader (a `SimpleMeshLayer`
+  derivative, with lighting and fp64 positions). The `dilate_px` search
+  (ICESat-2) is much more expensive under SwiftShader, which appears to run the
+  unrolled neighbor loop under SIMD masks even where the occupancy texture
+  says there is no data nearby. On a real GPU both should be small, but this
+  is **not measured**; it is the first thing to check on hardware.
 
 ## Updating deck.gl-raster
 

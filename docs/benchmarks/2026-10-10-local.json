@@ -1,0 +1,1342 @@
+{
+ "runs": 3,
+ "latency": 0,
+ "sites": {
+  "before": "http://localhost:8001/website/",
+  "after": "http://localhost:8000/website/"
+ },
+ "results": {
+  "payload": {
+   "before": {
+    "median": {
+     "files": 17,
+     "bytes": 2369455,
+     "gzipBytes": 683280
+    },
+    "runs": [
+     {
+      "files": 17,
+      "bytes": 2369455,
+      "gzipBytes": 683280
+     },
+     {
+      "files": 17,
+      "bytes": 2369455,
+      "gzipBytes": 683280
+     },
+     {
+      "files": 17,
+      "bytes": 2369455,
+      "gzipBytes": 683280
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "files": 11,
+     "bytes": 1573340,
+     "gzipBytes": 471561
+    },
+    "runs": [
+     {
+      "files": 11,
+      "bytes": 1573340,
+      "gzipBytes": 471561
+     },
+     {
+      "files": 11,
+      "bytes": 1573340,
+      "gzipBytes": 471561
+     },
+     {
+      "files": 11,
+      "bytes": 1573340,
+      "gzipBytes": 471561
+     }
+    ]
+   }
+  },
+  "load:landsat/truecolor": {
+   "before": {
+    "median": {
+     "settleMs": 3421.5,
+     "cogRequests": 2,
+     "cogBytes": 2119670,
+     "longTasks": 5,
+     "blockingMs": 1177
+    },
+    "runs": [
+     {
+      "settleMs": 3447,
+      "cogRequests": 2,
+      "cogBytes": 2119670,
+      "longTasks": 5,
+      "blockingMs": 1216
+     },
+     {
+      "settleMs": 3421.5,
+      "cogRequests": 2,
+      "cogBytes": 2119670,
+      "longTasks": 5,
+      "blockingMs": 1093
+     },
+     {
+      "settleMs": 3288.1999999997206,
+      "cogRequests": 2,
+      "cogBytes": 2119670,
+      "longTasks": 5,
+      "blockingMs": 1177
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 2248.899999999907,
+     "cogRequests": 3,
+     "cogBytes": 2114706,
+     "longTasks": 5,
+     "blockingMs": 1135
+    },
+    "runs": [
+     {
+      "settleMs": 2560.5,
+      "cogRequests": 3,
+      "cogBytes": 2114706,
+      "longTasks": 5,
+      "blockingMs": 1182
+     },
+     {
+      "settleMs": 2216.7999999998137,
+      "cogRequests": 3,
+      "cogBytes": 2114706,
+      "longTasks": 5,
+      "blockingMs": 1135
+     },
+     {
+      "settleMs": 2248.899999999907,
+      "cogRequests": 3,
+      "cogBytes": 2114706,
+      "longTasks": 4,
+      "blockingMs": 1047
+     }
+    ]
+   }
+  },
+  "zoom:landsat/truecolor": {
+   "before": {
+    "median": {
+     "settleMs": 105.60000000009313,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 106.60000000009313,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 105.60000000009313,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 103.29999999981374,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 101.09999999962747,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 100.89999999990687,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 101.09999999962747,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 104.60000000102445,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   }
+  },
+  "pan:landsat/truecolor": {
+   "before": {
+    "median": {
+     "settleMs": 32,
+     "frames": 104,
+     "frameP50": 66.70000000000073,
+     "frameP95": 116.69999999999982,
+     "frameMax": 166.60000000000036,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 33.10000000009313,
+      "frames": 104,
+      "frameP50": 66.70000000000073,
+      "frameP95": 133.30000000000018,
+      "frameMax": 166.70000000000073,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 27.100000000093132,
+      "frames": 104,
+      "frameP50": 66.69999999999982,
+      "frameP95": 116.69999999999982,
+      "frameMax": 166.60000000000036,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 32,
+      "frames": 101,
+      "frameP50": 66.80000000000109,
+      "frameP95": 100,
+      "frameMax": 166.60000000000036,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 43.60000000009313,
+     "frames": 107,
+     "frameP50": 133.39999999999964,
+     "frameP95": 266.59999999999945,
+     "frameMax": 366.7000000000007,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 43.60000000009313,
+      "frames": 108,
+      "frameP50": 133.39999999999964,
+      "frameP95": 266.60000000000036,
+      "frameMax": 300.10000000000036,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 44.200000000186265,
+      "frames": 107,
+      "frameP50": 133.3000000000011,
+      "frameP95": 266.5,
+      "frameMax": 366.7000000000007,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 41,
+      "frames": 102,
+      "frameP50": 150,
+      "frameP95": 266.59999999999945,
+      "frameMax": 366.7000000000007,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   }
+  },
+  "load:ct-impervious-2023/classes": {
+   "before": {
+    "median": {
+     "settleMs": 3393.7999999998137,
+     "cogRequests": 2,
+     "cogBytes": 655962,
+     "longTasks": 5,
+     "blockingMs": 1220
+    },
+    "runs": [
+     {
+      "settleMs": 3236.100000000093,
+      "cogRequests": 2,
+      "cogBytes": 655962,
+      "longTasks": 5,
+      "blockingMs": 1120
+     },
+     {
+      "settleMs": 3433,
+      "cogRequests": 2,
+      "cogBytes": 655962,
+      "longTasks": 6,
+      "blockingMs": 1246
+     },
+     {
+      "settleMs": 3393.7999999998137,
+      "cogRequests": 2,
+      "cogBytes": 655962,
+      "longTasks": 5,
+      "blockingMs": 1220
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 2211.899999999907,
+     "cogRequests": 19,
+     "cogBytes": 620055,
+     "longTasks": 4,
+     "blockingMs": 1326
+    },
+    "runs": [
+     {
+      "settleMs": 2168.6999999997206,
+      "cogRequests": 19,
+      "cogBytes": 620055,
+      "longTasks": 5,
+      "blockingMs": 1187
+     },
+     {
+      "settleMs": 2211.899999999907,
+      "cogRequests": 19,
+      "cogBytes": 620055,
+      "longTasks": 4,
+      "blockingMs": 1363
+     },
+     {
+      "settleMs": 2283.600000000093,
+      "cogRequests": 19,
+      "cogBytes": 620055,
+      "longTasks": 4,
+      "blockingMs": 1326
+     }
+    ]
+   }
+  },
+  "zoom:ct-impervious-2023/classes": {
+   "before": {
+    "median": {
+     "settleMs": 2144.2000000001863,
+     "cogRequests": 13,
+     "cogBytes": 3411785,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 2147.5000000004657,
+      "cogRequests": 13,
+      "cogBytes": 3411785,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 2032.300000000745,
+      "cogRequests": 13,
+      "cogBytes": 3411785,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 2144.2000000001863,
+      "cogRequests": 13,
+      "cogBytes": 3411785,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 1628.7999999998137,
+     "cogRequests": 57,
+     "cogBytes": 1029505,
+     "longTasks": 5,
+     "blockingMs": 563
+    },
+    "runs": [
+     {
+      "settleMs": 1157.0999999996275,
+      "cogRequests": 57,
+      "cogBytes": 1029505,
+      "longTasks": 4,
+      "blockingMs": 227
+     },
+     {
+      "settleMs": 1628.7999999998137,
+      "cogRequests": 57,
+      "cogBytes": 1029505,
+      "longTasks": 5,
+      "blockingMs": 563
+     },
+     {
+      "settleMs": 2357.0999999996275,
+      "cogRequests": 85,
+      "cogBytes": 1934208,
+      "longTasks": 6,
+      "blockingMs": 816
+     }
+    ]
+   }
+  },
+  "pan:ct-impervious-2023/classes": {
+   "before": {
+    "median": {
+     "settleMs": 432.8000000002794,
+     "frames": 106,
+     "frameP50": 66.79999999999927,
+     "frameP95": 116.69999999999982,
+     "frameMax": 166.59999999999854,
+     "cogRequests": 7,
+     "cogBytes": 526395,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 432.8000000002794,
+      "frames": 105,
+      "frameP50": 66.70000000000073,
+      "frameP95": 116.59999999999945,
+      "frameMax": 150,
+      "cogRequests": 7,
+      "cogBytes": 526395,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 480.5,
+      "frames": 108,
+      "frameP50": 66.79999999999927,
+      "frameP95": 133.30000000000018,
+      "frameMax": 166.59999999999854,
+      "cogRequests": 7,
+      "cogBytes": 526395,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 373.10000000009313,
+      "frames": 106,
+      "frameP50": 83.19999999999891,
+      "frameP95": 116.69999999999982,
+      "frameMax": 183.3000000000011,
+      "cogRequests": 7,
+      "cogBytes": 526395,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 44.200000000186265,
+     "frames": 98,
+     "frameP50": 133.3000000000011,
+     "frameP95": 216.6999999999989,
+     "frameMax": 299.9000000000001,
+     "cogRequests": 37,
+     "cogBytes": 558409,
+     "longTasks": 1,
+     "blockingMs": 41
+    },
+    "runs": [
+     {
+      "settleMs": 44.200000000186265,
+      "frames": 98,
+      "frameP50": 133.30000000000018,
+      "frameP95": 216.60000000000036,
+      "frameMax": 299.9000000000001,
+      "cogRequests": 37,
+      "cogBytes": 558409,
+      "longTasks": 1,
+      "blockingMs": 80
+     },
+     {
+      "settleMs": 44.5,
+      "frames": 100,
+      "frameP50": 133.39999999999964,
+      "frameP95": 216.6999999999989,
+      "frameMax": 316.6999999999998,
+      "cogRequests": 37,
+      "cogBytes": 558409,
+      "longTasks": 2,
+      "blockingMs": 32
+     },
+     {
+      "settleMs": 40.89999999990687,
+      "frames": 98,
+      "frameP50": 133.3000000000011,
+      "frameP95": 233.20000000000073,
+      "frameMax": 283.3000000000011,
+      "cogRequests": 37,
+      "cogBytes": 558409,
+      "longTasks": 1,
+      "blockingMs": 41
+     }
+    ]
+   }
+  },
+  "load:fixtures/jpeg": {
+   "before": {
+    "median": {
+     "settleMs": 4899.899999999907,
+     "cogRequests": 2,
+     "cogBytes": 3867226,
+     "longTasks": 6,
+     "blockingMs": 1134
+    },
+    "runs": [
+     {
+      "settleMs": 4932,
+      "cogRequests": 2,
+      "cogBytes": 3867226,
+      "longTasks": 6,
+      "blockingMs": 1134
+     },
+     {
+      "settleMs": 4899.899999999907,
+      "cogRequests": 2,
+      "cogBytes": 3867226,
+      "longTasks": 6,
+      "blockingMs": 1154
+     },
+     {
+      "settleMs": 4569.100000000093,
+      "cogRequests": 2,
+      "cogBytes": 3867226,
+      "longTasks": 5,
+      "blockingMs": 1086
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 4443.800000000279,
+     "cogRequests": 46,
+     "cogBytes": 3789683,
+     "longTasks": 4,
+     "blockingMs": 1149
+    },
+    "runs": [
+     {
+      "settleMs": 4443.800000000279,
+      "cogRequests": 46,
+      "cogBytes": 3789683,
+      "longTasks": 5,
+      "blockingMs": 1141
+     },
+     {
+      "settleMs": 4314.700000000186,
+      "cogRequests": 46,
+      "cogBytes": 3789683,
+      "longTasks": 4,
+      "blockingMs": 1180
+     },
+     {
+      "settleMs": 4500.899999999907,
+      "cogRequests": 46,
+      "cogBytes": 3789683,
+      "longTasks": 4,
+      "blockingMs": 1149
+     }
+    ]
+   }
+  },
+  "zoom:fixtures/jpeg": {
+   "before": {
+    "median": {
+     "settleMs": 4485.0999999996275,
+     "cogRequests": 9,
+     "cogBytes": 6228629,
+     "longTasks": 4,
+     "blockingMs": 58
+    },
+    "runs": [
+     {
+      "settleMs": 2836.4000000003725,
+      "cogRequests": 9,
+      "cogBytes": 6228629,
+      "longTasks": 4,
+      "blockingMs": 58
+     },
+     {
+      "settleMs": 4512.100000000093,
+      "cogRequests": 9,
+      "cogBytes": 6228629,
+      "longTasks": 3,
+      "blockingMs": 44
+     },
+     {
+      "settleMs": 4485.0999999996275,
+      "cogRequests": 9,
+      "cogBytes": 6228629,
+      "longTasks": 4,
+      "blockingMs": 104
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 2713.0999999996275,
+     "cogRequests": 45,
+     "cogBytes": 4790858,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 3093.5999999996275,
+      "cogRequests": 45,
+      "cogBytes": 4790858,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 2307.9999999995343,
+      "cogRequests": 45,
+      "cogBytes": 4790858,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 2713.0999999996275,
+      "cogRequests": 45,
+      "cogBytes": 4790858,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   }
+  },
+  "pan:fixtures/jpeg": {
+   "before": {
+    "median": {
+     "settleMs": 31.299999999813735,
+     "frames": 114,
+     "frameP50": 83.29999999999927,
+     "frameP95": 150,
+     "frameMax": 233.29999999999927,
+     "cogRequests": 18,
+     "cogBytes": 1905962,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 25.200000000186265,
+      "frames": 114,
+      "frameP50": 83.29999999999927,
+      "frameP95": 133.29999999999927,
+      "frameMax": 250,
+      "cogRequests": 18,
+      "cogBytes": 1905962,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 31.299999999813735,
+      "frames": 114,
+      "frameP50": 83.29999999999927,
+      "frameP95": 150,
+      "frameMax": 233.29999999999927,
+      "cogRequests": 18,
+      "cogBytes": 1905962,
+      "longTasks": 2,
+      "blockingMs": 38
+     },
+     {
+      "settleMs": 42.700000000186265,
+      "frames": 111,
+      "frameP50": 83.29999999999927,
+      "frameP95": 166.70000000000073,
+      "frameMax": 233.29999999999927,
+      "cogRequests": 18,
+      "cogBytes": 1905962,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 39.89999999990687,
+     "frames": 103,
+     "frameP50": 150,
+     "frameP95": 266.6999999999989,
+     "frameMax": 366.6999999999998,
+     "cogRequests": 3,
+     "cogBytes": 363034,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 43.90000000037253,
+      "frames": 101,
+      "frameP50": 150,
+      "frameP95": 266.6999999999989,
+      "frameMax": 366.6999999999998,
+      "cogRequests": 3,
+      "cogBytes": 363034,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 39.89999999990687,
+      "frames": 103,
+      "frameP50": 150,
+      "frameP95": 266.60000000000036,
+      "frameMax": 316.60000000000036,
+      "cogRequests": 3,
+      "cogBytes": 363034,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 39.299999999813735,
+      "frames": 108,
+      "frameP50": 150,
+      "frameP95": 300,
+      "frameMax": 366.7000000000007,
+      "cogRequests": 3,
+      "cogBytes": 363034,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   }
+  },
+  "load:fixtures/dem": {
+   "before": {
+    "median": {
+     "settleMs": 2978.5,
+     "cogRequests": 2,
+     "cogBytes": 724849,
+     "longTasks": 5,
+     "blockingMs": 1142
+    },
+    "runs": [
+     {
+      "settleMs": 3133,
+      "cogRequests": 2,
+      "cogBytes": 724849,
+      "longTasks": 5,
+      "blockingMs": 1200
+     },
+     {
+      "settleMs": 2977.9000000003725,
+      "cogRequests": 2,
+      "cogBytes": 724849,
+      "longTasks": 5,
+      "blockingMs": 1106
+     },
+     {
+      "settleMs": 2978.5,
+      "cogRequests": 2,
+      "cogBytes": 724849,
+      "longTasks": 5,
+      "blockingMs": 1142
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 2159.600000000093,
+     "cogRequests": 3,
+     "cogBytes": 687476,
+     "longTasks": 5,
+     "blockingMs": 1182
+    },
+    "runs": [
+     {
+      "settleMs": 2137.600000000093,
+      "cogRequests": 3,
+      "cogBytes": 687476,
+      "longTasks": 5,
+      "blockingMs": 1182
+     },
+     {
+      "settleMs": 2159.600000000093,
+      "cogRequests": 3,
+      "cogBytes": 687476,
+      "longTasks": 5,
+      "blockingMs": 1077
+     },
+     {
+      "settleMs": 2367.399999999907,
+      "cogRequests": 3,
+      "cogBytes": 687476,
+      "longTasks": 4,
+      "blockingMs": 1249
+     }
+    ]
+   }
+  },
+  "zoom:fixtures/dem": {
+   "before": {
+    "median": {
+     "settleMs": 107.79999999934807,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 110.79999999934807,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 107.79999999934807,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 106.40000000037253,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 101.20000000065193,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 101.20000000065193,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 101.09999999916181,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 101.29999999934807,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   }
+  },
+  "pan:fixtures/dem": {
+   "before": {
+    "median": {
+     "settleMs": 31.59999999962747,
+     "frames": 102,
+     "frameP50": 83.29999999999927,
+     "frameP95": 116.60000000000036,
+     "frameMax": 183.30000000000018,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 37.60000000009313,
+      "frames": 99,
+      "frameP50": 83.30000000000018,
+      "frameP95": 116.60000000000036,
+      "frameMax": 183.30000000000018,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 25.200000000186265,
+      "frames": 104,
+      "frameP50": 83.29999999999927,
+      "frameP95": 133.29999999999927,
+      "frameMax": 166.69999999999982,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 31.59999999962747,
+      "frames": 102,
+      "frameP50": 66.69999999999982,
+      "frameP95": 100.10000000000036,
+      "frameMax": 300,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 44.799999999813735,
+     "frames": 102,
+     "frameP50": 150,
+     "frameP95": 299.89999999999964,
+     "frameMax": 366.60000000000036,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 45.1999999997206,
+      "frames": 102,
+      "frameP50": 150,
+      "frameP95": 299.89999999999964,
+      "frameMax": 333.4000000000001,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 44.799999999813735,
+      "frames": 99,
+      "frameP50": 150,
+      "frameP95": 316.59999999999854,
+      "frameMax": 366.60000000000036,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 25.399999999906868,
+      "frames": 104,
+      "frameP50": 150,
+      "frameP95": 283.2000000000003,
+      "frameMax": 450,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   }
+  },
+  "load:fixtures/tracks": {
+   "before": {
+    "median": {
+     "settleMs": 4748.600000000093,
+     "cogRequests": 2,
+     "cogBytes": 70417,
+     "longTasks": 5,
+     "blockingMs": 1302
+    },
+    "runs": [
+     {
+      "settleMs": 4748.600000000093,
+      "cogRequests": 2,
+      "cogBytes": 70417,
+      "longTasks": 5,
+      "blockingMs": 1248
+     },
+     {
+      "settleMs": 4778.799999999814,
+      "cogRequests": 2,
+      "cogBytes": 70417,
+      "longTasks": 6,
+      "blockingMs": 1322
+     },
+     {
+      "settleMs": 4646.600000000093,
+      "cogRequests": 2,
+      "cogBytes": 70417,
+      "longTasks": 5,
+      "blockingMs": 1302
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 3221,
+     "cogRequests": 31,
+     "cogBytes": 121722,
+     "longTasks": 5,
+     "blockingMs": 1478
+    },
+    "runs": [
+     {
+      "settleMs": 3168.7999999998137,
+      "cogRequests": 31,
+      "cogBytes": 121722,
+      "longTasks": 6,
+      "blockingMs": 1478
+     },
+     {
+      "settleMs": 3393,
+      "cogRequests": 31,
+      "cogBytes": 121722,
+      "longTasks": 5,
+      "blockingMs": 1691
+     },
+     {
+      "settleMs": 3221,
+      "cogRequests": 31,
+      "cogBytes": 121722,
+      "longTasks": 5,
+      "blockingMs": 1449
+     }
+    ]
+   }
+  },
+  "zoom:fixtures/tracks": {
+   "before": {
+    "median": {
+     "settleMs": 4546.4000000003725,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 1,
+     "blockingMs": 1
+    },
+    "runs": [
+     {
+      "settleMs": 4460.200000000186,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 4546.4000000003725,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 1,
+      "blockingMs": 7
+     },
+     {
+      "settleMs": 4776.199999999721,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 1,
+      "blockingMs": 1
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 174.79999999934807,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 1,
+     "blockingMs": 25
+    },
+    "runs": [
+     {
+      "settleMs": 101.40000000083819,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 1,
+      "blockingMs": 39
+     },
+     {
+      "settleMs": 174.79999999934807,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 1,
+      "blockingMs": 25
+     },
+     {
+      "settleMs": 682.1000000005588,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 1,
+      "blockingMs": 17
+     }
+    ]
+   }
+  },
+  "pan:fixtures/tracks": {
+   "before": {
+    "median": {
+     "settleMs": 26.600000000093132,
+     "frames": 121,
+     "frameP50": 83.29999999999927,
+     "frameP95": 150,
+     "frameMax": 233.29999999999927,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 0,
+     "blockingMs": 0
+    },
+    "runs": [
+     {
+      "settleMs": 26.600000000093132,
+      "frames": 121,
+      "frameP50": 83.29999999999927,
+      "frameP95": 150,
+      "frameMax": 233.30000000000018,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 25.40000000037253,
+      "frames": 121,
+      "frameP50": 83.29999999999927,
+      "frameP95": 150,
+      "frameMax": 233.29999999999927,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     },
+     {
+      "settleMs": 83.40000000037253,
+      "frames": 123,
+      "frameP50": 83.29999999999927,
+      "frameP95": 150,
+      "frameMax": 216.60000000000036,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 42.60000000009313,
+     "frames": 96,
+     "frameP50": 516.7000000000007,
+     "frameP95": 1050,
+     "frameMax": 1099.8999999999942,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 2,
+     "blockingMs": 36
+    },
+    "runs": [
+     {
+      "settleMs": 45.200000000186265,
+      "frames": 103,
+      "frameP50": 516.7000000000007,
+      "frameP95": 1050,
+      "frameMax": 1150,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 2,
+      "blockingMs": 39
+     },
+     {
+      "settleMs": 39.1999999997206,
+      "frames": 96,
+      "frameP50": 549.8999999999978,
+      "frameP95": 1066.5999999999985,
+      "frameMax": 1099.8999999999942,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 2,
+      "blockingMs": 36
+     },
+     {
+      "settleMs": 42.60000000009313,
+      "frames": 94,
+      "frameP50": 516.7000000000007,
+      "frameP95": 649.9000000000015,
+      "frameMax": 1099.8999999999942,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 0,
+      "blockingMs": 0
+     }
+    ]
+   }
+  },
+  "switch": {
+   "before": {
+    "median": {
+     "settleMs": 1941.5,
+     "cogRequests": 0,
+     "cogBytes": 0,
+     "longTasks": 24,
+     "blockingMs": 975
+    },
+    "runs": [
+     {
+      "settleMs": 761.1000000000931,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 24,
+      "blockingMs": 975
+     },
+     {
+      "settleMs": 1941.5,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 25,
+      "blockingMs": 865
+     },
+     {
+      "settleMs": 2487.0999999996275,
+      "cogRequests": 0,
+      "cogBytes": 0,
+      "longTasks": 23,
+      "blockingMs": 1027
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 1299.5999999996275,
+     "cogRequests": 8,
+     "cogBytes": 8195480,
+     "longTasks": 5,
+     "blockingMs": 210
+    },
+    "runs": [
+     {
+      "settleMs": 1294.5000000004657,
+      "cogRequests": 8,
+      "cogBytes": 8195480,
+      "longTasks": 5,
+      "blockingMs": 210
+     },
+     {
+      "settleMs": 1299.5999999996275,
+      "cogRequests": 8,
+      "cogBytes": 8195480,
+      "longTasks": 4,
+      "blockingMs": 153
+     },
+     {
+      "settleMs": 1650.8000000002794,
+      "cogRequests": 8,
+      "cogBytes": 8195480,
+      "longTasks": 5,
+      "blockingMs": 238
+     }
+    ]
+   }
+  },
+  "grid": {
+   "before": {
+    "median": {
+     "settleMs": 5486.600000000093,
+     "cogRequests": 7,
+     "cogBytes": 4043020,
+     "longTasks": 5,
+     "blockingMs": 1946
+    },
+    "runs": [
+     {
+      "settleMs": 5473.600000000093,
+      "cogRequests": 7,
+      "cogBytes": 4043020,
+      "longTasks": 5,
+      "blockingMs": 1812
+     },
+     {
+      "settleMs": 5486.600000000093,
+      "cogRequests": 7,
+      "cogBytes": 4043020,
+      "longTasks": 5,
+      "blockingMs": 1946
+     },
+     {
+      "settleMs": 5772.399999999907,
+      "cogRequests": 7,
+      "cogBytes": 4043020,
+      "longTasks": 6,
+      "blockingMs": 2056
+     }
+    ]
+   },
+   "after": {
+    "median": {
+     "settleMs": 4829.200000000186,
+     "cogRequests": 28,
+     "cogBytes": 3941592,
+     "longTasks": 6,
+     "blockingMs": 2636
+    },
+    "runs": [
+     {
+      "settleMs": 4759.700000000186,
+      "cogRequests": 28,
+      "cogBytes": 3941592,
+      "longTasks": 6,
+      "blockingMs": 2549
+     },
+     {
+      "settleMs": 4829.200000000186,
+      "cogRequests": 28,
+      "cogBytes": 3941592,
+      "longTasks": 6,
+      "blockingMs": 2636
+     },
+     {
+      "settleMs": 4864,
+      "cogRequests": 28,
+      "cogBytes": 3941592,
+      "longTasks": 9,
+      "blockingMs": 2822
+     }
+    ]
+   }
+  }
+ }
+}
