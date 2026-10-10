@@ -50,10 +50,12 @@ meters first. `blend_hillshade` multiplies it into the colors, as in a
 shaded relief map. The browser has the same formula, for image services
 whose shading is computed live: see [Image-service layers](/website/image-services#cpu-coloring).
 
-::: danger Known issue: the light comes from the southeast
-The aspect formula does not match the azimuth conversion, so both copies
-actually shade as if the sun were in the southeast. See
-[Issues and improvements](/issues#hillshade-direction).
+::: tip Compass vs. math angles
+The formula compares the sun's azimuth with each slope's aspect, so both
+must use the same angle convention. Here both are compass bearings
+(`aspect_compass`, `az_compass`: 0° = north, clockwise). An earlier version
+mixed in a math angle (0° = east, counterclockwise) and lit the terrain
+from the southeast; see [Issues and improvements](/issues#hillshade-direction).
 :::
 
 ## Labeled figures <Badge type="tip" text="standard" />

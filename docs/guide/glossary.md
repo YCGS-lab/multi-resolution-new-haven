@@ -72,8 +72,7 @@ NASA search service ([CMR](https://cmr.earthdata.nasa.gov/)) returns granules.
 ### Hillshade
 
 A grayscale image of a terrain model lit from one direction (here from the
-northwest, 45° above the horizon; but see [a known issue](/issues#hillshade-direction)),
-computed from the slope and aspect of
+northwest, 45° above the horizon), computed from the slope and aspect of
 each pixel. It is used on its own, or multiplied into elevation colors as
 *shading*.
 

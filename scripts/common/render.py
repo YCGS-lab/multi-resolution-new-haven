@@ -137,13 +137,20 @@ def colorize(data: np.ndarray, cmap, vmin=None, vmax=None, norm=None) -> np.ndar
 
 # region hillshade-and-blend
 def hillshade(dem: np.ndarray, dx: float, dy: float | None = None, azimuth=315.0, altitude=45.0, z_factor=1.0):
-    """Hillshade (0-1) of a DEM with pixel spacing dx, dy in the DEM's z units."""
+    """Hillshade (0-1) of a north-up DEM with pixel spacing dx, dy in the DEM's z units.
+
+    `azimuth` is the sun's compass bearing (degrees clockwise from north).
+    """
     dy = dx if dy is None else dy
+    # gy is d/drow, i.e. toward the south; gx is d/dcol, toward the east.
     gy, gx = np.gradient(np.asarray(dem, dtype="float32") * z_factor, dy, dx)
     slope = np.arctan(np.hypot(gx, gy))
-    aspect = np.arctan2(-gx, gy)
-    az, alt = np.radians(360 - azimuth + 90), np.radians(altitude)
-    hs = np.sin(alt) * np.cos(slope) + np.cos(alt) * np.sin(slope) * np.cos(az - aspect)
+    # Check the angle convention: compass (0 = north, clockwise) vs. math
+    # (0 = east, counterclockwise). Both angles here are compass; mixing the two
+    # mirrors the light across the NE-SW line (azimuth 315 would light from 135).
+    aspect_compass = np.arctan2(-gx, gy)  # downslope direction: (east, north) = (-gx, gy)
+    az_compass, alt = np.radians(azimuth), np.radians(altitude)
+    hs = np.sin(alt) * np.cos(slope) + np.cos(alt) * np.sin(slope) * np.cos(az_compass - aspect_compass)
     return np.clip(hs, 0, 1)
 
 

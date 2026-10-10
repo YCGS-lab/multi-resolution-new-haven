@@ -15,14 +15,14 @@ Each entry gives:
   it, *earlier* if it was already in commit `bd8e191`.
 - **Where**: files and functions rather than line numbers, which drift.
 
-Apart from the first entry, nothing here has been fixed.
+Apart from the first two entries, nothing here has been fixed.
 
 ## Summary
 
 | # | Issue | Area | Severity | Origin |
 |---|---|---|---|---|
 | [1](#lut-context) | Colormap layers drawn black in the grid | viewer | high | migration, **fixed** |
-| [2](#hillshade-direction) | Hillshades are lit from the southeast, not the northwest | pipeline, viewer | high | earlier |
+| [2](#hillshade-direction) | Hillshades were lit from the southeast, not the northwest | pipeline, viewer | high | earlier, **fixed** |
 | [3](#preview-exposes-repo) | `just preview` serves the whole repository, credentials included, to the network | tooling | high | earlier |
 | [4](#serve-root) | `serve.py` serves the repository root, not `website/` | tooling | medium | earlier |
 | [5](#fixtures-in-catalog) | Benchmark fixtures end up in the menu and in the deployed site | tooling | medium | migration |
@@ -65,30 +65,42 @@ reproduced before and after
   Showing the DEM fixture in the viewer and then in the grid now gives the
   same image as showing it in the grid alone.
 
+### 2. Hillshades were lit from the southeast {#hillshade-direction}
+
+**Severity** high · **Origin** earlier · **Status** code fixed in this PR,
+checked against a reference; outputs still to be regenerated
+
+- **Where:** `scripts/common/render.py`, `hillshade()`, and its browser
+  copy in `website/js/tiles.js`, `hillshade()`.
+- **Problem:** the hillshade formula compares the sun's azimuth with each
+  slope's aspect: `cos(azimuth − aspect)`. Both angles must be measured
+  the same way. The code computed the aspect as a compass bearing (0° =
+  north, clockwise), which was correct. It then converted the sun's
+  azimuth to a math angle (0° = east, counterclockwise) with
+  `360 − azimuth + 90`, the step ESRI's formula uses because ESRI also
+  computes aspect as a math angle. Mixing the two conventions mirrors the
+  light across the northeast–southwest line: the code lit from
+  90° − azimuth. The default 315° (northwest) became 135° (southeast).
+  Northeast and southwest happened to come out right.
+- **Effect:** light from the bottom of a north-up map invites relief
+  inversion, with valleys read as ridges. That is why northwest light is
+  the cartographic convention, even though the real sun at this latitude
+  is in the south. It affected every shaded product: the ASTER, 3DEP and
+  lidar figures, the stored hillshade band of the ASTER COG and the
+  benchmark DEM fixture, and the live ArcGIS shading in the browser.
+- **Fix:** both copies now use the compass convention throughout
+  (`aspect_compass`, `az_compass`; camelCase in JavaScript), with a comment
+  warning about the two conventions. On tilted planes facing every 30°,
+  both match a surface-normal calculation to within 1e-7: the Python
+  version for six sun azimuths, the browser version (fixed at 315°) for
+  its one.
+  - The browser shading of the live services is correct at once.
+  - Still to do: regenerate the shaded figures (`visualize*.py` for
+    aster-dem, 3dep, ct-lidar-2023). Rebuild the COGs that store a
+    hillshade (`aster-dem/create-cog.py`, and `fixtures.py` for the
+    benchmark).
+
 ## High
-
-### 2. Hillshades are lit from the southeast {#hillshade-direction}
-
-**Severity** high · **Origin** earlier · **Reproduced**
-
-- **Where:** `scripts/common/render.py`, `hillshade()`. The browser copy is
-  `website/js/tiles.js`, `hillshade()`.
-- **Problem:** the docstring, the [Figures page](/pipeline/figures#hillshade)
-  and the glossary say the sun is in the northwest (azimuth 315°). The
-  code computes `aspect = arctan2(-gx, gy)`, where `gy` is the
-  row-direction (southward) gradient, and then applies the usual
-  `360 − azimuth + 90` conversion. The two conventions do not match. For a
-  plane rising to the east (facing west), the function returns 0.15. A
-  normal-vector calculation with the sun in the northwest gives 0.85. For a
-  slope facing northwest it returns 0, not 0.99. Every slope is shaded as
-  if the sun were in the southeast.
-- **Effect:** relief can read inverted, with valleys looking like ridges.
-  This affects every shaded product: the ASTER, 3DEP and lidar figures,
-  the stored hillshade band of the website COGs, and the live ArcGIS
-  shading in the browser.
-- **Fix:** use the ESRI form `aspect = arctan2(gy, -gx)` (or flip the sign
-  of `dy`) in both copies. Add a test on a tilted plane. Then rebuild the
-  COGs that store a hillshade band.
 
 ### 3. `just preview` serves the whole repository to the network {#preview-exposes-repo}
 
@@ -313,7 +325,7 @@ reproduced before and after
   - `node docs/scripts/check-snippets.mjs`;
   - `terraform validate`;
   - small pytest tests of view and grid alignment, hillshade direction
-    (which would have caught [2](#hillshade-direction)), and `serve.py`
+    (which would have caught [2](#hillshade-direction) earlier), and `serve.py`
     range handling.
 
   Later: a Playwright smoke test that opens each fixture in the viewer

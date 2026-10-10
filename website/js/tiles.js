@@ -180,7 +180,10 @@ function hillshade(z, win) {
   const { width: w, height: h } = win;
   const yc = win.y1 - (win.height * win.res) / 2;
   const d = win.res * Math.cos((lat(yc) * Math.PI) / 180); // ground meters per pixel
-  const az = ((360 - 315 + 90) * Math.PI) / 180;
+  // Check the angle convention: compass (0 = north, clockwise) vs. math
+  // (0 = east, counterclockwise). Both angles here are compass; mixing the two
+  // mirrors the light across the NE-SW line (azimuth 315 would light from 135).
+  const azCompass = (315 * Math.PI) / 180;
   const alt = (45 * Math.PI) / 180;
   const out = new Float32Array(w * h);
   for (let i = 0; i < h; i++) {
@@ -189,11 +192,11 @@ function hillshade(z, win) {
     for (let j = 0; j < w; j++) {
       const jl = j > 0 ? j - 1 : j;
       const jr = j < w - 1 ? j + 1 : j;
-      const gx = (z[i * w + jr] - z[i * w + jl]) / ((jr - jl) * d);
-      const gy = (z[id * w + j] - z[iu * w + j]) / ((id - iu) * d);
+      const gx = (z[i * w + jr] - z[i * w + jl]) / ((jr - jl) * d); // toward the east
+      const gy = (z[id * w + j] - z[iu * w + j]) / ((id - iu) * d); // toward the south
       const slope = Math.atan(Math.hypot(gx, gy));
-      const aspect = Math.atan2(-gx, gy);
-      const hs = Math.sin(alt) * Math.cos(slope) + Math.cos(alt) * Math.sin(slope) * Math.cos(az - aspect);
+      const aspectCompass = Math.atan2(-gx, gy); // downslope direction: (east, north) = (-gx, gy)
+      const hs = Math.sin(alt) * Math.cos(slope) + Math.cos(alt) * Math.sin(slope) * Math.cos(azCompass - aspectCompass);
       out[i * w + j] = hs < 0 ? 0 : hs > 1 ? 1 : hs;
     }
   }
