@@ -439,12 +439,16 @@ function program(layer, spec, tiff) {
   return programs.get(layer);
 }
 
-const lutTextures = new WeakMap(); // program -> Texture
+// device -> program -> Texture. Per device: the viewer and the grid each have
+// their own Deck, hence WebGL context, and a texture only works in its own.
+const lutTextures = new WeakMap();
 
 function lutTexture(prog, device) {
-  if (!lutTextures.has(prog))
-    lutTextures.set(prog, device.createTexture({ data: prog.lut, format: "rgba8unorm", width: 256, height: 1, sampler: SAMPLER }));
-  return lutTextures.get(prog);
+  if (!lutTextures.has(device)) lutTextures.set(device, new WeakMap());
+  const textures = lutTextures.get(device);
+  if (!textures.has(prog))
+    textures.set(prog, device.createTexture({ data: prog.lut, format: "rgba8unorm", width: 256, height: 1, sampler: SAMPLER }));
+  return textures.get(prog);
 }
 
 // #region finer-cog-layer
