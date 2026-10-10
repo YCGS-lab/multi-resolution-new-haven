@@ -1,6 +1,6 @@
 // Benchmarks the website's map rendering in headless Chromium.
 //
-//   node bench.mjs [--runs 5] [--latency 40] [--out results.json] [--products a/b,c/d] NAME=URL ...
+//   node bench.mjs [--runs 5] [--latency 40] [--out results.json] [--products a/b,c/d] [--only REGEX] NAME=URL ...
 //
 // e.g. node bench.mjs before=http://localhost:8001/website/ after=http://localhost:8000/website/
 //
@@ -35,6 +35,7 @@ const opt = (name, dflt) => {
 const RUNS = +opt("runs", 5);
 const LATENCY = +opt("latency", 0);
 const OUT = opt("out", null);
+const ONLY = opt("only", null); // regular expression of scenario labels to run
 const CHROME = opt("chrome", process.env.CHROME ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome");
 const PRODUCTS = opt("products", "landsat/truecolor,ct-impervious-2023/classes,fixtures/jpeg,fixtures/dem,fixtures/tracks").split(",");
 const sites = args.map((a) => a.split("=", 2));
@@ -153,7 +154,8 @@ const scenarios = {
     });
     await page.goto(`${url}#a=${PRODUCTS[0]}`);
     await settle(page, { fromLoad: true });
-    const files = (await Promise.all(bodies)).filter(Boolean);
+    // Each URL once (decoder workers each load the worker script and wasm).
+    const files = [...new Map((await Promise.all(bodies)).filter(Boolean)).entries()];
     await context.close();
     return {
       files: files.length,
@@ -276,7 +278,7 @@ const jobs = [
   ["grid", "grid"],
 ];
 const results = {};
-for (const [label, scenario, product] of jobs) {
+for (const [label, scenario, product] of jobs.filter(([label]) => !ONLY || new RegExp(ONLY).test(label))) {
   results[label] = {};
   for (const [name, url] of sites) {
     const runs = [];

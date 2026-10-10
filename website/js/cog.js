@@ -149,7 +149,47 @@ async function loadTile(image, { device, x, y, signal, pool }, prog, spec) {
     format = ["r32float", "rg32float", null, "rgba32float"][nc - 1];
   }
   const texture = device.createTexture({ data, format, width: w, height: h, sampler: SAMPLER });
-  return { texture, width: w, height: h, byteLength: data.byteLength };
+  const tile = { texture, width: w, height: h, byteLength: data.byteLength };
+  if (prog.dilate) {
+    tile.occupancy = occupancy(data, prog.texture === "rgba8" ? 4 : data.length / n, w, h, device);
+    tile.byteLength += tile.occupancy.width * tile.occupancy.height * 4;
+  }
+  return tile;
+}
+
+const BLOCK = 8; // texels per occupancy block (also in the dilate_px shader)
+
+/**
+ * For dilate_px: a texture with one texel per BLOCK x BLOCK block of the tile,
+ * set where that block or a neighboring one has data, so that pixels far from
+ * any data skip the search for neighbors.
+ */
+function occupancy(data, nc, w, h, device) {
+  const bw = Math.ceil(w / BLOCK);
+  const bh = Math.ceil(h / BLOCK);
+  const has = new Uint8Array(bw * bh);
+  for (let i = 0; i < h; i++)
+    for (let j = 0; j < w; j++) {
+      const k = (i * w + j) * nc;
+      for (let c = 0; c < nc; c++)
+        if (!(data[k + c] < -1e38)) {
+          has[((i / BLOCK) | 0) * bw + ((j / BLOCK) | 0)] = 1;
+          break;
+        }
+    }
+  const out = new Uint8Array(bw * bh * 4); // RGBA: rows stay 4-byte aligned
+  for (let i = 0; i < bh; i++)
+    for (let j = 0; j < bw; j++) {
+      let any = 0;
+      for (let di = -1; di <= 1 && !any; di++)
+        for (let dj = -1; dj <= 1 && !any; dj++) {
+          const ii = i + di;
+          const jj = j + dj;
+          if (ii >= 0 && ii < bh && jj >= 0 && jj < bw) any = has[ii * bw + jj];
+        }
+      out[(i * bw + j) * 4] = any * 255;
+    }
+  return device.createTexture({ data: out, format: "rgba8unorm", width: bw, height: bh, sampler: SAMPLER });
 }
 
 // --------------------------------------------------------------------------
@@ -305,17 +345,30 @@ function compile(layer, spec, tiff) {
   // pixels; the CPU renderer used tile pixels, 0.7-1.4 screen pixels).
   // Pixels in neighboring tiles are not seen, so growth stops at tile edges.
   const R = layer.dilate_px || 0;
+  const O = `cogOccupancy${id}`;
+  const anyData = texture === "rgba8" ? "true" : bands.map((_, i) => `v.${"rgba"[i]} > -1e38`).join(" || ");
   const main = R
     ? `vec2 du = dFdx(geometry.uv), dv = dFdy(geometry.uv);
       vec4 c = cogColor${id}(geometry.uv);
-      for (int a = 0; a <= ${R} && c.a == 0.0; a++)
-        for (int sa = -1; sa <= 1 && c.a == 0.0; sa += 2)
-          for (int b = 0; b <= ${R} && c.a == 0.0; b++)
-            for (int sb = -1; sb <= 1 && c.a == 0.0; sb += 2) {
-              if ((a == 0 && sa == 1) || (b == 0 && sb == 1) || (a == 0 && b == 0)) continue;
-              vec2 uv = geometry.uv + float(sb * b) * du + float(sa * a) * dv;
-              if (uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0) c = cogColor${id}(uv);
-            }`
+      if (c.a == 0.0) {
+        // Skip the search where no data is within ${BLOCK} texels (see occupancy()).
+        vec2 size = vec2(textureSize(${T}, 0));
+        bool near = true;
+        if (${f(R)} * max(length(du * size), length(dv * size)) <= ${f(BLOCK)}) {
+          ivec2 block = min(ivec2(geometry.uv * size) / ${BLOCK}, textureSize(${O}, 0) - 1);
+          near = texelFetch(${O}, block, 0).r > 0.0;
+        }
+        for (int a = 0; a <= ${R} && near && c.a == 0.0; a++)
+          for (int sa = -1; sa <= 1 && c.a == 0.0; sa += 2)
+            for (int b = 0; b <= ${R} && c.a == 0.0; b++)
+              for (int sb = -1; sb <= 1 && c.a == 0.0; sb += 2) {
+                if ((a == 0 && sa == 1) || (b == 0 && sb == 1) || (a == 0 && b == 0)) continue;
+                vec2 uv = geometry.uv + float(sb * b) * du + float(sa * a) * dv;
+                if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) continue;
+                vec4 v = textureLod(${T}, uv, 0.0);
+                if (${anyData}) c = cogColor${id}(uv);
+              }
+      }`
     : `vec4 c = cogColor${id}(geometry.uv);`;
 
   const module = {
@@ -325,6 +378,7 @@ function compile(layer, spec, tiff) {
 precision highp sampler2D;
 uniform sampler2D ${T};
 ${lut ? `uniform sampler2D ${L};` : ""}
+${R ? `uniform sampler2D ${O};` : ""}
 float log10_(float x) { return log(x) * 0.4342944819032518; }
 vec4 cogColor${id}(vec2 uv) {
   vec4 v = textureLod(${T}, uv, 0.0);
@@ -336,9 +390,9 @@ vec4 cogColor${id}(vec2 uv) {
   if (c.a == 0.0) discard;
   color = c;`,
     },
-    getUniforms: (p) => ({ [T]: p.bands, ...(lut ? { [L]: p.lut } : {}) }),
+    getUniforms: (p) => ({ [T]: p.bands, ...(lut ? { [L]: p.lut } : {}), ...(R ? { [O]: p.occupancy } : {}) }),
   };
-  return { bands, texture, lut, module };
+  return { bands, texture, lut, dilate: R, module };
 }
 
 const programs = new WeakMap(); // layer spec -> compiled program
@@ -415,8 +469,13 @@ export function cogLayer(id, spec, layer, { loading, props = {} } = {}) {
         return null;
       }
     },
-    renderTile: (data) => ({ renderPipeline: [{ module: prog.module, props: { bands: data.texture, lut: data.lut } }] }),
-    onTileUnload: (tile) => tile.content?.texture?.destroy(),
+    renderTile: (data) => ({
+      renderPipeline: [{ module: prog.module, props: { bands: data.texture, lut: data.lut, occupancy: data.occupancy } }],
+    }),
+    onTileUnload: (tile) => {
+      tile.content?.texture?.destroy();
+      tile.content?.occupancy?.destroy();
+    },
     ...props,
   });
 }
