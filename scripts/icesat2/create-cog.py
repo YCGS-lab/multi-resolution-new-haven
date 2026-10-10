@@ -33,6 +33,7 @@ from shapely.geometry import LineString
 from common import remote, web
 from visualize import ALL_YEARS, CANOPY_CMAP, CANOPY_NORM, LINE_COLORS, NO_CANOPY, RECENT, load_20m, load_lines, pass_summary
 
+# region burn-footprint-discs
 PIXEL_M = 2.5
 CANOPY_RADIUS_M = 6.0
 GROUND_RADIUS_M = 4.0
@@ -57,6 +58,7 @@ def segments(years, grid):
     ground = burn(((g, 1.0) for g in gdf.geometry[~has].buffer(GROUND_RADIUS_M * m, 8)), grid)
     print(f"  {years[0]}-{years[-1]}: {has.sum()} canopy + {(~has).sum()} ground-only segments")
     return canopy, ground, load_20m(years)
+# endregion burn-footprint-discs
 
 
 def main():
@@ -80,6 +82,7 @@ def main():
     }
     basemap = web.layer("osm", web.identity(desaturate=0.55, lighten=0.35))
 
+    # region dilated-products
     products = {}
     for product, period, gdf, suffix in (
         ("canopy_height", "May-Sep 2025 and May-Sep 2026 (2026 data available through mid-July)", gdf_recent, "recent"),
@@ -119,6 +122,7 @@ def main():
             web.layer("icesat2", web.categorical("tracks", {l["n"]: c for l, c in zip(lines, LINE_COLORS)}), dilate_px=2),
         ],
     )
+    # endregion dilated-products
     web.write_spec("icesat2", sources, products)
 
 

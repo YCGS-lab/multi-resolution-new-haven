@@ -51,6 +51,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "site" {
   }
 }
 
+# region bucket-policy
 data "aws_iam_policy_document" "site_bucket" {
   # Only allow access over HTTPS, not HTTP
   statement {
@@ -95,6 +96,7 @@ resource "aws_s3_bucket_policy" "site" {
 
   depends_on = [aws_s3_bucket_public_access_block.site]
 }
+# endregion bucket-policy
 
 # --- Custom domain (optional) ---
 
@@ -124,6 +126,7 @@ resource "aws_cloudfront_origin_access_control" "site" {
   signing_protocol                  = "sigv4"
 }
 
+# region cloudfront
 resource "aws_cloudfront_distribution" "site" {
   comment             = var.name
   enabled             = true
@@ -147,6 +150,7 @@ resource "aws_cloudfront_distribution" "site" {
     cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
     compress               = true
   }
+# endregion cloudfront
 
   restrictions {
     geo_restriction {

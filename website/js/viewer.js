@@ -1,25 +1,26 @@
 // Single-image viewer with a Worldview-style comparison mode: image B is
 // revealed over image A by a swipe divider, by fading, or inside a lens (spy).
 
+import { Deck, MapView, PathLayer, SolidPolygonLayer } from "../vendor/deck-gl-raster.js";
 import {
+  CONTROLLER,
   LoadingState,
   MapChrome,
   backgroundLayer,
   clampViewState,
+  fromDeckViewState,
   homeViewState,
   keyHTML,
   landmarkLayers,
+  overlayProps,
   productLayers,
   titleHTML,
+  toDeckViewState,
   unproject,
 } from "./mapview.js";
 import { Picker } from "./picker.js";
 
-const { Deck, OrthographicView, ClipExtension, MaskExtension, PathLayer, SolidPolygonLayer } = deck;
-
 const SPY_RADIUS = 130; // px
-const clipExtension = new ClipExtension();
-const maskExtension = new MaskExtension();
 
 export class Viewer {
   constructor(root, catalog, settings) {
@@ -70,16 +71,17 @@ export class Viewer {
       }
     });
 
+    // #region viewer-deck
     this.size = [this.mapEl.clientWidth || 800, this.mapEl.clientHeight || 450];
     this.viewState = homeViewState(catalog.extent, ...this.size);
     this.deck = new Deck({
       parent: this.mapEl,
-      views: new OrthographicView({ id: "main", flipY: false, controller: { inertia: 250 } }),
-      viewState: this.viewState,
+      views: new MapView({ id: "main", controller: CONTROLLER }),
+      viewState: toDeckViewState(this.viewState, catalog),
       onViewStateChange: ({ viewState }) => {
-        this.viewState = clampViewState(viewState, catalog.extent, ...this.size);
+        this.viewState = clampViewState(fromDeckViewState(viewState, catalog), catalog.extent, ...this.size);
         this.update();
-        return this.viewState;
+        return toDeckViewState(this.viewState, catalog);
       },
       onResize: ({ width, height }) => {
         this.size = [width, height];
@@ -88,6 +90,7 @@ export class Viewer {
       },
       layers: [],
     });
+    // #endregion viewer-deck
   }
 
   /** Current state, for the URL. */
@@ -132,6 +135,7 @@ export class Viewer {
     this.update();
   }
 
+  // #region swipe-handle
   initSwipe() {
     let dragging = false;
     const move = (e) => {
@@ -153,26 +157,29 @@ export class Viewer {
       }
     });
   }
+  // #endregion swipe-handle
 
+  // #region compare-layers
   layers() {
     const c = this.catalog;
     const [w, h] = this.size;
-    const layers = [backgroundLayer("bg", c.extent)];
+    const layers = [backgroundLayer("bg", c)];
     const a = c.get(this.sel.a);
     if (a) layers.push(...productLayers("a", c, a, this.loading));
     const b = this.compare && c.get(this.sel.b);
     if (b) {
-      let props = null;
+      let overlay = null;
       let lens = null;
       if (this.mode === "swipe") {
-        const x = unproject(this.viewState, w, h, this.swipe * w, 0)[0];
-        props = { extensions: [clipExtension], clipBounds: [x, -1e8, 1e8, 1e8] };
+        overlay = { clipX: unproject(this.viewState, w, h, this.swipe * w, 0)[0] };
       } else if (this.mode === "opacity") {
-        props = { opacity: this.opacity };
+        overlay = { opacity: this.opacity };
       } else if (this.spy) {
         const [cx, cy] = unproject(this.viewState, w, h, ...this.spy);
         const r = SPY_RADIUS / 2 ** this.viewState.zoom;
-        const ring = Array.from({ length: 97 }, (_, i) => [cx + r * Math.cos((i * Math.PI) / 48), cy + r * Math.sin((i * Math.PI) / 48)]);
+        const ring = Array.from({ length: 97 }, (_, i) =>
+          c.worldToLngLat(cx + r * Math.cos((i * Math.PI) / 48), cy + r * Math.sin((i * Math.PI) / 48)),
+        );
         layers.push(new SolidPolygonLayer({ id: "spy-mask", operation: "mask", data: [{ polygon: ring }], getPolygon: (d) => d.polygon }));
         lens = new PathLayer({
           id: "spy-ring",
@@ -182,19 +189,21 @@ export class Viewer {
           getWidth: 2,
           widthUnits: "pixels",
         });
-        props = { extensions: [maskExtension], maskId: "spy-mask" };
+        overlay = { maskId: "spy-mask" };
       }
-      if (props) {
+      if (overlay) {
         // B's own no-data background, so A does not show through B's transparent pixels.
-        if (this.mode !== "opacity") layers.push(backgroundLayer("bg-b", c.extent).clone(props));
-        layers.push(...productLayers("b", c, b, this.loading, props));
+        if (this.mode !== "opacity") layers.push(backgroundLayer("bg-b", c, overlayProps(c, overlay)));
+        layers.push(...productLayers("b", c, b, this.loading, overlay));
         if (lens) layers.push(lens);
       }
     }
     if (this.settings.labels) layers.push(...landmarkLayers("landmarks", c, a?.landmark_color));
     return layers;
   }
+  // #endregion compare-layers
 
+  // #region render-throttle
   update() {
     if (this.pending) return;
     this.pending = requestAnimationFrame(() => {
@@ -202,11 +211,12 @@ export class Viewer {
       this.render();
     });
   }
+  // #endregion render-throttle
 
   render() {
     const c = this.catalog;
     const [w, h] = this.size;
-    this.deck.setProps({ viewState: this.viewState, layers: this.layers() });
+    this.deck.setProps({ viewState: toDeckViewState(this.viewState, c), layers: this.layers() });
     this.chrome.update(this.viewState, w, h, this.settings.labels);
 
     const swipe = this.compare && this.mode === "swipe";

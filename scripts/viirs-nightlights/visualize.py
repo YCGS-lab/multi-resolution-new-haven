@@ -42,6 +42,7 @@ CMAP = "magma"
 SOURCE = "NASA Black Marble VNP46A4 v002 (S-NPP VIIRS DNB), LAADS DAAC"
 
 
+# region hdfeos-grid-transform
 def tile_transform(f: h5py.File):
     """Affine transform from StructMetadata (UL corner, packed DMS degrees * 1e6)."""
     meta = f["HDFEOS INFORMATION/StructMetadata.0"][()].decode()
@@ -57,6 +58,7 @@ def tile_transform(f: h5py.File):
     assert np.allclose(lat, north - RES * np.arange(lat.size), atol=1e-6), "lat array mismatch"
     assert np.isclose(west + nx * RES, f.attrs["EastBoundingCoord"]), "east bound mismatch"
     return transform
+# endregion hdfeos-grid-transform
 
 
 def read_subset(path: Path):

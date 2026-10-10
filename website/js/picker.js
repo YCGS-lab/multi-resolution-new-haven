@@ -88,6 +88,7 @@ export class Picker {
     el.style.bottom = up ? `${window.innerHeight - b.top + 4}px` : "";
   }
 
+  // #region picker-tree
   renderTree(query) {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     const matches = (item) => {
@@ -143,6 +144,7 @@ export class Picker {
     };
     tree.querySelectorAll(".pk-pick").forEach((b) => b.addEventListener("click", () => pick(b.dataset.id)));
   }
+  // #endregion picker-tree
 }
 
 export function close() {

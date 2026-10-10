@@ -424,12 +424,14 @@ main {
 
 /* ---------- map frame: axes + map ---------- */
 
+/* #region map-frame-css */
 .map-frame {
   display: grid;
   grid-template-columns: var(--axis-w) 1fr;
   grid-template-rows: 1fr var(--axis-h);
   min-height: 0;
 }
+/* #endregion map-frame-css */
 
 .axis {
   position: relative;
@@ -1008,6 +1010,7 @@ main {
   font-weight: 500;
 }
 
+/* #region grid-canvas-css */
 /* The grid's deck.gl canvas sits behind the page; the slots' map areas are
    transparent holes that pass pointer events through to it. */
 #grid-deck {
@@ -1037,6 +1040,7 @@ body.grid-active .add-image,
 body.grid-active .axis {
   pointer-events: auto;
 }
+/* #endregion grid-canvas-css */
 
 /* rearrange mode */
 .rearrange-overlay {

@@ -28,6 +28,7 @@ BASE = "https://cteco.uconn.edu/ctraster/rest/services/elevation"
 FT_US = 1200 / 3937  # meters per US survey foot
 SOURCE = "CT 2023 statewide QL1 lidar (CT GIS Office), CT ECO image services (UConn CLEAR / CT DEEP)"
 ACQ = "Lidar flown Mar-Apr 2023 (leaf-off)"
+# region raw-float-scaled-sources
 DSM_NATIVE_M = 1.2192024384048763 / web.EXTENT_VIEW.merc_scale  # 4 ft Web Mercator pixels
 
 
@@ -52,6 +53,7 @@ def main():
             f"{BASE}/MaxSurfaceHeight_2023/ImageServer", DSM_NATIVE_M, bands=["surface"], raw=True, scale=FT_US, nodata=-9999
         ),
     }
+# endregion raw-float-scaled-sources
     products = {
         "elevation": web.product(
             title="Connecticut 2023 lidar elevation (bare earth)",

@@ -94,12 +94,14 @@ def read_subset(path: Path):
     return lst, qa, lat, lon, view_angle[sub], (r0 + r1) / 2, attrs
 
 
+# region pixel-spacing
 def pixel_spacing_m(lat, lon) -> tuple[float, float]:
     """Median ground distance between neighbouring swath pixel centers (along-scan, along-track)."""
     k = np.cos(np.radians(np.nanmean(lat))) * 111320.0
     d_scan = np.hypot(np.diff(lon, axis=1) * k, np.diff(lat, axis=1) * 111320.0)
     d_track = np.hypot(np.diff(lon, axis=0) * k, np.diff(lat, axis=0) * 111320.0)
     return float(np.median(d_scan)), float(np.median(d_track))
+# endregion pixel-spacing
 
 
 def view_area(view) -> geometry.AreaDefinition:
@@ -145,6 +147,7 @@ def main():
     print(path.name)
     lst, qa, lat, lon, vza, row, attrs = read_subset(path)
 
+    # region kd-tree-resample
     d_scan, d_track = pixel_spacing_m(lat, lon)
     radius = 0.6 * np.hypot(d_scan, d_track)  # > half the pixel diagonal: no gaps between pixels
     print(f"  pixel spacing {d_scan:.0f} m along scan x {d_track:.0f} m along track; radius of influence {radius:.0f} m")
@@ -164,6 +167,7 @@ def main():
             kd_tree.get_sample_from_neighbour_info("nn", area.shape, a, *info, fill_value=np.nan).astype("float32")
             for a in (lst, qa)
         )
+    # endregion kd-tree-resample
         valid = np.isfinite(grid)
         lo, hi = render.percentiles(grid, 2, 98)
         print(

@@ -64,6 +64,7 @@ def footprint(umm: dict) -> Polygon:
     return out
 
 
+# region driest-acquisition
 def precipitation(start: str, end: str) -> tuple[list, list]:
     """Hourly ERA5 precipitation (mm) at the greater view center."""
     v = views.VIEWS["greater"]
@@ -79,6 +80,7 @@ def precipitation(start: str, end: str) -> tuple[list, list]:
 
 def precip_before(times, precip, when: dt.datetime, hours: int) -> float:
     return float(sum(p for t, p in zip(times, precip) if when - dt.timedelta(hours=hours) <= t <= when))
+# endregion driest-acquisition
 
 
 def candidates(window) -> list[dict]:
@@ -118,6 +120,7 @@ def candidates(window) -> list[dict]:
             "precip_72h_mm": round(precip_before(times, precip, t, 72), 1),
             "size_mb": round(sum(f.get("SizeInBytes", 0) for f in umm["DataGranule"]["ArchiveAndDistributionInformation"] if f["Name"].endswith(".h5")) / 1e6),  # fmt: skip
         }
+        # region granule-filtering
         # Same acquisition reprocessed: GranuleUR differs only in the trailing version counter.
         key = (c["track"], c["frame"], start)
         if key not in by_acq or ur > by_acq[key]["granule_ur"]:
@@ -140,6 +143,7 @@ def candidates(window) -> list[dict]:
         )
     ok = [c for c in out if not c["rejected"]]
     return sorted(ok, key=lambda c: (c["precip_72h_mm"], -c["margin_km"]))
+        # endregion granule-filtering
 
 
 def valid_fraction(c: dict) -> float:

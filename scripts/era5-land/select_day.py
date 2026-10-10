@@ -46,6 +46,7 @@ def main():
         }
         print("requesting ERA5 total cloud cover, Jun-Aug 2026 ...")
         client.retrieve("reanalysis-era5-single-levels", request).download(str(out))
+    # region clear-day-ranking
     ds = xr.open_dataset(out)
     tcc = ds["tcc"].mean(["latitude", "longitude"]).to_series()
     tcc.index = pd.DatetimeIndex(tcc.index).tz_localize("UTC").tz_convert("Etc/GMT+4")  # EDT = UTC-4
@@ -60,6 +61,7 @@ def main():
     rank = rank.sort_values("score")
     print("Clearest days (mean total cloud cover fraction, local EDT):")
     print(rank.head(15).round(3).to_string())
+    # endregion clear-day-ranking
 
 
 if __name__ == "__main__":

@@ -94,6 +94,7 @@ def explode_20m(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return out.set_index("time_ns")
 
 
+# region atl08x-segment-request
 def download_atl08(year: int) -> gpd.GeoDataFrame:
     path = OUT / f"atl08_{year}.parquet"
     if path.exists():
@@ -122,6 +123,7 @@ def download_atl08(year: int) -> gpd.GeoDataFrame:
     explode_20m(gdf).to_parquet(OUT / f"atl08_20m_{year}.parquet")
     print(f"  wrote {path.relative_to(config.REPO)} and atl08_20m_{year}.parquet")
     return gdf
+# endregion atl08x-segment-request
 
 
 def candidates(atl08: gpd.GeoDataFrame) -> pd.DataFrame:
@@ -150,6 +152,7 @@ def candidates(atl08: gpd.GeoDataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("n_greater", ascending=False)
 
 
+# region sample-line-selection
 def select_lines(recent: gpd.GeoDataFrame, everything: gpd.GeoDataFrame) -> list[dict]:
     """Pick strong-beam sample lines crossing the greater view.
 
@@ -177,6 +180,7 @@ def select_lines(recent: gpd.GeoDataFrame, everything: gpd.GeoDataFrame) -> list
     print(ac.to_string(index=False))
     chosen = pd.concat([chosen, ac.drop(columns=["night", "leaf_on"]).head(1)]).sort_values("lon")
     return [dict(n=i + 1, **r) for i, r in enumerate(chosen.to_dict("records"))]
+# endregion sample-line-selection
 
 
 def download_photons(line: dict) -> None:

@@ -1,0 +1,7 @@
+/* Mermaid sizes label boxes from the text it measures; VitePress's paragraph
+   styles (line height, margins) would make the text taller than its box. */
+.vp-doc .mermaid p,
+.vp-doc .mermaid span {
+  margin: 0;
+  line-height: 1.5;
+}

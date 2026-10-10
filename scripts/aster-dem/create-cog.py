@@ -22,6 +22,7 @@ from matplotlib.colors import Normalize
 from common import render, styles, web
 from visualize import DATASET, SOURCE, load_mosaic
 
+# region stored-hillshade-band
 NATIVE_M = 1 / 3600 * 110574  # N-S size of a 1 arc-second pixel (E-W ~23 m here)
 NATIVE = "1 arc-second (~23 × 31 m here); global DEM from ASTER stereo, 2000-2013"
 
@@ -36,6 +37,7 @@ def main():
     data = web.reproject(np.stack([dem, hs]), transform, crs, grid)
     print(f"elevation over the extent {np.nanmin(data[0]):.0f} to {np.nanmax(data[0]):.0f} m")
     sources = {"dem": web.write_cog(DATASET, data, grid, ["elevation", "hillshade"], max_z_error=0.002)}
+# endregion stored-hillshade-band
     norm = Normalize(*styles.ELEVATION_RANGE["greater"])
     products = {
         "elevation": web.product(

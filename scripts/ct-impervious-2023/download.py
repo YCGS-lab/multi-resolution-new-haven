@@ -46,6 +46,7 @@ PAD_M = 50.0
 OUT_NAME = "impervious_2023_land.gpkg"
 
 
+# region esri-ring-assembly
 def rings_to_geometry(rings):
     """Esri JSON polygon rings -> shapely (Multi)Polygon."""
     shells, holes = [], []
@@ -67,6 +68,7 @@ def rings_to_geometry(rings):
         if cands:
             assigned[min(cands, key=lambda k: areas[k])].append(h)
     return MultiPolygon([Polygon(s, hs) for s, hs in zip(shells, assigned)])
+# endregion esri-ring-assembly
 
 
 def main():
@@ -78,6 +80,7 @@ def main():
     pages_dir = out_dir / "_pages"
     pages_dir.mkdir(exist_ok=True)
 
+    # region tiled-paginated-query
     xmin, ymin, xmax, ymax = views.all_bounds_in(views.CRS, PAD_M)
     xs = np.linspace(xmin, xmax, int(np.ceil((xmax - xmin) / TILE_M)) + 1)
     ys = np.linspace(ymin, ymax, int(np.ceil((ymax - ymin) / TILE_M)) + 1)
@@ -129,6 +132,7 @@ def main():
         for k, _ in enumerate(pool.map(fetch_tile, tiles), 1):
             if k % 20 == 0 or k == len(tiles):
                 print(f"  {k}/{len(tiles)} tiles", flush=True)
+    # endregion tiled-paginated-query
 
     records = {}
     for p in sorted(pages_dir.glob("*.json")):

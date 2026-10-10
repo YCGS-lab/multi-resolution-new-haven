@@ -55,6 +55,7 @@ FINE_M = 30.0
 # --------------------------------------------------------------------------
 
 
+# region grid-class
 class Grid:
     """A north-up EPSG:3857 grid covering the website extent."""
 
@@ -93,15 +94,19 @@ class Grid:
 
     def __repr__(self):
         return f"Grid({self.pixel_m:g} m: {self.width}x{self.height} px, {self.res:.4f} EPSG:3857 units/px)"
+# endregion grid-class
 
 
+# region fine-grid
 def fine_grid(native_m: float) -> Grid:
     """Grid for data with native pixels of `native_m` ground meters: the native
     size when it is FINE_M or finer, else the native size divided by the
     smallest integer that brings it to FINE_M or below."""
     return Grid(native_m / max(1, math.ceil(native_m / FINE_M - 1e-9)))
+# endregion fine-grid
 
 
+# region web-reproject
 def reproject(src, src_transform, src_crs, grid: Grid, resampling: str = "nearest", src_nodata=None) -> np.ndarray:
     """Resample a 2-D or (bands, rows, cols) array onto `grid`; NaN = no data."""
     src = np.asarray(src, dtype="float32")
@@ -123,6 +128,7 @@ def reproject(src, src_transform, src_crs, grid: Grid, resampling: str = "neares
         resampling=Resampling[resampling],
     )
     return dst[0] if squeeze else dst
+# endregion web-reproject
 
 
 # --------------------------------------------------------------------------
@@ -130,6 +136,7 @@ def reproject(src, src_transform, src_crs, grid: Grid, resampling: str = "neares
 # --------------------------------------------------------------------------
 
 
+# region write-cog
 def write_cog(
     name: str,
     data: np.ndarray,
@@ -211,6 +218,7 @@ def write_cog(
     elif kind == "categorical" and nodata is not None:
         source["nodata"] = nodata
     return source
+# endregion write-cog
 
 
 # --------------------------------------------------------------------------
@@ -218,6 +226,7 @@ def write_cog(
 # --------------------------------------------------------------------------
 
 
+# region arcgis-source
 def arcgis_source(
     url: str,
     native_m: float,
@@ -243,8 +252,10 @@ def arcgis_source(
     if band_ids is not None:
         s["band_ids"] = band_ids
     return s
+# endregion arcgis-source
 
 
+# region xyz-source
 def xyz_source(url: str, max_zoom: int, attribution: str | None = None, tile_size: int = 256) -> dict:
     """XYZ (slippy map) tiles, {z}/{x}/{y}: map images shown with `identity()`.
 
@@ -263,6 +274,7 @@ def xyz_source(url: str, max_zoom: int, attribution: str | None = None, tile_siz
         attribution=attribution,
         smooth=True,
     )
+# endregion xyz-source
 
 
 # --------------------------------------------------------------------------
@@ -288,6 +300,7 @@ def _value(band: str | None, expr: str | None) -> dict:
     return dict(band=band) if band is not None else dict(expr=expr)
 
 
+# region simple-render-specs
 def identity(desaturate: float = 0.0, lighten: float = 0.0) -> dict:
     """Show an RGB image as is (optionally desaturated / lightened, as for a basemap)."""
     r = dict(type="identity")
@@ -303,8 +316,10 @@ def channel(band: str | None = None, lo: float = 0.0, hi: float = 1.0, gamma: fl
 
 def rgb(r: dict, g: dict, b: dict) -> dict:
     return dict(type="rgb", channels=[r, g, b])
+# endregion simple-render-specs
 
 
+# region colormap-spec
 def colormap(
     cmap,
     norm,
@@ -354,13 +369,17 @@ def colormap(
         if shade.get("precomputed"):
             r["shade"]["precomputed"] = True
     return r
+# endregion colormap-spec
 
 
+# region categorical-spec
 def categorical(band: str, colors: dict[int, str]) -> dict:
     """Class codes -> colors (codes not listed are transparent)."""
     return dict(type="categorical", band=band, colors={str(k): _hex(c) for k, c in colors.items()})
+# endregion categorical-spec
 
 
+# region layer-and-product
 def layer(source: str, render: dict, dilate_px: int = 0) -> dict:
     """One layer of a product: a source (name in this dataset's sources) and its render spec.
 
@@ -402,8 +421,10 @@ def product(
             entries=[dict(color=_hex(c), label=l) for c, l in legend["entries"]],
         )
     return p
+# endregion layer-and-product
 
 
+# region write-spec
 def write_spec(dataset: str, sources: dict[str, dict], products: dict[str, dict]) -> Path:
     """Write website/image-data/<dataset>.json."""
     for name, p in products.items():
@@ -414,3 +435,4 @@ def write_spec(dataset: str, sources: dict[str, dict], products: dict[str, dict]
     path.write_text(json.dumps(dict(dataset=dataset, sources=sources, products=products), indent=1, ensure_ascii=False) + "\n")
     print(f"  wrote {path.relative_to(config.REPO)}: {', '.join(products)}")
     return path
+# endregion write-spec

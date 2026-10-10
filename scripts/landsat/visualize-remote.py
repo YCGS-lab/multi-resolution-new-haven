@@ -29,6 +29,7 @@ DATASET = scene_mod.DATASET
 DATA_API = "https://planetarycomputer.microsoft.com/api/data/v1"
 SOURCE = "Landsat 8 OLI/TIRS Collection 2 Level-2 (USGS), via Microsoft Planetary Computer data API"
 
+# region band-composites
 # Collection 2 Level-2 scale factors
 SR_SCALE, SR_OFFSET = 2.75e-5, -0.2
 ST_SCALE, ST_OFFSET = 0.00341802, 149.0  # kelvin
@@ -50,8 +51,10 @@ COMPOSITES = {
     "urban": ("Landsat 8 false color (urban)", ("swir22", "swir16", "red")),
 }
 GAMMA = {"truecolor": 1.6, "cir": 1.2, "veg": 1.2, "urban": 1.2}
+# endregion band-composites
 
 
+# region titiler-chunked-fetch
 def fetch_bands(view, item_id: str, max_size: int = 1920) -> dict[str, np.ndarray]:
     """Raw uint16 values of ASSETS on the view grid (float32, NaN = nodata).
 
@@ -86,6 +89,7 @@ def fetch_bands(view, item_id: str, max_size: int = 1920) -> dict[str, np.ndarra
     return {
         name: np.where(mask | (band == 0), np.nan, band) for name, band in zip(ASSETS, arr[: len(ASSETS)])
     }
+# endregion titiler-chunked-fetch
 
 
 def reflectance(dn):

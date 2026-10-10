@@ -55,8 +55,10 @@ Some scripts have extra steps: `landsat/select_scene.py`, `nisar-gcov/select_gra
 
 ## Website
 
-`website/` is an interactive map viewer built on [deck.gl](https://deck.gl) (from unpkg) and
-[geotiff.js](https://geotiffjs.github.io/) (from jsDelivr), styled after
+`website/` is an interactive map viewer built on [deck.gl](https://deck.gl) and
+[deck.gl-raster](https://github.com/developmentseed/deck.gl-raster) (bundled in `website/vendor/`
+by `scripts/website/vendor/`; see [docs/deck-gl-raster.md](docs/deck-gl-raster.md) for how it is
+used and how to update it), styled after
 [geospatial.yale.edu](https://geospatial.yale.edu/) (Yale blue header with the YCGS wordmark,
 Yale typefaces from yale-webfonts.yalespace.org). It does not use the figures: it draws
 each image itself, tile by tile, over the Greater New Haven extent, from
@@ -68,8 +70,9 @@ each image itself, tile by tile, over the Greater New Haven extent, from
   as float elevations), the USGS 3DEP ImageServer (float elevations), and XYZ map tiles (the
   ICESat-2 basemap, and the street maps).
 
-Each dataset's `.json` gives its sources and, per product, the *render spec* that turns values
-into colors: band combinations and stretches (e.g. Landsat composites, NISAR HH / HV / HH−HV in
+COGs are read and drawn by deck.gl-raster, colored on the GPU by shaders generated from the
+render specs; image-service tiles are colored in the browser's main thread. Each dataset's `.json`
+gives its sources and, per product, the *render spec* that turns values into colors: band combinations and stretches (e.g. Landsat composites, NISAR HH / HV / HH−HV in
 dB), colormaps with their value ranges (also drawn as the colorbar), hillshading (computed in
 the browser for the lidar and 3DEP DEMs), and categorical colors (with a legend).
 `build_catalog.py` gathers them into `website/catalog.json`.

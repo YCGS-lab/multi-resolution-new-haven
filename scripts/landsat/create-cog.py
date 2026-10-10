@@ -42,6 +42,7 @@ L1_SOURCE = "Landsat 8 OLI Collection 2 Level-1 (USGS), s3://usgs-landsat (reque
 PAN_GAMMA = 1.5
 
 
+# region l2-cog-fetch
 def fetch_l2(grid: web.Grid, item_id: str) -> np.ndarray:
     """(7, h, w) raw values of vr.ASSETS on the grid (NaN = no data)."""
     params = {
@@ -59,6 +60,7 @@ def fetch_l2(grid: web.Grid, item_id: str) -> np.ndarray:
         arr = ds.read().astype("float32")
     mask = arr[-1] == 0  # titiler's dataset mask
     return np.stack([np.where(mask | (b == 0), np.nan, b) for b in arr[: len(vr.ASSETS)]])
+# endregion l2-cog-fetch
 
 
 def main():
@@ -80,6 +82,7 @@ def main():
     pan = web.reproject(pan_dn, transform, crs, pan_grid, src_nodata=nodata)
     sources["pan"] = web.write_cog(f"{DATASET}-pan", pan, pan_grid, ["b8"], max_z_error=0.5)
 
+    # region website-stretches
     # Stretches over the extent
     products = {}
     for product, (title, assets) in vr.COMPOSITES.items():
@@ -118,6 +121,7 @@ def main():
         landmark_color="yellow",
         layers=[web.layer("pan", web.colormap("gray", Normalize(lo, hi), band="b8", gamma=PAN_GAMMA))],
     )
+    # endregion website-stretches
     web.write_spec(DATASET, sources, products)
 
 

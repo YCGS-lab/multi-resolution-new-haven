@@ -34,6 +34,7 @@ def group(label: str, *children) -> dict:
     return dict(label=label, children=list(children))
 
 
+# region tree
 # Menu hierarchy. Labels are short (the menu shows them with their parents);
 # the full title shown above the map comes from the product spec.
 TREE = [
@@ -140,8 +141,10 @@ TREE = [
         item("streetmap", "usgs-topo", "USGS National Map topo"),
     ),
 ]
+# endregion tree
 
 
+# region load-and-resolve
 def load_specs() -> tuple[dict, dict]:
     """Sources {"<dataset>/<name>": source} and products {"<dataset>/<product>": product}."""
     sources, products = {}, {}
@@ -166,9 +169,11 @@ def resolve(node: dict, products: dict, seen: set) -> dict | None:
     if pid not in products:
         return None
     return dict(id=pid, label=node["label"], menu_title=node["title"], **products[pid])
+# endregion load-and-resolve
 
 
 def main():
+    # region catalog-json
     sources, products = load_specs()
     seen = set()
     tree = [n for n in (resolve(g, products, seen) for g in TREE) if n]
@@ -188,6 +193,7 @@ def main():
     )
     out = config.REPO / "website" / "catalog.json"
     out.write_text(json.dumps(catalog, indent=1, ensure_ascii=False) + "\n")
+    # endregion catalog-json
     kinds = {}
     for s in sources.values():
         kinds[s["type"]] = kinds.get(s["type"], 0) + 1

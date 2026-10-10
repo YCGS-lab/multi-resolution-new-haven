@@ -24,6 +24,7 @@ from shapely.geometry import box, shape
 
 from common import config, views
 
+# region scene-selection-criteria
 STAC = "https://planetarycomputer.microsoft.com/api/stac/v1"
 # USGS LandsatLook STAC, for the matching Collection 2 Level-1 product (pan band)
 L1_STAC = "https://landsatlook.usgs.gov/stac-server"
@@ -35,6 +36,7 @@ MAX_VIEW_CLOUD = 0.001  # fraction of view pixels flagged cloud / shadow / cirru
 PAD_M = 300.0
 # QA_PIXEL bits: 1 dilated cloud, 2 cirrus, 3 cloud, 4 cloud shadow
 CLOUD_BITS = (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4)
+# endregion scene-selection-criteria
 
 
 def in_season(dt: str) -> bool:
@@ -42,6 +44,7 @@ def in_season(dt: str) -> bool:
     return SEASON[0] <= md <= SEASON[1]
 
 
+# region view-cloud-check
 def view_cloud_fraction(item) -> tuple[float, float]:
     """(cloud fraction, fill fraction) of QA_PIXEL over the padded greater view."""
     href = planetary_computer.sign(item.assets["qa_pixel"].href)
@@ -52,8 +55,10 @@ def view_cloud_fraction(item) -> tuple[float, float]:
     fill = (qa & 1).astype(bool)
     cloud = (qa & CLOUD_BITS) > 0
     return float(cloud[~fill].mean()) if (~fill).any() else 1.0, float(fill.mean())
+# endregion view-cloud-check
 
 
+# region find-level1-pan
 def find_l1(item) -> dict:
     """The Level-1 item for the same Landsat 8 path/row/date (USGS LandsatLook STAC)."""
     p = item.properties
@@ -77,6 +82,7 @@ def find_l1(item) -> dict:
                 "l1_mtl_json_s3": l1.assets["MTL.json"].extra_fields["alternate"]["s3"]["href"],
             }
     raise SystemExit(f"no Level-1 product found for {item.id}")
+# endregion find-level1-pan
 
 
 def main():

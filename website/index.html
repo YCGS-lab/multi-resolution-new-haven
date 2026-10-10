@@ -6,9 +6,10 @@
     <title>New Haven at many resolutions | Yale Center for Geospatial Solutions</title>
     <!-- Yale typefaces (YaleNew, Mallory), as on yale.edu sites -->
     <link rel="stylesheet" href="https://yale-webfonts.yalespace.org/fonts.min.css" />
+    <!-- #region head-scripts -->
     <link rel="stylesheet" href="css/style.css" />
-    <script src="https://unpkg.com/deck.gl@9.4.0/dist.min.js"></script>
     <script type="module" src="js/main.js"></script>
+    <!-- #endregion head-scripts -->
   </head>
   <body>
     <header class="app-header">
@@ -60,6 +61,7 @@
           </div>
         </div>
         <div class="viewer-titles"></div>
+        <!-- #region map-frame-markup -->
         <div class="map-frame viewer-frame">
           <div class="axis axis-left"></div>
           <div class="map" id="viewer-map">
@@ -76,6 +78,7 @@
           </div>
           <div class="axis-corner"></div>
           <div class="axis axis-bottom"></div>
+        <!-- #endregion map-frame-markup -->
         </div>
         <div class="viewer-legends"></div>
       </section>
@@ -112,8 +115,10 @@
       </section>
     </main>
 
+    <!-- #region grid-canvas-markup -->
     <!-- One WebGL canvas for all grid slots (one deck.gl view per slot) -->
     <div id="grid-deck" hidden></div>
+    <!-- #endregion grid-canvas-markup -->
     <!-- Shared popup for every image picker -->
     <div id="picker-popup" class="picker-popup" hidden></div>
   </body>

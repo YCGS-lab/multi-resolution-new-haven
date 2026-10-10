@@ -31,6 +31,7 @@ DATASET = vr.DATASET
 def main():
     key = config.credentials()["planet_api_key"]
     url = vr.TILE_URL.replace("{key}", key)  # never print this
+    # region tile-aligned-grid
     native_merc = remote.tile_pixel_size(vr.NATIVE_ZOOM)
     grid = web.Grid(native_merc / web.EXTENT_VIEW.merc_scale)  # aligned with the z15 tile pixels
     try:
@@ -39,6 +40,7 @@ def main():
         raise RuntimeError(str(e).replace(key, "<planet_api_key>")) from None
     print(f"  {(rgba[..., 3] == 0).mean():.2%} of pixels without data")
     sources = {"rgb": web.write_cog(DATASET, np.moveaxis(rgba[..., :3], -1, 0), grid, ["r", "g", "b"], kind="jpeg")}
+    # endregion tile-aligned-grid
     products = {
         "truecolor": web.product(
             title="Planet monthly basemap, true color",

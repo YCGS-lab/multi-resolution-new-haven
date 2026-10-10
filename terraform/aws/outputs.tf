@@ -54,6 +54,7 @@ output "aws_config" {
   EOT
 }
 
+# region deploy-commands
 output "deploy_commands" {
   description = "Run from the repository root."
   value       = <<-EOT
@@ -61,3 +62,4 @@ output "deploy_commands" {
     aws --profile ${var.name}-deploy cloudfront create-invalidation --distribution-id ${aws_cloudfront_distribution.site.id} --paths "/*"
   EOT
 }
+# endregion deploy-commands

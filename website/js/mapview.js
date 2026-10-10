@@ -1,16 +1,42 @@
 // Pieces shared by the viewer and the grid: deck.gl layers for a product and
 // the landmarks, pan/zoom limits, loading state, and the HTML around a map
 // (axes, scale bar, title block, colorbar / legend).
+//
+// View states here are in world coordinates (see catalog.js): {target: [x, y],
+// zoom}, with 2^zoom screen pixels per world (EPSG:3857) meter. deck.gl's
+// MapView, which deck.gl-raster needs, takes {longitude, latitude, zoom} with
+// 512 * 2^zoom pixels around the world; toDeckViewState / fromDeckViewState
+// convert.
 
-import { productLayer } from "./tiles.js";
-
-const { ScatterplotLayer, TextLayer, SolidPolygonLayer } = deck;
+import { ClipExtension, MaskExtension, ScatterplotLayer, SolidPolygonLayer, TextLayer } from "../vendor/deck-gl-raster.js";
+import { productLayers as tileLayers } from "./tiles.js";
 
 // Deepest zoom: 2^6 = 64 screen pixels per Web Mercator meter, i.e. ~5 px per
 // 7.6 cm pixel of the CT orthoimagery.
 export const MAX_ZOOM = 6;
 const NODATA_FILL = [208, 208, 208]; // same gray as NODATA_FACE in render.py
 
+// #region deck-view-state
+// MapView zoom = world zoom + DECK_ZOOM_OFFSET.
+const DECK_ZOOM_OFFSET = Math.log2((2 * Math.PI * 6378137) / 512);
+
+/** Pan and zoom with the mouse / touch / keyboard, without rotating or tilting. */
+export const CONTROLLER = { inertia: 250, dragRotate: false, touchRotate: false, keyboard: { rotateSpeedX: 0, rotateSpeedY: 0 } };
+
+/** MapView view state of a world view state. */
+export function toDeckViewState(vs, catalog) {
+  const [longitude, latitude] = catalog.worldToLngLat(vs.target[0], vs.target[1]);
+  const off = (z) => (z == null ? z : z + DECK_ZOOM_OFFSET);
+  return { longitude, latitude, zoom: off(vs.zoom), minZoom: off(vs.minZoom), maxZoom: off(vs.maxZoom), pitch: 0, bearing: 0 };
+}
+
+/** World view state of a MapView view state. */
+export function fromDeckViewState(dvs, catalog) {
+  return { target: [...catalog.lonLatToWorld(dvs.longitude, dvs.latitude), 0], zoom: dvs.zoom - DECK_ZOOM_OFFSET };
+}
+// #endregion deck-view-state
+
+// #region clamp-view-state
 /** Zoom at which the whole extent just fits in a w x h px map. */
 export function fitZoom(extent, w, h) {
   return Math.log2(Math.min(w / (extent[2] - extent[0]), h / (extent[3] - extent[1])));
@@ -40,6 +66,7 @@ export function unproject(vs, w, h, px, py) {
   const s = 2 ** vs.zoom;
   return [vs.target[0] + (px - w / 2) / s, vs.target[1] - (py - h / 2) / s];
 }
+// #endregion clamp-view-state
 
 export function hexToRgba(hex) {
   const h = hex.replace("#", "");
@@ -54,16 +81,39 @@ const rect = (b) => [
   [b[0], b[3]],
 ];
 
-/** Gray "no data" background over the whole extent. */
-export function backgroundLayer(id, extent) {
-  return new SolidPolygonLayer({ id, data: [{ polygon: rect(extent) }], getPolygon: (d) => d.polygon, getFillColor: NODATA_FILL });
+/** Gray "no data" background over the whole extent; `props` as from overlayProps. */
+export function backgroundLayer(id, catalog, props = {}) {
+  const polygon = rect(catalog.lngLatExtent);
+  return new SolidPolygonLayer({ id, data: [{ polygon }], getPolygon: (d) => d.polygon, getFillColor: NODATA_FILL, ...props });
 }
 
-/** The product's tiled layer (see tiles.js); `props` go to its tiles, e.g. clipping. */
-export function productLayers(id, catalog, product, loading, props = {}) {
-  return [productLayer(id, catalog, product, { loading, props })];
+// #region overlay-props
+const clipExtension = new ClipExtension();
+const maskExtension = new MaskExtension();
+
+/**
+ * Props that show a layer only partly, for comparisons: `opacity`, only right
+ * of world x `clipX` (swipe), or only inside the mask layer `maskId` (spy).
+ * `kind`: the layer's coordinates, "lnglat" or deck.gl "common" (COG layers).
+ */
+export function overlayProps(catalog, { opacity, clipX, maskId } = {}, kind = "lnglat") {
+  if (opacity != null) return { opacity };
+  if (clipX != null) {
+    const clipBounds =
+      kind === "common" ? [catalog.worldToCommon(clipX, 0), 0, 512, 512] : [catalog.worldToLon(clipX), -90, 180, 90];
+    return { extensions: [clipExtension], clipBounds, clipByInstance: false };
+  }
+  if (maskId) return { extensions: [maskExtension], maskId };
+  return {};
 }
 
+/** The product's layers (see tiles.js); `overlay` as for overlayProps. */
+export function productLayers(id, catalog, product, loading, overlay) {
+  return tileLayers(id, catalog, product, { loading, props: (kind) => overlayProps(catalog, overlay, kind) });
+}
+// #endregion overlay-props
+
+// #region loading-state
 /**
  * Counts a map's tile requests and shows "Loading…" (after a short delay, to
  * avoid flicker) in its .map-message element while any are pending.
@@ -107,7 +157,9 @@ export class LoadingState {
     this.show();
   }
 }
+// #endregion loading-state
 
+// #region landmark-layers
 /** Landmark markers and names, as in render.add_landmarks. */
 export function landmarkLayers(id, catalog, color = "#ffffff") {
   const rgba = hexToRgba(color);
@@ -144,6 +196,7 @@ export function landmarkLayers(id, catalog, color = "#ffffff") {
     }),
   ];
 }
+// #endregion landmark-layers
 
 // --------------------------------------------------------------------------
 // Axes and scale bar
@@ -167,6 +220,7 @@ function niceLength(maxM) {
   return [5, 2, 1].map((m) => m * exp).find((l) => l <= maxM);
 }
 
+// #region map-chrome
 /**
  * Longitude / latitude axes and the scale bar of one map frame:
  * .axis-left, .axis-bottom and .scalebar elements inside `frame`.
@@ -231,6 +285,7 @@ export class MapChrome {
     }
   }
 }
+// #endregion map-chrome
 
 // --------------------------------------------------------------------------
 // Title block and colorbar / legend
@@ -307,6 +362,7 @@ function legendHTML(lg) {
     </div>`;
 }
 
+// #region key-html
 /** Colorbar or legend, plus the source line. */
 export function keyHTML(p, catalog, { tag = "", source = true } = {}) {
   const parts = [];
@@ -317,3 +373,4 @@ export function keyHTML(p, catalog, { tag = "", source = true } = {}) {
   if (source && credits) parts.push(`<div class="source">Source: ${esc(credits)}</div>`);
   return parts.length ? `${tag}<div class="key-body">${parts.join("")}</div>` : "";
 }
+// #endregion key-html

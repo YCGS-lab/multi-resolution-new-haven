@@ -25,6 +25,7 @@ ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/Ma
 USGS = "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer"
 
 
+# region basemap-sources
 def copyright_text(service: str) -> str:
     r = remote.session().get(service, params={"f": "json"}, timeout=60)
     r.raise_for_status()
@@ -37,6 +38,7 @@ def main():
         "esri": web.xyz_source(f"{ESRI}/tile/{{z}}/{{y}}/{{x}}", max_zoom=19, attribution=copyright_text(ESRI)),
         "usgs-topo": web.xyz_source(f"{USGS}/tile/{{z}}/{{y}}/{{x}}", max_zoom=16, attribution=copyright_text(USGS)),
     }
+# endregion basemap-sources
     for name, s in sources.items():
         print(f"  {name}: {s['attribution']}")
     products = {

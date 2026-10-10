@@ -26,6 +26,7 @@ resource "aws_iam_role" "deploy" {
   assume_role_policy = data.aws_iam_policy_document.deploy_assume.json
 }
 
+# region deploy-role-policy
 data "aws_iam_policy_document" "deploy" {
   statement {
     sid       = "ListBucket"
@@ -45,6 +46,7 @@ data "aws_iam_policy_document" "deploy" {
     resources = [aws_cloudfront_distribution.site.arn]
   }
 }
+# endregion deploy-role-policy
 
 resource "aws_iam_role_policy" "deploy" {
   name   = "deploy"

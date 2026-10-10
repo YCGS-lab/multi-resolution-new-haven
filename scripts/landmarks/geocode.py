@@ -17,6 +17,7 @@ import requests
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "data" / "landmarks.json"
 
+# region landmark-queries
 # (short label, Nominatim query). Science Hill is represented by Kline Tower,
 # its tallest building and most recognizable landmark.
 LANDMARKS = [
@@ -25,6 +26,7 @@ LANDMARKS = [
     ("Science Hill", "Kline Tower, New Haven"),
     ("Sterling Memorial Library", "Sterling Library, New Haven"),
 ]
+# endregion landmark-queries
 
 HEADERS = {"User-Agent": "multi-resolution-new-haven (Yale research; geocoding 4 landmarks)"}
 

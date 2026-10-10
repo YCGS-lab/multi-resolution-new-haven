@@ -26,8 +26,14 @@ RANGE = re.compile(r"bytes=(\d*)-(\d*)$")
 class RangeHandler(SimpleHTTPRequestHandler):
     """SimpleHTTPRequestHandler plus single-range `Range: bytes=a-b` support."""
 
-    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".tif": "image/tiff", ".js": "text/javascript"}
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".tif": "image/tiff",
+        ".js": "text/javascript",
+        ".wasm": "application/wasm",
+    }
 
+    # region range-requests
     def send_head(self):
         self._range = None
         m = RANGE.match(self.headers.get("Range", "").strip())
@@ -55,6 +61,7 @@ class RangeHandler(SimpleHTTPRequestHandler):
         self.send_header("Accept-Ranges", "bytes")
         self.end_headers()
         return f
+    # endregion range-requests
 
     def copyfile(self, source, outputfile):
         if self._range is None:
