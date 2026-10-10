@@ -88,7 +88,8 @@ website/
   layer is a `COGLayer`, an ArcGIS layer a `TileLayer` of CPU-colored bitmaps,
   and an XYZ layer a plain `TileLayer` of map tiles; deck.gl composites them.
 - **COG layers** (`cog.js`):
-  - One `GeoTIFF` per URL (`GeoTIFF.fromUrl`, a 6-per-origin request limiter)
+  - One `GeoTIFF` per URL (`GeoTIFF.fromUrl`, with a request limiter: 6 per
+    origin, 24 when the page came over HTTP/2 or 3)
     is shared by every layer and grid slot on that COG; the layer is added
     when its header is read (`onCogOpened`).
   - `getTileData` fetches the tile (`image.fetchTile`, decoded in the worker
@@ -120,7 +121,7 @@ website/
 | deck.gl 9.4.0 UMD from unpkg | the bundle (same deck.gl version) |
 | `CogSource`: opening COGs, picking the overview, windowed `readRasters`, no-data masking | `COGLayer`: overview choice by screen resolution (device-pixel aware), tile fetch with range requests and a request limiter, decoding in a worker pool (geotiff.js decoded LERC on the main thread), texture lifetime |
 | CPU colorizing of COG data (stretches, expressions, colormaps, categorical, shading) | GPU shader modules generated per render spec |
-| `resample` (nearest-neighbor resampling of colors onto 512-px tiles) | GPU texture sampling; native pixel edges now land exactly where the geotransform puts them (the old tiles snapped them to tile pixels, off by up to ~17 screen px at the deepest zoom) |
+| `resample` (nearest-neighbor resampling of colors onto 512-px tiles) | GPU texture sampling; native pixel edges now land exactly where the geotransform puts them (the old tiles snapped them to tile pixels, off by up to ~17 screen px at deep zoom) |
 | `dilate`, `crop`, `over` (CPU dilation and compositing) | GPU dilation in the shader; deck.gl compositing of separate layers |
 | `XyzSource`, its tile cache, mosaicking and `resampleSmooth` | a standard deck.gl `TileLayer` of the map tiles (desaturation via `BitmapLayer`, lightening as a white veil layer) |
 | `readSparseTiles` (hand-written reader for ArcGIS sparse float TIFFs) | `fetchTile` per TIFF tile, sparse tiles skipped |
@@ -201,7 +202,6 @@ Worth reporting to deck.gl-raster (all worked around in `cog.js`):
 2. Because of (1), `fetchTile(..., {boundless: false})` **clips only the first
    band's rows** on edge tiles of such COGs. `cog.js` fetches boundless tiles
    and clips them itself.
-
 3. **Overviews up to 2x too coarse.** The tile traversal's
    `getMetersPerPixel(lat, zoom)` divides by `2^(zoom + 8)`, i.e. a 256-px
    world (the OSM convention, as `dev-docs/lod-and-pixel-matching.md` says), but
@@ -364,11 +364,17 @@ migration:
 
    ```sh
    cd scripts/website/benchmark && npm ci
-   node bench.mjs --runs 5 --out before-after.json \
+   node bench.mjs --runs 3 --out local.json \
      before=http://localhost:8001/website/ after=http://localhost:8000/website/
-   node bench.mjs --runs 5 --latency 40 before=... after=...
+   node bench.mjs --runs 3 --latency 40 --out latency40.json before=... after=...
+   node report.mjs local.json latency40.json      # Markdown tables
    ```
 
-   (`CHROME=/path/to/chrome` if Playwright's Chromium is elsewhere.)
+   `--products` picks the COG products (default: Landsat true color, the
+   impervious classes and the fixtures; leave out what you have not built),
+   `--only REGEX` runs some scenarios, and `CHROME=/path/to/chrome` points at
+   another Chromium. Compare with [benchmarks/](benchmarks/); a full run takes
+   about 40 minutes.
 5. **Commit** `package.json`, `package-lock.json`, `website/vendor/`, the code
-   changes, and the version and any new findings in this document.
+   changes, the results in `docs/benchmarks/<date>*`, and the version and any
+   new findings in this document.
