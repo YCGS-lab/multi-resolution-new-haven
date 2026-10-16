@@ -7,7 +7,10 @@
 // Selection: {id, t, t2, o: {option: value}, f: {filter: value}, auto}
 //   t:    timestep key, or null with auto = true: the latest with data in view
 //   t2:   end of a window (key), or null
-// URL form (encodeSel / decodeSel): "<id>@<t>..<t2>;px=median;cc=30"
+// A new selection is the product's example (time.example: a good recent image
+// picked by hand, see scripts/website/build_catalog.py), else the latest.
+// URL form (encodeSel / decodeSel): "<id>@<t>..<t2>;px=median;cc=30"; no time:
+// the default (the example, else the latest); "@latest": the latest.
 
 import { requirement } from "./env.js";
 import { applyFilters, availability, daysBetween, dayOf, interval, keyLabel } from "./time.js";
@@ -19,7 +22,22 @@ export const slippyZoom = (worldZoom) => worldZoom + Math.log2(C / 256);
 // #region selection
 export function newSel(catalog, id) {
   const p = catalog.get(id);
-  return { id: p ? id : null, t: null, t2: null, o: defaultOptions(p), f: defaultFilters(p), auto: true };
+  const s = { id: p ? id : null, t: null, t2: null, o: defaultOptions(p), f: defaultFilters(p), auto: true };
+  return p?.time?.example ? { ...s, ...exampleTime(p) } : s;
+}
+
+/** The time selection of a product's example: {t, t2, o, f, auto: false}. */
+export function exampleTime(p) {
+  const ex = p.time.example;
+  return { t: ex.t, t2: ex.t2 ?? null, o: { ...defaultOptions(p), ...ex.o }, f: { ...defaultFilters(p), ...ex.f }, auto: false };
+}
+
+/** Whether a selection is its product's example. */
+export function isExample(p, s) {
+  if (!p?.time?.example || s.auto) return false;
+  const ex = exampleTime(p);
+  const same = (a, b) => Object.keys(b).every((k) => a?.[k] === b[k]);
+  return s.t === ex.t && (s.t2 ?? null) === ex.t2 && same(s.o, ex.o) && same(s.f, ex.f);
 }
 
 export function defaultOptions(p) {
@@ -35,7 +53,9 @@ export function encodeSel(catalog, s) {
   if (!s?.id) return "";
   const p = catalog.get(s.id);
   let out = s.id;
-  if (!s.auto && s.t) out += `@${s.t}${s.t2 ? `..${s.t2}` : ""}`;
+  if (isExample(p, s)) return out;
+  if (s.auto && p?.time?.example) out += "@latest";
+  else if (!s.auto && s.t) out += `@${s.t}${s.t2 ? `..${s.t2}` : ""}`;
   const extra = [];
   const o = defaultOptions(p);
   const f = defaultFilters(p);
@@ -52,9 +72,10 @@ export function decodeSel(catalog, str) {
   if (!s.id) return s;
   const p = catalog.get(s.id);
   // (an "@<view>" suffix from older links is not a time)
-  if (time && /^\d{4}/.test(time) && p.time) {
+  if (time === "latest" && p.time) Object.assign(s, { t: null, t2: null, o: defaultOptions(p), f: defaultFilters(p), auto: true });
+  else if (time && /^\d{4}/.test(time) && p.time) {
     const [t, t2] = time.split("..");
-    Object.assign(s, { t, t2: p.time.window ? t2 || null : null, auto: false });
+    Object.assign(s, { t, t2: p.time.window ? t2 || null : null, o: defaultOptions(p), f: defaultFilters(p), auto: false });
   }
   for (const kv of extra) {
     const [k, v] = kv.split("=");
@@ -126,6 +147,11 @@ export class Slot {
     if (patch.f && this.raw) this.steps = applyFilters(this.raw, this.time, this.sel.f);
     this.resolve();
     this.onChange?.();
+  }
+
+  /** Show the product's example (a good recent image picked by hand). */
+  example() {
+    if (this.product?.time?.example) this.setTime(exampleTime(this.product));
   }
 
   /** Step to the previous / next timestep with data in view. */

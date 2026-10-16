@@ -1287,12 +1287,14 @@ body.grid-active .axis {
   font-weight: 500;
 }
 
-.tc-latest {
+.tc-latest,
+.tc-example {
   padding: 3px 8px;
   font-size: 12px;
 }
 
-.tc-latest.active {
+.tc-latest.active,
+.tc-example.active {
   background: var(--yale-blue);
   border-color: var(--yale-blue);
   color: #fff;

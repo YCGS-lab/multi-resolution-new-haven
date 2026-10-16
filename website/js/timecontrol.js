@@ -6,11 +6,13 @@
 //     products, plus a time-of-day drop-down when a day has several
 //     timesteps (hourly, 3-hourly); a plain label for single-timestep
 //     (pre-built) products
-//   - previous / next timestep with data in view, and "Latest"
+//   - previous / next timestep with data in view, "Latest", and "Example" (a
+//     good recent image picked by hand; the default where there is one)
 //   - filters (e.g. max cloud cover)
 //   - "Advanced": an end date (a window of images, mosaicked) and how the
 //     images in the window are combined (latest / median / average pixel)
 
+import { isExample } from "./slot.js";
 import { dayOf, keyLabel } from "./time.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
@@ -74,7 +76,8 @@ export class TimeControl {
              ${w === "list" ? `<select class="tc-list" aria-label="${esc(time.label)}"></select>` : `<button type="button" class="tc-date" aria-haspopup="dialog"></button>`}
              ${sub && w === "calendar" ? `<select class="tc-hour" aria-label="Time of day (UTC)"></select>` : ""}
              <button type="button" class="icon-btn tc-next" title="Next timestep with data in view">&#9654;</button>
-             <button type="button" class="tc-latest btn subtle" title="Follow the latest timestep with data in view">Latest</button>`
+             <button type="button" class="tc-latest btn subtle" title="Follow the latest timestep with data in view">Latest</button>
+             ${time.example ? `<button type="button" class="tc-example btn subtle" title="${esc(`Example: ${time.example.note ?? "a good recent image, picked by hand"}`)}">Example</button>` : ""}`
       }
       ${filters
         .map(
@@ -105,6 +108,7 @@ export class TimeControl {
     $(".tc-prev")?.addEventListener("click", () => slot.step(-1));
     $(".tc-next")?.addEventListener("click", () => slot.step(1));
     $(".tc-latest")?.addEventListener("click", () => slot.setTime({ t: null, t2: null }));
+    $(".tc-example")?.addEventListener("click", () => slot.example());
     $(".tc-list")?.addEventListener("change", (e) => slot.setTime({ t: e.target.value }));
     $(".tc-date")?.addEventListener("click", (e) => this.openCalendar(e.currentTarget, "start"));
     $(".tc-date2")?.addEventListener("click", (e) => this.openCalendar(e.currentTarget, "end"));
@@ -177,6 +181,12 @@ export class TimeControl {
     if (latest) {
       latest.classList.toggle("active", !!auto);
       latest.setAttribute("aria-pressed", String(!!auto));
+    }
+    const example = $(".tc-example");
+    if (example) {
+      const on = isExample(slot.product, slot.sel);
+      example.classList.toggle("active", on);
+      example.setAttribute("aria-pressed", String(on));
     }
     this.el.querySelectorAll("[data-filter]").forEach((input) => {
       const spec = time.filters.find((x) => x.id === input.dataset.filter);

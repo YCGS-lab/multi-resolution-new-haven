@@ -95,9 +95,13 @@ grid slot and the animation each have one.
 <<< @/../website/js/slot.js#slot [Slot]
 :::
 
-- **Default: the latest.** A new selection is `auto`: it follows the latest
-  timestep with data in view (re-resolved when the view moves), until the
-  user picks one. "Latest" returns to auto.
+- **Default: the example, else the latest.** A dataset may have an example
+  (`time.example`: a good recent image, cloud free, picked by hand in
+  `EXAMPLES` of `scripts/website/build_catalog.py`); a new selection shows it,
+  and "Example" returns to it. Without one, a new selection is `auto`: it
+  follows the latest timestep with data in view (re-resolved when the view
+  moves), until the user picks one. "Latest" switches to auto (`@latest` in
+  the URL when the dataset has an example).
 - **Same dataset, same time.** Switching between products of one dataset
   (Landsat true color → urban false color) keeps the date.
 - **URL.** `a=landsat/truecolor@2026-06-01..2026-08-31;px=median;cc=30`:
