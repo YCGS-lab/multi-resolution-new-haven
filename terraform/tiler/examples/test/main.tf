@@ -9,8 +9,8 @@
 # Prod and no test tags.
 #
 # Needs docker (buildx) and the AWS CLI where tofu runs (image build and push).
-# Secrets are ephemeral: export TF_VAR_earthdata_username,
-# TF_VAR_earthdata_password and TF_VAR_cds_api_key.
+# Secrets are ephemeral: export TF_VAR_earthdata_token (or
+# TF_VAR_earthdata_username and TF_VAR_earthdata_password) and TF_VAR_cds_api_key.
 
 terraform {
   required_version = ">= 1.11"
@@ -42,6 +42,13 @@ variable "earthdata_username" {
 }
 
 variable "earthdata_password" {
+  type      = string
+  default   = null
+  ephemeral = true
+  sensitive = true
+}
+
+variable "earthdata_token" {
   type      = string
   default   = null
   ephemeral = true
@@ -118,6 +125,7 @@ module "tiler" {
 
   earthdata_username = var.earthdata_username
   earthdata_password = var.earthdata_password
+  earthdata_token    = var.earthdata_token
   cds_api_key        = var.cds_api_key
 }
 

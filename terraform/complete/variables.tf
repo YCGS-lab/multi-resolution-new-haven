@@ -104,6 +104,14 @@ variable "earthdata_password" {
   sensitive   = true
 }
 
+variable "earthdata_token" {
+  description = "NASA Earthdata Login user token (tiler, titiler-cmr), instead of the username and password; EDL tokens last 60 days."
+  type        = string
+  default     = null
+  ephemeral   = true
+  sensitive   = true
+}
+
 variable "cds_api_key" {
   description = "Copernicus CDS API key (tiler, ERA5-Land ARCO Zarr)."
   type        = string

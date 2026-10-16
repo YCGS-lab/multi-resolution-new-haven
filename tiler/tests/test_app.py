@@ -1,3 +1,8 @@
+import base64
+import json
+import os
+import time
+
 import pytest
 import yaml
 from fastapi.testclient import TestClient
@@ -105,6 +110,36 @@ def test_cmr_mount_includes_grouped_backend(monkeypatch):
     assert "/xarray-grouped/tiles/{tileMatrixSetId}/{z}/{x}/{y}.{format}" in paths
     assert "/rasterio/tiles/{tileMatrixSetId}/{z}/{x}/{y}.{format}" in paths
     TestClient(create_app())  # creating the app again doesn't register the routes twice
+
+
+def jwt(payload: dict) -> str:
+    enc = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).decode().rstrip("=")
+    return f"{enc({'alg': 'RS256'})}.{enc(payload)}.sig"
+
+
+def test_cmr_with_earthdata_token(monkeypatch):
+    from titiler.cmr import main as cmr
+
+    monkeypatch.delenv("TITILER_CMR_EARTHDATA_USERNAME", raising=False)
+    monkeypatch.delenv("TITILER_CMR_EARTHDATA_PASSWORD", raising=False)
+    monkeypatch.setenv("YCGS_EARTHDATA_TOKEN", jwt({"uid": "x", "exp": time.time() + 3600}))
+    monkeypatch.setattr(settings, "features", "cmr")
+    monkeypatch.setattr(settings, "origin_verify", None)
+    client = TestClient(create_app())
+    assert client.get("/cmr/api").status_code == 200
+    provider = cmr.app.state.earthdata_token_provider
+    assert provider() == os.environ["YCGS_EARTHDATA_TOKEN"]
+
+
+def test_expired_earthdata_token():
+    from fastapi import HTTPException
+
+    from ycgs_titiler.main import StaticToken, jwt_expiry
+
+    assert jwt_expiry("not-a-jwt") is None
+    with pytest.raises(HTTPException) as e:
+        StaticToken(jwt({"exp": 1_700_000_000}))()
+    assert e.value.status_code == 503 and "expired on 2023-11-14" in e.value.detail
 
 
 @pytest.mark.live

@@ -5,8 +5,8 @@
 # extra_tags), so scripts/aws-tests/sweep.sh can prove nothing is left.
 #
 # Needs docker (buildx) and the AWS CLI where tofu runs (tiler image).
-# Secrets are ephemeral: export TF_VAR_earthdata_username,
-# TF_VAR_earthdata_password and TF_VAR_cds_api_key. They are written on the
+# Secrets are ephemeral: export TF_VAR_earthdata_token (or
+# TF_VAR_earthdata_username and TF_VAR_earthdata_password) and TF_VAR_cds_api_key. They are written on the
 # first apply only; to write them again (e.g. after an apply without them),
 # set -var secrets_version=<n+1> with them exported.
 
@@ -45,6 +45,13 @@ variable "earthdata_username" {
 }
 
 variable "earthdata_password" {
+  type      = string
+  default   = null
+  ephemeral = true
+  sensitive = true
+}
+
+variable "earthdata_token" {
   type      = string
   default   = null
   ephemeral = true
@@ -125,6 +132,7 @@ module "complete" {
   secrets_version    = var.secrets_version
   earthdata_username = var.earthdata_username
   earthdata_password = var.earthdata_password
+  earthdata_token    = var.earthdata_token
   cds_api_key        = var.cds_api_key
 }
 

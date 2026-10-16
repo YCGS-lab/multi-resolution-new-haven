@@ -83,6 +83,14 @@ variable "earthdata_password" {
   sensitive   = true
 }
 
+variable "earthdata_token" {
+  type        = string
+  description = "NASA Earthdata Login user token (titiler-cmr), instead of the username and password; EDL tokens last 60 days"
+  default     = null
+  ephemeral   = true
+  sensitive   = true
+}
+
 variable "cds_api_key" {
   type        = string
   description = "Copernicus Climate Data Store API key (ERA5-Land analysis-ready Zarr)"

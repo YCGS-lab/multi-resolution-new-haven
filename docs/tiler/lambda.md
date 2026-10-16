@@ -29,7 +29,8 @@ sequenceDiagram
 :::
 
 Each secret is a JSON object whose keys become environment variables: the
-Earthdata secret sets `TITILER_CMR_EARTHDATA_USERNAME` and `..._PASSWORD`,
+Earthdata secret sets `YCGS_EARTHDATA_TOKEN` (used instead of titiler-cmr's
+login: see `cmr_app` in main.py) or `TITILER_CMR_EARTHDATA_USERNAME` and `..._PASSWORD`,
 the CDS secret `YCGS_CDS_API_KEY`. This runs *before* the app is imported,
 because titiler-cmr reads its settings at import. Null values are skipped:
 OpenTofu writes nulls when the secret variables were not given
