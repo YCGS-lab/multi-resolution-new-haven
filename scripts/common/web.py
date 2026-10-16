@@ -542,9 +542,8 @@ def titiler_cmr_source(
     titiler-cmr runs next to the data (S3 in us-west-2) and opens the granules
     of the selected window on the fly. The website calls the service named
     `service` in env.json: "titiler_cmr" is the public NASA VEDA deployment
-    (works from anywhere); "earthdata_tiler" is a deployment of the same API
-    with Earthdata S3 credentials for the DAACs the public one cannot read,
-    run alongside the website in AWS (cloud-only, see requires_cloud). Tiles
+    (works from anywhere; NISAR). Collections it cannot read go through this
+    repository's tiler instead (tiler_source). Tiles
     are raw values of `variables` (NPY) mosaicked over the selected window;
     `derive` adds bands computed from them (name -> expression, e.g.
     "10 * log10(HHHH)").

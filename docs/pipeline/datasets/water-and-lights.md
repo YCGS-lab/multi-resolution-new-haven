@@ -16,10 +16,12 @@ live, cloud-only dataset).
 The granules are HDF5 files in NSIDC's S3 bucket (Earthdata, AWS us-west-2).
 The public titiler-cmr deployment cannot open them (tested: "file signature
 not found"), so the live dataset (any 3-hour mean, calendar + time of day)
-needs a titiler-cmr style service with Earthdata S3 credentials running next
-to the data (env.json `earthdata_tiler`): it is cloud-only, grayed out with a
-cloud icon when testing locally. The pre-built 2026-07-30 snapshot stays in
-the menu and works locally.
+is read by this repository's [tiler](/tiler/) next to the data (preset
+`smap-l4`, env.json `tiler`; it also needs a
+[fix for SMAP's grouped HDF5](/tiler/fixes#grouped-hdf5)). It is cloud-only,
+grayed out with a cloud icon when testing locally (unless pointed at a
+tiler, see [local development](/build/local)). The pre-built 2026-07-30
+snapshot stays in the menu and works locally.
 :::
 
 ::: code-group
@@ -48,7 +50,21 @@ the file's coordinates against the nominal EASE-Grid 2.0 9 km transform
 
 **CHIRPS v3.0 daily precipitation, 0.05°, 2026-07-29.** Scripts: `chirps.py`
 (helpers), `find_rainy_days.py`, `download.py`, `visualize.py`,
-`create-cog.py`.
+`create-cog.py` (the pre-built snapshot, dataset `chirps-prebuilt`),
+`website-layers.py` (the live, cloud-only dataset).
+
+::: warning Design decision: live days through the tiler, plus the snapshot
+The daily files are COGs, but the Climate Hazards Center serves them without
+CORS headers, so the browser cannot read them. The live dataset (any day
+from 2000 to about 45 days ago, when the "final" stream is published) is
+read by the [tiler](/tiler/catalog#chirps) (preset `chirps-daily`, which
+fills the day into the file's URL). Like SMAP it is cloud-only; the
+pre-built 2026-07-29 snapshot works locally.
+:::
+
+::: code-group
+<<< @/../scripts/chirps/website-layers.py#chirps-live-source [scripts/chirps/website-layers.py#chirps-live-source]
+:::
 
 ::: code-group
 <<< @/../scripts/chirps/chirps.py#chirps-urls-and-window [scripts/chirps/chirps.py#chirps-urls-and-window]
@@ -72,8 +88,8 @@ the file's coordinates against the nominal EASE-Grid 2.0 9 km transform
 radiance.** Scripts: `download.py`, `visualize.py`, `create-cog.py` (the
 pre-built 2025 snapshot, dataset `viirs-nightlights-prebuilt`),
 `website-layers.py` (the live, cloud-only dataset: any year; the public
-titiler-cmr deployment has no S3 access to LAADS, so it needs the same
-`earthdata_tiler` service as SMAP).
+titiler-cmr deployment has no S3 access to LAADS, so it is read by the same
+[tiler](/tiler/catalog#blackmarble) as SMAP, preset `viirs-blackmarble`).
 
 ::: code-group
 <<< @/../scripts/viirs-nightlights/website-layers.py#nightlights-live-source [scripts/viirs-nightlights/website-layers.py#nightlights-live-source]

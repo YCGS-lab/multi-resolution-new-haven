@@ -1,6 +1,8 @@
 # Three regional deployments of the same image, each next to its data:
-#   nasa  (us-west-2)   titiler-cmr: NISAR, SMAP, HLS (Earthdata Cloud, direct S3)
-#   noaa  (us-east-1)   GOES-19 ABI (NOAA Open Data); also the default origin
+#   nasa  (us-west-2)   titiler-cmr: NISAR, SMAP, HLS, Black Marble, ASTER GDEM
+#                       (Earthdata Cloud, direct S3)
+#   noaa  (us-east-1)   GOES-19 ABI imagery and LST (NOAA Open Data), CHIRPS COGs;
+#                       also the default origin
 #   ecmwf (the aws.ecmwf provider's region)  ERA5-Land (CDS analysis-ready Zarr)
 #
 # The providers (and their default_tags, e.g. Service / Environment) come from

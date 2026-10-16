@@ -73,7 +73,12 @@ for (const md of walk(docs, (p) => p.endsWith(".md"))) {
 }
 
 // Regions defined in source but never shown (likely stale).
-const sources = [...walk(join(repo, "scripts"), (p) => /\.(py|mjs|js)$/.test(p)), ...walk(join(repo, "website"), (p) => /\.(js|css|html)$/.test(p) && !p.includes("/vendor/")), ...walk(join(repo, "terraform"), (p) => p.endsWith(".tf"))];
+const sources = [
+  ...walk(join(repo, "scripts"), (p) => /\.(py|mjs|js)$/.test(p)),
+  ...walk(join(repo, "website"), (p) => /\.(js|css|html)$/.test(p) && !p.includes("/vendor/")),
+  ...walk(join(repo, "terraform"), (p) => /\.(tf|hcl)$/.test(p)),
+  ...walk(join(repo, "tiler"), (p) => /\.(py|yaml)$/.test(p) || p.endsWith("/Dockerfile")),
+];
 for (const f of [...sources, join(repo, "justfile")]) {
   for (const name of regions(f).keys()) {
     if (!used.get(f)?.has(name)) console.warn(`unused region "${name}" in ${relative(repo, f)}`);

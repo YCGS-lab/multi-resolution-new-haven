@@ -1,6 +1,6 @@
 # One CloudFront distribution in front of the three regional APIs. Each
 # dataset preset (/datasets/{id}/*) goes to the deployment named in
-# app/src/ycgs_titiler/datasets.yaml; /cmr/* goes to the NASA deployment;
+# tiler/src/ycgs_titiler/datasets.yaml; /cmr/* goes to the NASA deployment;
 # everything else to the NOAA (us-east-1) deployment, which serves the catalog.
 
 # region routes

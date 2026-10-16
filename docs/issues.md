@@ -482,17 +482,15 @@ are, so they are defense in depth:
 
 ## Time and live data (known limitations)
 
-- **Untested against the real services:** the Planet (key) and ERA5-Land
-  (CDS key) paths were only tested with mocked responses / mock Zarr
-  stores. The ARCO store's CORS headers allow `Authorization` (checked), but
-  its variable name (`t2m` or `2m_temperature` are tried), chunk shapes and
-  codecs are unverified; ECMWF calls tokenised ARCO access a beta service
-  that may be rate limited.
-- **Cloud-only datasets need a service that does not exist yet:** the live
-  SMAP and Black Marble datasets call `env.services.earthdata_tiler`, a
-  titiler-cmr deployment with Earthdata S3 credentials (not in
-  `terraform/`). Even then SMAP's EASE-Grid 2.0 HDF5 may need CRS handling
-  titiler-cmr lacks.
+- **Planet untested against the real service:** the Planet (key) path was
+  only tested with mocked responses. ERA5-Land was tested against the real
+  ARCO store with a CDS key (variable `t2m`, chunks 1 x 1024 x 1024, blosc
+  lz4); ECMWF calls tokenised ARCO access a beta service that may be rate
+  limited.
+- **Cloud-only datasets need the tiler deployed:** SMAP, Black Marble, GOES
+  LST and CHIRPS call `env.services.tiler` ([Tiler](/tiler/)), which is
+  `null` in the committed `env.json` until the production tiler
+  (ycgs-aws-infra `stacks/titiler`) is applied and its URL filled in.
 - **Scene cloud cover is scene-wide:** the Landsat "max cloud cover" filter
   uses `eo:cloud_cover`, so a 3%-cloudy scene can be white over New Haven.
   Per-pixel QA masking is not possible through the mosaic API (an

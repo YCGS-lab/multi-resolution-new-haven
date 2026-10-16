@@ -41,7 +41,7 @@ class GranuleTime(_Model):
     # (newest granule first); instant: granules whose time range contains
     # `datetime`. A `start/end` interval is used as is.
     align: Literal["day", "month", "year", "instant"] = "day"
-    default: str | None = None  # None: no time filter (static collections)
+    default: str | None = None  # None: no time filter unless `datetime` is given
 
 
 class DimensionTime(_Model):

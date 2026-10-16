@@ -123,7 +123,12 @@ def create_app() -> FastAPI:
         if os.environ.get("TITILER_CMR_EARTHDATA_USERNAME") and os.environ.get("TITILER_CMR_EARTHDATA_PASSWORD"):
             app.mount("/cmr", cmr_app())
         else:
-            app.mount("/cmr", unavailable("Earthdata login not configured (see the stack README: secrets)"))
+            app.mount(
+                "/cmr",
+                unavailable(
+                    "Earthdata login not configured (set TITILER_CMR_EARTHDATA_USERNAME / _PASSWORD, or the Earthdata secret)"
+                ),
+            )
 
     @app.get("/healthz", tags=["Health"])
     def healthz():
@@ -133,7 +138,13 @@ def create_app() -> FastAPI:
     def landing():
         return {
             "title": "YCGS titiler",
-            "links": {"datasets": "/datasets", "api": "/api.html", "xarray": "/xarray", "cmr": "/cmr/api.html"},
+            "links": {
+                "datasets": "/datasets",
+                "api": "/api.html",
+                "xarray": "/xarray",
+                "cog": "/cog",
+                "cmr": "/cmr/api.html",
+            },
         }
 
     # endregion create-app

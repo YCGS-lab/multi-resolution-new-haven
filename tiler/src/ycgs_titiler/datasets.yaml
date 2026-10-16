@@ -4,7 +4,8 @@
 # Read by the app (ycgs_titiler.presets) and by OpenTofu (cloudfront.tf), which
 # routes /datasets/{id}/* to the dataset's `deployment`: nasa (us-west-2, next
 # to NASA Earthdata Cloud), noaa (us-east-1, next to NOAA Open Data) or ecmwf
-# (var.ecmwf_region, default eu-south-1, nearest to ECMWF's data centre).
+# (the caller's aws.ecmwf provider region: eu-central-1, or eu-south-1 if the
+# account opted in; nearest to ECMWF's data centre).
 #
 # Expressions use positional bands: b1, b2, ... are `variables` (xarray
 # backends) or `assets` (rasterio backend), in order. Multiple `rescale`

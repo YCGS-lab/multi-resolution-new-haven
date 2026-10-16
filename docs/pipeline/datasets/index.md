@@ -14,12 +14,12 @@ which product and date, how it is read, and what had to be worked around.
 | `planet` | 4.8 m | July 2026 | Planet monthly basemap tiles | local JPEG COG | Planet key | [Optical](./optical#planet) |
 | `landsat` | 30 m (pan 15 m, thermal 100 m) | 2024-08-27 | Planetary Computer (L2), AWS (L1 pan) | local COGs | AWS key (pan) | [Optical](./optical#landsat-8) |
 | `viirs-lst` | 750 m swath | 2026-06-03 | NASA VNP21 | local COG | Earthdata | [Temperature](./temperature#viirs-lst) |
-| `goes-lst` | 2 km (2.1 × 3.1 km here) | 2026-06-03 | NOAA GOES-19 on AWS | local COG | none | [Temperature](./temperature#goes-lst) |
+| `goes-lst` | 2 km (2.1 × 3.1 km here) | 2026-06-03 | NOAA GOES-19 on AWS | tiler (live, cloud) + local COG snapshot | none | [Temperature](./temperature#goes-lst) |
 | `era5-land` | 0.1° | 2026-07-20, 4 times | Copernicus CDS | local COG | CDS key | [Temperature](./temperature#era5-land) |
 | `prism` | 800 m | July 2026 | PRISM web service | local COG | none | [Temperature](./temperature#prism) |
-| `smap` | 9 km | 2026-07-30 | NASA SPL4SMGP | local COG | Earthdata | [Water and lights](./water-and-lights#smap) |
-| `chirps` | 0.05° | 2026-07-29 | CHIRPS v3 (UCSB) | local COG | none | [Water and lights](./water-and-lights#chirps) |
-| `viirs-nightlights` | 15″ (~350 × 460 m) | 2025 | NASA Black Marble VNP46A4 | local COG | Earthdata | [Water and lights](./water-and-lights#viirs-black-marble) |
+| `smap` | 9 km | 2026-07-30 | NASA SPL4SMGP | tiler (live, cloud) + local COG snapshot | Earthdata | [Water and lights](./water-and-lights#smap) |
+| `chirps` | 0.05° | 2026-07-29 | CHIRPS v3 (UCSB) | tiler (live, cloud) + local COG snapshot | none | [Water and lights](./water-and-lights#chirps) |
+| `viirs-nightlights` | 15″ (~350 × 460 m) | 2025 | NASA Black Marble VNP46A4 | tiler (live, cloud) + local COG snapshot | Earthdata | [Water and lights](./water-and-lights#viirs-black-marble) |
 | `ct-lidar-2023` | 0.6 m (DSM 0.9 m) | spring 2023 | CT ECO elevation ImageServers | live service | none | [Elevation](./elevation#ct-lidar-2023) |
 | `3dep` | ~1 m | best available | USGS 3DEP ImageServer | live service | none | [Elevation](./elevation#usgs-3dep) |
 | `aster-dem` | 1″ (~30 m) | 2000–2013 | NASA ASTGTM v003 | local COG | Earthdata | [Elevation](./elevation#aster-gdem) |

@@ -59,7 +59,9 @@ and water are simply transparent.
 ## GOES LST
 
 **GOES-19 ABI LSTC (CONUS, 2 km), scan 2026-06-03 18:01–18:04 UTC.**
-Scripts: `download.py`, `visualize.py`, `create-cog.py`.
+Scripts: `download.py`, `visualize.py`, `create-cog.py` (the pre-built
+snapshot, dataset `goes-lst-prebuilt`), `website-layers.py` (the live,
+cloud-only dataset).
 
 ::: warning Design decision: product and hour
 The CONUS product (LSTC) has the finest grid (2 km), a short well-defined
@@ -94,6 +96,20 @@ computes it from the geometry rather than assuming 2 km.
 
 The website COG keeps only pixels with the top two quality flags (DQF 0 or 1).
 Its fine grid is sized from the computed east-west footprint.
+
+### Website: any hour, through the tiler <Badge type="warning" text="decision" />
+
+::: code-group
+<<< @/../scripts/goes-lst/website-layers.py#goes-lst-live-source [scripts/goes-lst/website-layers.py#goes-lst-live-source]
+:::
+
+Browsers cannot read the NetCDF scans, so the live dataset (every hour since
+GOES-19 became GOES-East on 2025-04-07) is read by this repository's
+[tiler](/tiler/catalog#goes-lst) next to the bucket in us-east-1 (preset
+`goes19-lst`): it picks the scan nearest the selected hour and returns `LST`
+and `DQF` as raw tiles, and the browser keeps DQF 0–1, as the COG does. The
+tiler places the fixed grid itself ([GOES fixed grid](/tiler/fixes#goes-fixed-grid)).
+The dataset is cloud-only; the pre-built 18:01 scan works locally.
 
 ## ERA5-Land
 

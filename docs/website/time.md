@@ -10,13 +10,14 @@ pixels, and the two tabs built on them: Animation and ICESat-2.
 flowchart LR
   Spec["product.time<br/>(web.py time_spec)"] --> Slot["Slot (slot.js)<br/>selection + view"]
   Slot -->|"area in view"| Avail["availability()<br/>(time.js)"]
-  Avail -->|"STAC / CMR / Planet /<br/>list / hourly"| Steps["Steps"]
+  Avail -->|"STAC / CMR / Planet /<br/>list / range / hourly"| Steps["Steps"]
   Steps --> Slot
   Slot --> TC["TimeControl<br/>(timecontrol.js)"]
   TC -->|"setTime()"| Slot
   Slot -->|"ctx()"| Tiles["productLayers()<br/>(tiles.js)"]
   Tiles --> PC["Planetary Computer<br/>mosaics"]
   Tiles --> CMR["titiler-cmr"]
+  Tiles --> TL["our tiler<br/>(dataset presets)"]
   Tiles --> AG["ArcGIS services<br/>per year"]
   Tiles --> XYZ["XYZ templates<br/>(Planet)"]
   Tiles --> ZARR["ARCO Zarr<br/>(zarr.js, zarrita)"]
@@ -45,6 +46,8 @@ browser every product has `time`, `requires`, `coverage` and `min_zoom`.
 | NISAR GCOV | day | CMR | calendar | yes | — | — |
 | SMAP L4 (live) | time (3-hourly) | CMR | calendar + time | — | — | cloud |
 | Black Marble (live) | year | CMR | drop-down | — | — | cloud |
+| GOES LST (live) | hour | every hour since 2025-04-07, to 1 h ago (range) | calendar + hour | — | — | cloud |
+| CHIRPS (live) | day | every day since 2000, to 45 days ago (range) | calendar | — | — | cloud |
 | Pre-built COGs | one timestep | fixed list of one | label | — | — | — |
 
 Keys are strings that sort in time order: `"2023"`, `"2026-07"`,
@@ -69,8 +72,13 @@ hours.
 <<< @/../website/js/time.js#avail-cmr [CMR]
 <<< @/../website/js/time.js#avail-planet [Planet]
 <<< @/../website/js/time.js#avail-list [fixed list]
+<<< @/../website/js/time.js#avail-range [range]
 <<< @/../website/js/time.js#steps [Steps]
 :::
+
+A `range` lists nothing: for products with one file per step at a known
+place (GOES scans, CHIRPS days) every step from a start date to now minus
+the product's latency is assumed to exist.
 
 STAC items keep their properties (e.g. `eo:cloud_cover`), so the filters
 (`applyFilters`) apply in the browser without asking again. Filters default
@@ -170,10 +178,36 @@ for every source.
 :::
 
 The service URL comes from `env.json`: `titiler_cmr` is the public NASA
-VEDA deployment (NISAR works through it from anywhere, slowly);
-`earthdata_tiler` is for a deployment with Earthdata S3 credentials for the
-DAACs the public one cannot read (SMAP, Black Marble), which only the cloud
-deployment would have.
+VEDA deployment, which NISAR uses (it works from anywhere, slowly). The
+DAACs it cannot read (NSIDC for SMAP, LAADS for Black Marble) go through
+this repository's tiler instead.
+
+### This repository's tiler
+
+::: code-group
+<<< @/../scripts/common/web.py#tiler-source [web.py]
+<<< @/../website/js/tiles.js#tiler-tile [tiles]
+:::
+
+The [tiler](/tiler/) (`tiler/`, deployed with `terraform/tiler/`) serves
+named dataset presets. The website always asks for a preset's `raw` render
+as 512 px NPY tiles and colors them with the same CPU code as the other
+raw tiles; `derive` adds bands computed in the browser (GOES LST: the
+temperature where the quality flag is 0–1). `time_param` says how the
+selected timestep is sent as `datetime`:
+
+- `"instant"`: its start (GOES LST: the scan nearest the hour; CHIRPS: that
+  day's file);
+- `"interval"`: `start/end`, the granules of that window (SMAP's 3 hours,
+  Black Marble's year);
+- `None`: nothing (a static dataset).
+
+The service URL is env.json's `tiler`, `null` until a deployment exists, so
+these datasets are grayed out with a ☁ icon wherever it is not set. To test
+against a local or test deployment, add
+`?cloud=1&service.tiler=<url>` to the page URL, e.g.
+`?cloud=1&service.tiler=http://localhost:8100` with
+`tiler/serve-local.sh` ([running the tiler](/tiler/operations#locally)).
 
 ### ArcGIS services per year, XYZ templates
 
@@ -235,7 +269,8 @@ global 0.1° layout, not against ECMWF's store (no key).
   host but localhost) is the cloud; local testing is not. Products with
   `requires.cloud` are grayed out with a ☁ icon locally (and wherever the
   named service is not configured), with the reason as a tooltip. `?cloud=1`
-  in the page URL pretends to be in the cloud, for testing.
+  in the page URL pretends to be in the cloud, and `?service.<name>=<url>`
+  sets a service, for testing.
 - **Credentials.** The 🔑 Credentials button opens a dialog for the Planet
   and CDS keys. Keys stay in the browser: sessionStorage, or localStorage
   with "Remember", and are only sent to their provider. Products needing a

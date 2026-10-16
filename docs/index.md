@@ -34,6 +34,8 @@ flowchart TB
   B --> W
   W -->|"COG tiles by range request"| S
   P -.->|"image services, read live"| S
+  P -.->|"NetCDF / HDF5 / COG"| T["Tiler<br/>(tiler/, AWS Lambda)"]
+  T -.->|"raw tiles"| S
 ```
 
 ### 1. Data pipeline (Python)
@@ -70,7 +72,18 @@ by tile:
 
 → [Map viewer overview](/website/)
 
-### 3. Build, deployment and tests
+### 3. Tiler (Python on AWS Lambda)
+
+Some data the browser cannot read itself: HDF5 granules in NASA's S3
+buckets, GOES NetCDF scans, COGs served without CORS headers. A
+[titiler](https://developmentseed.org/titiler/) deployment in `tiler/`
+renders them on request, from three AWS regions next to the data behind one
+CloudFront URL (OpenTofu module in `terraform/tiler/`). The website uses it
+for its live, cloud-only datasets (SMAP, Black Marble, GOES LST, CHIRPS).
+
+→ [Tiler overview](/tiler/)
+
+### 4. Build, deployment and tests
 
 - deck.gl and deck.gl-raster are bundled into one file in `website/vendor/`,
   which is committed.
@@ -81,7 +94,7 @@ by tile:
 
 → [Build, deploy, test](/build/)
 
-### 4. The renderer migration
+### 5. The renderer migration
 
 The website used to read COGs with geotiff.js and color them on the CPU.
 That code was replaced with deck.gl-raster. A dedicated section compares the
@@ -90,7 +103,7 @@ does itself, and how performance changed.
 
 → [Old vs new renderer](/comparison/)
 
-### 5. Issues and improvements
+### 6. Issues and improvements
 
 Problems and possible improvements found while writing these docs,
 ranked by severity and marked as introduced by the migration or older.
@@ -126,5 +139,8 @@ implemented.
 | `figures/` | Output PNGs (not tracked) |
 | `website/` | The static site: `index.html`, `js/`, `css/`, `vendor/`; generated `catalog.json` and `image-data/` (not tracked) |
 | `terraform/aws/` | Hosting infrastructure |
+| `tiler/` | The tiler service (Python, Lambda image) ([tiler](/tiler/)) |
+| `terraform/tiler/` | The tiler's infrastructure (OpenTofu module) |
+| `scripts/aws-tests/` | Tests that create and destroy real AWS resources |
 | `justfile` | `just download`, `just build`, `just vendor`, `just deploy`, `just serve` |
 | `docs/` | This documentation (VitePress): `npm run dev` in `docs/` |
