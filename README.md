@@ -68,8 +68,8 @@ each image itself, tile by tile, over the Greater New Haven extent, from
   declared by `website-layers.py`: Landsat 8-9 and NAIP mosaics from the Microsoft Planetary
   Computer (raw values, colored in the browser), the CT ECO ImageServers of each flight year
   (orthoimagery 1934-2023, lidar 2016 / 2023), NISAR through the public titiler-cmr, Planet
-  monthly basemaps and ERA5-Land (Copernicus CDS, decoded from GRIB in the browser) with the
-  user's own API keys, the USGS 3DEP ImageServer, and XYZ map tiles; or
+  monthly basemaps and ERA5-Land (ECMWF's time-chunked ARCO Zarr store, read with zarrita) with
+  the user's own API keys, the USGS 3DEP ImageServer, and XYZ map tiles; or
 - **local Cloud-Optimized GeoTIFFs** of the real values for one timestep (VIIRS and GOES LST,
   PRISM, CHIRPS, SMAP and Black Marble snapshots, Landsat pan, ASTER, ICESat-2, CT impervious),
   written by each dataset's `create-cog.py` to `website/image-data/`.

@@ -7,6 +7,7 @@ repository, built by `scripts/website/vendor/`:
 |---|---|
 | `deck-gl-raster.js` | One minified ES module (~1.3 MB, ~0.38 MB gzipped): everything the site imports from npm |
 | `geotiff-worker.js` | The tile-decoder worker (`@developmentseed/geotiff/pool/worker`) |
+| `zarrita.js` | Zarr reading (zarrita and its blosc / zstd / lz4 / gzip / zlib codecs, ~1.4 MB with the codecs' WebAssembly inlined), from `zarr-entry.js`; a separate bundle so the deck.gl bundle is unchanged, loaded by `zarr.js` only when a Zarr layer is first shown |
 | `lerc-wasm.wasm` | The LERC decoder, loaded by the worker from next to itself |
 | `versions.json` | Every npm package in the bundle, with its version |
 | `*.LEGAL.txt` | License comments extracted by esbuild |
@@ -15,6 +16,7 @@ repository, built by `scripts/website/vendor/`:
 
 ::: code-group
 <<< @/../scripts/website/vendor/entry.js [scripts/website/vendor/entry.js]
+<<< @/../scripts/website/vendor/zarr-entry.js [scripts/website/vendor/zarr-entry.js]
 :::
 
 The site's modules import only from this entry point. (`CreateTexture` is

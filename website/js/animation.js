@@ -4,10 +4,9 @@
 // then a slider jumps between frames, and Play steps through them at a chosen
 // speed, optionally looping. Frames are the timesteps with data in view
 // between the two dates (after the filters, e.g. max cloud cover); for hourly
-// data, every N hours.
+// data, every N hours (read from a Zarr store's map-chunked layout).
 
 import { Deck, MapView } from "../vendor/deck-gl-raster.js";
-import { cdsArea, cdsGrids, hourKey } from "./cds.js";
 import { openCredentials } from "./env.js";
 import {
   CONTROLLER,
@@ -29,6 +28,7 @@ import { Picker } from "./picker.js";
 import { Slot, slippyZoom } from "./slot.js";
 import { prefetchTiles } from "./tiles.js";
 import { dayOf, keyLabel, keyStart } from "./time.js";
+import { hourKey, zarrArea, zarrGrids } from "./zarr.js";
 
 const MAX_FRAMES = 120;
 const CONCURRENCY = 6;
@@ -166,13 +166,13 @@ export class Animation {
     const p = this.slot.product;
     const hourly = p?.time?.step === "hour";
     this.el.everyLabel.hidden = !hourly;
-    // Default range: the latest ~20 timesteps with data in view (hourly: the last day).
+    // Default range: the latest ~20 timesteps with data in view (hourly: the last day and the one before).
     if (p?.time && this.slot.steps && !this.userRange && !this.from) {
       const keys = hourly ? null : this.slot.steps.keys;
       const last = this.slot.steps.latest();
       if (last) {
         this.to = dayOf(last);
-        this.from = hourly ? this.to : dayOf(keys[Math.max(0, keys.length - 20)]);
+        this.from = hourly ? dayOf(new Date(keyStart(last, "hour") - 86400e3).toISOString()) : dayOf(keys[Math.max(0, keys.length - 20)]);
       }
     }
     this.computeFrames();
@@ -256,12 +256,12 @@ export class Animation {
     this.busy = true;
     this.el.load.disabled = true;
     try {
-      const cds = p.layers.map((l) => this.catalog.sources[l.source]).find((s) => s.type === "cds");
-      if (cds) {
-        // One CDS request per month for all the frames' hours.
-        progress(0, 1, "Requesting from the Climate Data Store…");
-        await cdsGrids(cds, cdsArea(cds, this.bounds), this.frames.map(hourKey), {
-          onStatus: (s) => s && progress(0, 1, s),
+      const grid = p.layers.map((l) => this.catalog.sources[l.source]).find((s) => s.type === "zarr");
+      if (grid) {
+        // Zarr: every frame's hour over the area in view, read run by run (only the chunks they touch).
+        progress(0, 1, "Reading the Zarr store…");
+        await zarrGrids(grid, zarrArea(grid, this.bounds), this.frames.map(hourKey), {
+          onProgress: (done, total) => progress(done, total, `${done} / ${total} chunks`),
         });
         progress(1, 1, `${this.frames.length} frames loaded`);
       } else {

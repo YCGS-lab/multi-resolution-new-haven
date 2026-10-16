@@ -199,7 +199,7 @@ export class TimeControl {
       ? "Could not list dates"
       : slot.loadingSteps
         ? "Finding imagery…"
-        : steps && this.widget() !== "fixed" && time.availability.type !== "hourly" && time.availability.type !== "list"
+        : steps && this.widget() !== "fixed" && time.availability.type !== "zarr" && time.availability.type !== "list"
           ? `${steps.size} ${unit(time.step, steps.size)} in view${steps.size !== slot.raw?.size ? ` (of ${slot.raw?.size})` : ""}`
           : "";
     status.title = slot.stepsError ?? "";

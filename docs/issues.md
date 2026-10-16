@@ -482,10 +482,11 @@ are, so they are defense in depth:
 ## Time and live data (known limitations)
 
 - **Untested against the real services:** the Planet (key) and ERA5-Land
-  (CDS key) paths were only tested with mocked responses. The CDS download
-  host's CORS headers and the GRIB edition / packing it sends for
-  ERA5-Land are unverified; anything other than simple packing on a
-  regular lat / lon grid is reported as an error on the map.
+  (CDS key) paths were only tested with mocked responses / mock Zarr
+  stores. The ARCO store's CORS headers allow `Authorization` (checked), but
+  its variable name (`t2m` or `2m_temperature` are tried), chunk shapes and
+  codecs are unverified; ECMWF calls tokenised ARCO access a beta service
+  that may be rate limited.
 - **Cloud-only datasets need a service that does not exist yet:** the live
   SMAP and Black Marble datasets call `env.services.earthdata_tiler`, a
   titiler-cmr deployment with Earthdata S3 credentials (not in
@@ -503,5 +504,6 @@ are, so they are defense in depth:
   in view (its central 2° when larger), so a date can be listed although
   only a corner of the view has data, or missed when the data is only near
   the edges of a large view.
-- **ERA5-Land areas are capped at 12°:** zoomed out further, only the
-  center of the view is requested.
+- **ERA5-Land reads are capped at 30°:** zoomed out further, only the
+  center of the view is read. If the time-chunked store's chunks are
+  global, each map hour costs a whole global chunk.

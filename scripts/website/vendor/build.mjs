@@ -1,6 +1,7 @@
 // Bundles entry.js (deck.gl + deck.gl-raster) into website/vendor/:
 //   deck-gl-raster.js   the ES module imported by website/js/
 //   geotiff-worker.js   the tile decoder worker (@developmentseed/geotiff/pool/worker)
+//   zarrita.js          Zarr reading (zarr-entry.js: zarrita and its codecs)
 //   lerc-wasm.wasm      LERC decoder, loaded next to whichever script decodes
 //   versions.json       the resolved package versions in the bundle
 //
@@ -35,6 +36,7 @@ await esbuild.build({
   entryPoints: [join(here, "node_modules/@developmentseed/geotiff/dist/pool/worker.js")],
   outfile: join(out, "geotiff-worker.js"),
 });
+const zarr = await esbuild.build({ ...common, entryPoints: [join(here, "zarr-entry.js")], outfile: join(out, "zarrita.js") });
 // #endregion bundle
 
 // #region lerc-wasm
@@ -44,7 +46,7 @@ copyFileSync(require.resolve("lerc/lerc-wasm.wasm"), join(out, "lerc-wasm.wasm")
 // #endregion lerc-wasm
 
 const pkgs = new Set();
-for (const f of Object.keys(main.metafile.inputs)) {
+for (const f of [...Object.keys(main.metafile.inputs), ...Object.keys(zarr.metafile.inputs)]) {
   const m = f.match(/node_modules\/((?:@[^/]+\/)?[^/]+)\//);
   if (m) pkgs.add(m[1]);
 }

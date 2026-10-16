@@ -10,6 +10,7 @@
 // for the filters).
 
 import { credential } from "./env.js";
+import { zarrTimeRange } from "./zarr.js";
 
 // --------------------------------------------------------------------------
 // Keys
@@ -263,7 +264,8 @@ export function availability(catalog, product, bbox) {
   const a = time.availability;
   const box = roundBox(capBox(bbox));
   let key;
-  if (a.type === "list" || a.type === "hourly") key = `${product.id}|${a.type}`;
+  if (a.type === "list") key = `${product.id}|list`;
+  else if (a.type === "zarr") key = `zarr|${product.dataset}/${a.source}|${credential(catalog.sources[`${product.dataset}/${a.source}`].credential).slice(-6)}`;
   else if (a.type === "planet") key = `planet|${a.prefix}|${credential("planet").slice(-6)}`;
   else if (a.type === "stac") key = `stac|${product.dataset}/${a.source}|${time.step}|${box}`;
   else key = `${a.type}|${a.concept_id}|${time.step}|${box}`;
@@ -317,10 +319,13 @@ const PROVIDERS = {
   },
   // #endregion avail-list
 
-  async hourly(catalog, product, a) {
-    const now = Date.now() - a.lag_days * 86400e3;
-    return new HourlySteps(new Date(`${a.start}T00:00:00Z`), new Date(Math.floor(now / 3600e3) * 3600e3));
+  // #region avail-zarr
+  /** Every hour of an ARCO Zarr store's time axis (the store says how recent its data are). */
+  async zarr(catalog, product, a) {
+    const [first, last] = await zarrTimeRange(catalog.sources[`${product.dataset}/${a.source}`]);
+    return new HourlySteps(first, last);
   },
+  // #endregion avail-zarr
 
   // #region avail-stac
   /** STAC items over the box (newest first), grouped by timestep. */

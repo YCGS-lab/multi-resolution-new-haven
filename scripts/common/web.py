@@ -568,27 +568,37 @@ def titiler_cmr_source(
 # endregion titiler-cmr-source
 
 
-# region cds-source
-def cds_source(dataset: str, variable: str, band: str, native_deg: float, offset: float = 0.0, max_area_deg: float = 12.0) -> dict:
-    """A Copernicus Climate Data Store dataset on a regular lat / lon grid
-    (e.g. ERA5-Land), requested by the website with the user's CDS API key
-    for the selected hour(s) over the area in view (at most `max_area_deg` on
-    a side), as GRIB; values + `offset` (e.g. -273.15 for K to deg C) become
-    band `band`."""
+# region arco-zarr-source
+def arco_zarr_source(
+    url: str,
+    variables: list[str],
+    band: str,
+    native_deg: float,
+    credential: str,
+    offset: float = 0.0,
+    max_area_deg: float = 30.0,
+) -> dict:
+    """A variable on a regular lat / lon grid in an Analysis-Ready,
+    Cloud-Optimised (ARCO) Zarr store over (time, latitude, longitude), read
+    by the website with zarrita: only the chunks over the area in view, for
+    the selected hour(s). `url` should be the store chunked for maps (e.g.
+    ECMWF's time-chunked stores, not the geo-chunked ones made for time
+    series at a point). The user's `credential` is sent as a bearer token.
+    `variables`: names to try, in order; values + `offset` (e.g. -273.15 for
+    K to deg C) become band `band`. At most `max_area_deg` a side is read."""
     return dict(
-        type="cds",
-        api="https://cds.climate.copernicus.eu/api",
-        dataset=dataset,
-        variable=variable,
+        type="zarr",
+        url=url,
+        variables=variables,
         bands=[band],
         offset=offset,
         grid_deg=native_deg,
         max_area_deg=max_area_deg,
         res=native_deg * 111320 * EXTENT_VIEW.merc_scale,
         pixel_m=native_deg * 111320,
-        credential="cds",
+        credential=credential,
     )
-# endregion cds-source
+# endregion arco-zarr-source
 
 
 # --------------------------------------------------------------------------
@@ -658,9 +668,11 @@ def avail_planet(prefix: str = "global_monthly_", suffix: str = "_mosaic") -> di
     return dict(type="planet", prefix=prefix, suffix=suffix, credential="planet")
 
 
-def avail_hourly(start: str, lag_days: int) -> dict:
-    """Every hour from `start` (YYYY-MM-DD) until `lag_days` before today (e.g. a reanalysis)."""
-    return dict(type="hourly", start=start, lag_days=lag_days)
+def avail_zarr(source: str) -> dict:
+    """Every step of the time axis of an arco_zarr_source's store (hourly for
+    ERA5-Land), from its first to its last time: read from the store, so the
+    latest timestep follows the store's own latency."""
+    return dict(type="zarr", source=source)
 
 
 def window_spec(max_days: int, options: list[dict] | None = None, label: str = "End date") -> dict:

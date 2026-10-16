@@ -19,7 +19,7 @@ flowchart LR
   Tiles --> CMR["titiler-cmr"]
   Tiles --> AG["ArcGIS services<br/>per year"]
   Tiles --> XYZ["XYZ templates<br/>(Planet)"]
-  Tiles --> CDS["CDS jobs + GRIB<br/>(cds.js, grib.js)"]
+  Tiles --> ZARR["ARCO Zarr<br/>(zarr.js, zarrita)"]
 ```
 
 ## The time spec
@@ -41,7 +41,7 @@ browser every product has `time`, `requires`, `coverage` and `min_zoom`.
 | CT orthoimagery | year | fixed list (1934-2023) | drop-down | — | — | — |
 | CT lidar | year | fixed list (2016, 2023) | drop-down | — | — | — |
 | Planet basemaps | month | Planet Basemaps API | month grid | — | — | Planet key |
-| ERA5-Land | hour | every hour, 1950 to −6 days | calendar + hour | — | — | CDS key |
+| ERA5-Land | hour | the ARCO Zarr store's time axis (1950 to ~5 days ago) | calendar + hour | — | — | CDS key |
 | NISAR GCOV | day | CMR | calendar | yes | — | — |
 | SMAP L4 (live) | time (3-hourly) | CMR | calendar + time | — | — | cloud |
 | Black Marble (live) | year | CMR | drop-down | — | — | cloud |
@@ -182,31 +182,45 @@ a timestep (one CT ECO service per flight year). An XYZ URL may contain
 `{time:mosaic}` (the timestep's parameter, e.g. Planet's mosaic name) and
 `{credential:planet}` (the user's key; never in the catalog).
 
-### ERA5-Land from the Climate Data Store
+### ERA5-Land from an ARCO Zarr store
 
 ::: code-group
-<<< @/../scripts/common/web.py#cds-source [web.py]
-<<< @/../website/js/cds.js#cds-area [area]
-<<< @/../website/js/cds.js#cds-fetch [jobs]
-<<< @/../website/js/tiles.js#cds-layer [layer]
+<<< @/../scripts/common/web.py#arco-zarr-source [web.py]
+<<< @/../website/js/zarr.js#open-dataset [open]
+<<< @/../website/js/zarr.js#zarr-area [area]
+<<< @/../website/js/zarr.js#zarr-grids [read]
+<<< @/../website/js/zarr.js#byte-lru [chunk cache]
+<<< @/../website/js/tiles.js#zarr-layer [layer]
+<<< @/../website/js/time.js#avail-zarr [timesteps]
 :::
 
-The CDS is a job queue, not a tile service: a request (variable, days,
-hours, area, GRIB) is submitted with the user's key, polled until it
-succeeds, and its result file downloaded. The area is the view grown to at
-least 4° and snapped to whole degrees (at most 12°), so small pans reuse
-it. The map shows the queue status while waiting. The GRIB file is decoded
-in the browser:
+ECMWF publishes ERA5-Land as Analysis-Ready, Cloud-Optimised (ARCO) Zarr
+stores, each in two layouts: **geo-chunked** (small areas, long time
+series: for a point's history) and **time-chunked** (large areas, few time
+steps per chunk: for maps). The website draws maps, so it reads the
+time-chunked 2 m temperature store directly from the browser with zarrita
+(`website/vendor/zarrita.js`, loaded only when an ERA5 layer is first
+shown), with the user's CDS API key as a bearer token (the store's CORS
+headers allow it).
 
-::: code-group
-<<< @/../website/js/grib.js#grib-decode [decodeGrib]
-<<< @/../website/js/grib.js#grib1 [GRIB 1]
-<<< @/../website/js/grib.js#grib2 [GRIB 2]
-:::
+- **Time axis from the store:** the timesteps are every step between the
+  store's first and last `time` values (read once; regular hourly spacing
+  assumed), so "Latest" follows the store's own ~5-day latency.
+- **Only the chunks in view:** the read covers the view grown by a quarter
+  on each side, snapped to whole degrees (at most 30°); zarrita fetches only
+  the chunks that overlap it. Fetched chunks stay in a 400 MB LRU cache, so
+  pans and other hours in the same chunks cost nothing.
+- **Any layout:** dimension order from `_ARRAY_DIMENSIONS` (v2) or
+  `dimension_names` (v3), latitude ascending or descending, longitudes in
+  −180..180 or 0..360, CF time units; `scale_factor` / `add_offset` /
+  `_FillValue` applied if present (ARCO data are already unpacked).
+- **Animation:** all frames are read run by run (one zarrita read per run of
+  equally spaced hours), with chunk progress.
 
-Both editions were checked against ecCodes on ECMWF sample files (values,
-grid, bitmap, scanning direction); the whole flow was tested with mocked CDS
-responses, not against the real service (no key).
+ECMWF documents the stores without chunk shapes or codecs; the reader was
+tested (values, both latitude orders, Zarr v2 with consolidated metadata and
+v3, blosc / zstd, a 401 for a bad key) against mock stores mimicking the
+global 0.1° layout, not against ECMWF's store (no key).
 
 ## Where the website runs, and credentials
 
@@ -250,7 +264,7 @@ timesteps in view; for hourly data the last day, every N hours); the frames
 are the timesteps with data in view between them, after the filters (at
 most 120). **Load imagery** fetches and renders every frame's tiles for the
 area in view into the tile cache (six requests at a time, with a progress
-bar), as Worldview does; ERA5 hours are requested in one CDS job per month.
+bar), as Worldview does; ERA5 frames are read from the Zarr store run by run.
 The slider jumps between frames; Play steps through them at 0.5-8 frames
 per second, looping or not (space: play / pause, ← →: step). The last fully
 loaded frame stays underneath the current one until it has loaded, so

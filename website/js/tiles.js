@@ -17,8 +17,8 @@
 //   - titiler-cmr ("titiler-cmr"): raw values (NPY) of NASA granules
 //     mosaicked over the selected timestep or window.
 //
-// Layers on the Climate Data Store ("cds") are one image per hour over the
-// area in view (cds.js).
+// Layers on ARCO Zarr stores ("zarr", e.g. ERA5-Land) are one image of the
+// hour's grid over the area in view (zarr.js).
 //
 // Rendered tiles of the live sources go through one cache (tileCache), which
 // the animation tab fills ahead of time (prefetchTiles).
@@ -27,9 +27,9 @@
 // layers use longitude / latitude (MapView).
 
 import { BitmapLayer, GeoTIFF, SolidPolygonLayer, TileLayer } from "../vendor/deck-gl-raster.js";
-import { cachedGrid, cdsArea, cdsGrids, hourKey } from "./cds.js";
 import { cogLayer } from "./cog.js";
 import { credential, env } from "./env.js";
+import { cachedGrid, hourKey, zarrArea, zarrGrids } from "./zarr.js";
 
 const R = 6378137;
 const CIRCUMFERENCE = 2 * Math.PI * R;
@@ -613,7 +613,7 @@ function tileBox(x, y, z) {
 /**
  * How to draw a tiled layer of a product for a time context: {key (cache key
  * prefix), tileSize, maxZoom, render(index, signal) -> ImageData | null}, or
- * null for layers that are not tiled here (COG, CDS, untimed XYZ basemaps).
+ * null for layers that are not tiled here (COG, Zarr grids, untimed XYZ basemaps).
  */
 export function tileRenderer(catalog, product, layer, ctx) {
   const spec = catalog.sources[layer.source];
@@ -773,40 +773,43 @@ function xyzLayers(id, catalog, layer, { props }) {
 }
 // #endregion xyz-layers
 
-// #region cds-layer
+// #region zarr-layer
 /**
- * One image of the hour's grid over the area in view (CDS). The grid is
- * requested on first use; `onReady()` is called when it arrives, to redraw.
+ * One image of the hour's grid over the area in view (ARCO Zarr). The grid is
+ * read on first use; `onReady()` is called when it arrives, to redraw.
  */
-function cdsLayer(id, catalog, layer, { loading, props, time, view, onReady }) {
+function zarrLayer(id, catalog, layer, { loading, props, time, view, onReady }) {
   const spec = catalog.sources[layer.source];
   if (!time || !view) return [];
-  const area = cdsArea(spec, view);
+  const area = zarrArea(spec, view);
   const hk = hourKey(time.t);
   const grid = cachedGrid(spec, area, hk);
-  if (grid === undefined || grid === null) {
-    if (grid === null) return []; // no data for this hour
-    const k = `${area}|${hk}`;
-    if (!cdsLayer.waiting.has(k)) {
-      cdsLayer.waiting.add(k);
+  if (grid === undefined) {
+    const k = `${spec.url}|${area}|${hk}`;
+    if (!zarrLayer.reading.has(k)) {
+      zarrLayer.reading.add(k);
       loading?.start();
-      cdsGrids(spec, area, [hk], { onStatus: (s) => loading?.note?.(s) })
-        .then(() => loading?.end(), (err) => loading?.end(err))
+      zarrGrids(spec, area, [hk])
+        .then(() => loading?.end(), (err) => {
+          console.warn(`${layer.source}: read failed`, err);
+          loading?.end(err);
+        })
         .finally(() => {
-          cdsLayer.waiting.delete(k);
+          zarrLayer.reading.delete(k);
           onReady?.();
         });
     }
     return [];
   }
-  return [cdsBitmap(`${id}|${hk}|${area}`, grid, layer.render, props)];
+  if (grid === null) return []; // no data for this hour here
+  return [gridBitmap(`${id}|${hk}|${area}`, grid, layer.render, props)];
 }
-cdsLayer.waiting = new Set();
+zarrLayer.reading = new Set();
 
 const gridImages = new WeakMap(); // grid -> Map(render JSON -> ImageData)
 
 /** A BitmapLayer of a lat / lon grid colored with a render spec. */
-export function cdsBitmap(id, grid, render, props) {
+export function gridBitmap(id, grid, render, props) {
   if (!gridImages.has(grid)) gridImages.set(grid, new Map());
   const cache = gridImages.get(grid);
   const rk = JSON.stringify(render);
@@ -824,18 +827,18 @@ export function cdsBitmap(id, grid, render, props) {
     ...props,
   });
 }
-// #endregion cds-layer
+// #endregion zarr-layer
 
 // #region product-layers
 /**
  * The deck.gl layers of a product, bottom to top (COG layers whose file is
  * still opening are left out until it is open; see onCogOpened).
- * `loading` ({start(), end(error), note(text)}) is told about each tile request.
+ * `loading` ({start(), end(error)}) is told about each tile request.
  * `props(kind)` gives extra props (clip / mask extensions, opacity) for a
  * layer drawn in "lnglat" or deck.gl "common" (COG) coordinates.
  * `time` is the selected time context (slot.js ctx()); `view` the area in
  * view ([w, s, e, n]); `onReady()` is called when data that arrived outside
- * of deck.gl's tile loading (CDS grids) needs a redraw.
+ * of deck.gl's tile loading (Zarr grids) needs a redraw.
  */
 export function productLayers(id, catalog, product, { loading, props = () => ({}), time = null, view = null, onReady } = {}) {
   return product.layers.flatMap((layer, i) => {
@@ -843,7 +846,7 @@ export function productLayers(id, catalog, product, { loading, props = () => ({}
     const spec = catalog.sources[layer.source];
     if (spec.type === "cog") return cogLayer(lid, spec, layer, { loading, props: props("common") }) ?? [];
     if (spec.type === "arcgis") return arcgisLayer(lid, catalog, product, layer, { loading, props: props("lnglat"), time });
-    if (spec.type === "cds") return cdsLayer(lid, catalog, layer, { loading, props: props("lnglat"), time, view, onReady });
+    if (spec.type === "zarr") return zarrLayer(lid, catalog, layer, { loading, props: props("lnglat"), time, view, onReady });
     const tr = tileRenderer(catalog, product, layer, time);
     if (tr)
       return liveTileLayer(`${lid}|${tr.key}`, catalog, tr, {

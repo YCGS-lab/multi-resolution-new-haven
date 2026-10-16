@@ -153,11 +153,6 @@ export class LoadingState {
     }
   }
 
-  /** A longer status while loading (e.g. a queued CDS request); "" to clear. */
-  note(text) {
-    this.noteText = text;
-    this.show();
-  }
 
   end(error) {
     if (error) {
@@ -172,7 +167,7 @@ export class LoadingState {
 
   show() {
     const msg = this.pending
-      ? this.noteText || "Loading…"
+      ? "Loading…"
       : this.errors
         ? `${this.errors} tile${this.errors > 1 ? "s" : ""} failed to load`
         : "";
@@ -186,7 +181,6 @@ export class LoadingState {
   reset() {
     this.pending = 0;
     this.errors = 0;
-    this.noteText = "";
     clearTimeout(this.timer);
     this.show();
   }

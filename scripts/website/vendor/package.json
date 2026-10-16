@@ -15,7 +15,8 @@
     "@developmentseed/deck.gl-geotiff": "0.8.1",
     "@developmentseed/deck.gl-raster": "0.8.1",
     "@developmentseed/geotiff": "0.8.1",
-    "@developmentseed/proj": "0.8.1"
+    "@developmentseed/proj": "0.8.1",
+    "zarrita": "0.7.5"
   },
   "devDependencies": {
     "esbuild": "0.28.2"
