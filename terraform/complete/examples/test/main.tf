@@ -6,7 +6,9 @@
 #
 # Needs docker (buildx) and the AWS CLI where tofu runs (tiler image).
 # Secrets are ephemeral: export TF_VAR_earthdata_username,
-# TF_VAR_earthdata_password and TF_VAR_cds_api_key.
+# TF_VAR_earthdata_password and TF_VAR_cds_api_key. They are written on the
+# first apply only; to write them again (e.g. after an apply without them),
+# set -var secrets_version=<n+1> with them exported.
 
 terraform {
   required_version = ">= 1.11"
@@ -27,6 +29,12 @@ variable "ecmwf_region" {
   description = "Region of the ERA5-Land deployment (eu-south-1 needs an opt-in)"
   type        = string
   default     = "eu-central-1"
+}
+
+variable "secrets_version" {
+  description = "Bump to write the tiler secrets again (with the TF_VAR_ secrets exported)"
+  type        = number
+  default     = 1
 }
 
 variable "earthdata_username" {
@@ -114,6 +122,7 @@ module "complete" {
   tiler_throttling_burst_limit = 40
   secret_recovery_days         = 0
 
+  secrets_version    = var.secrets_version
   earthdata_username = var.earthdata_username
   earthdata_password = var.earthdata_password
   cds_api_key        = var.cds_api_key
