@@ -74,7 +74,7 @@ by tile:
 
 - deck.gl and deck.gl-raster are bundled into one file in `website/vendor/`,
   which is committed.
-- `serve.py` runs the site locally.
+- `just serve` runs the site locally (Caddy).
 - Terraform puts it on Amazon S3 behind CloudFront.
 - A fixtures script and a headless-browser benchmark check the renderer
   without credentials.
@@ -121,10 +121,10 @@ implemented.
 |---|---|
 | `scripts/<dataset>/` | Per-dataset scripts ([datasets](/pipeline/datasets/)) |
 | `scripts/common/` | Shared Python: views, resampling, figures, web data, remote services |
-| `scripts/website/` | `build_catalog.py`, `serve.py`, `vendor/` (bundle build), `benchmark/` |
+| `scripts/website/` | `build_catalog.py`, `Caddyfile` (local server), `vendor/` (bundle build), `benchmark/` |
 | `data/` | Downloads (not tracked, except `landmarks.json`) |
 | `figures/` | Output PNGs (not tracked) |
 | `website/` | The static site: `index.html`, `js/`, `css/`, `vendor/`; generated `catalog.json` and `image-data/` (not tracked) |
 | `terraform/aws/` | Hosting infrastructure |
-| `justfile` | `just download`, `just build`, `just vendor`, `just deploy`, `just preview` |
+| `justfile` | `just download`, `just build`, `just vendor`, `just deploy`, `just serve` |
 | `docs/` | This documentation (VitePress): `npm run dev` in `docs/` |

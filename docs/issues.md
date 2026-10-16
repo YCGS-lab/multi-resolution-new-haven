@@ -23,8 +23,8 @@ Apart from the first two entries, nothing here has been fixed.
 |---|---|---|---|---|
 | [1](#lut-context) | Colormap layers drawn black in the grid | viewer | high | migration, **fixed** |
 | [2](#hillshade-direction) | Hillshades were lit from the southeast, not the northwest | pipeline, viewer | high | earlier, **fixed** |
-| [3](#preview-exposes-repo) | `just preview` serves the whole repository, credentials included, to the network | tooling | high | earlier |
-| [4](#serve-root) | `serve.py` serves the repository root, not `website/` | tooling | medium | earlier |
+| [3](#preview-exposes-repo) | `just preview` served the whole repository, credentials included, to the network | tooling | high | earlier, **fixed** |
+| [4](#serve-root) | `serve.py` served the repository root, not `website/` | tooling | medium | earlier, **fixed** |
 | [5](#fixtures-in-catalog) | Benchmark fixtures end up in the menu and in the deployed site | tooling | medium | migration |
 | [6](#deploy-delete) | `just deploy` can delete COGs from the bucket, with no versioning to recover them | deploy | medium | earlier |
 | [7](#terraform-state) | README, justfile and Terraform disagree about where the state lives | deploy | medium | earlier |
@@ -102,7 +102,7 @@ checked against a reference; outputs still to be regenerated
 
 ## High
 
-### 3. `just preview` serves the whole repository to the network {#preview-exposes-repo}
+### 3. `just preview` served the whole repository to the network (fixed) {#preview-exposes-repo}
 
 **Severity** high · **Origin** earlier
 
@@ -113,12 +113,13 @@ checked against a reference; outputs still to be regenerated
   CDS and AWS keys) and `terraform/aws/terraform.tfstate` (which holds the
   deploy user's secret key) if it exists locally, plus `.git/`. Anyone on
   the same network can read them.
-- **Fix:** `caddy file-server --root website --listen 127.0.0.1:8000`, with
-  no `--browse`. Or drop the recipe in favor of `serve.py`.
+- **Fix (done):** `just preview` and `serve.py` were replaced by `just
+  serve`: Caddy with `scripts/website/Caddyfile`, serving `website/` only,
+  on localhost only, without directory listings.
 
 ## Medium
 
-### 4. `serve.py` serves the repository root {#serve-root}
+### 4. `serve.py` served the repository root (fixed) {#serve-root}
 
 **Severity** medium · **Origin** earlier
 
@@ -127,7 +128,8 @@ checked against a reference; outputs still to be regenerated
   `--bind 0.0.0.0` exposes the same files as in [3](#preview-exposes-repo).
   Other local processes and DNS-rebinding pages can also reach them. The
   site needs only `website/`.
-- **Fix:** serve `website/`, or refuse paths outside it.
+- **Fix (done):** replaced by `just serve` (Caddy, `website/` only); see
+  [3](#preview-exposes-repo).
 
 ### 5. Benchmark fixtures end up in the menu and the deployed site {#fixtures-in-catalog}
 
@@ -325,8 +327,7 @@ checked against a reference; outputs still to be regenerated
   - `node docs/scripts/check-snippets.mjs`;
   - `terraform validate`;
   - small pytest tests of view and grid alignment, hillshade direction
-    (which would have caught [2](#hillshade-direction) earlier), and `serve.py`
-    range handling.
+    (which would have caught [2](#hillshade-direction) earlier).
 
   Later: a Playwright smoke test that opens each fixture in the viewer
   and the grid, which would have caught [1](#lut-context).

@@ -13,7 +13,7 @@ flowchart TB
   end
   Vendor -->|"just vendor"| Site[("website/<br/>vendor/ is committed")]
   Fixtures -->|"test COGs"| Site
-  Site --> Serve["serve.py<br/>local, range requests"]
+  Site --> Serve["Caddy (just serve)<br/>local, range requests"]
   Bench -->|"drives"| Serve
   Site -->|"just deploy: aws s3 sync"| S3[("S3 bucket")] --> CF["CloudFront<br/>HTTPS, HTTP/2 + 3"]
   TF -.->|"creates"| S3 & CF
@@ -22,7 +22,7 @@ flowchart TB
 | Piece | What | Page |
 |---|---|---|
 | Vendored bundle | deck.gl + deck.gl-raster as one committed ES module, rebuilt with `just vendor` | [Vendored bundle](./vendor) |
-| Local server | `serve.py`: the repository root over HTTP, with range requests | [Local development](./local) |
+| Local server | Caddy (`just serve`): `website/` over HTTP on localhost, with range requests | [Local development](./local) |
 | Hosting | Terraform: private S3 bucket behind CloudFront, plus a minimal deploy identity; `just deploy` | [Deployment](./deploy) |
 | Tests | Credential-free fixture COGs and a before/after benchmark in headless Chromium | [Fixtures and benchmark](./benchmark) |
 

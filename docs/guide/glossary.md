@@ -111,7 +111,7 @@ environment, so no shared virtual environment is needed. See
 
 An HTTP request for part of a file (`Range: bytes=1000-1999`), answered with
 status 206 and just those bytes. COG readers depend on it. Python's built-in
-`http.server` ignores it, so the project has its own `serve.py`.
+`http.server` ignores it, so the project serves the site locally with Caddy (`just serve`).
 
 ### Render spec
 

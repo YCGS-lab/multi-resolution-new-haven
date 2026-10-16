@@ -227,7 +227,7 @@ and `image-data/`, each run in a fresh browser (no shared cache). "Before" is
 the previous commit (geotiff.js + CPU renderer), "after" is this version. A
 scenario "settles" when no tile request is pending and every deck.gl layer
 reports loaded, for 300 ms. Medians of 3 runs, on a 4-core container, served
-by `serve.py` locally, with and without 40 ms of added latency per request.
+by the local server, with and without 40 ms of added latency per request.
 All numbers, per run, are in [benchmarks/2026-10-10.md](benchmarks/2026-10-10.md)
 and the JSON files next to it.
 
@@ -284,7 +284,7 @@ What this shows:
   `COGLayer`.
 - **Switching products re-downloads tiles** (8.2 MB for five Landsat products
   that share one COG): each product is a new `COGLayer` with its own tile
-  cache, and `serve.py` sends `Cache-Control: no-cache`. On the deployed
+  cache, and the local server sends `Cache-Control: no-cache`. On the deployed
   site, `Cache-Control: max-age=300` lets the browser reuse the ranges
   for five minutes. A shared decoded-tile cache across layers would avoid it
   altogether.
@@ -354,18 +354,18 @@ migration:
    git worktree add ../newhaven-before main          # the version to compare with
    ln -s "$PWD/website/image-data" ../newhaven-before/website/image-data
    ln -s "$PWD/website/catalog.json" ../newhaven-before/website/catalog.json
-   (cd ../newhaven-before && uv run scripts/website/serve.py --port 8001) &
-   uv run scripts/website/serve.py --port 8000 &
+   (cd ../newhaven-before && just serve 8001) &
+   just serve 8000 &
    ```
 
-   Look through the products at http://localhost:8000/website/ next to
+   Look through the products at http://localhost:8000/ next to
    http://localhost:8001/website/ (each render type, the compare modes, the
    grid, deep zoom) and watch the console for errors. Then run the benchmark:
 
    ```sh
    cd scripts/website/benchmark && npm ci
    node bench.mjs --runs 3 --out local.json \
-     before=http://localhost:8001/website/ after=http://localhost:8000/website/
+     before=http://localhost:8001/ after=http://localhost:8000/
    node bench.mjs --runs 3 --latency 40 --out latency40.json before=... after=...
    node report.mjs local.json latency40.json      # Markdown tables
    ```

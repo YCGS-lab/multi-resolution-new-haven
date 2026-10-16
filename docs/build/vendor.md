@@ -47,7 +47,7 @@ just vendor            # = cd scripts/website/vendor && npm ci && npm run build
   a peer dependency, meaning it uses whatever deck.gl the page provides.
   Loading it from a CDN next to deck.gl's own browser build would load deck.gl
   and luma.gl twice, and the two copies do not work together.
-- **No build step for the site.** The bundle is committed, so `serve.py` and
+- **No build step for the site.** The bundle is committed, so the local server and
   `aws s3 sync` work on a fresh clone, with no Node.js installed.
 - **Pinned versions.** `package.json` pins exact versions and
   `package-lock.json` locks the rest. deck.gl-raster is beta software that

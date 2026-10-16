@@ -21,5 +21,6 @@ docs:
 deploy:
   eval "$(aws s3 cp s3://ycgs-use1-terraform/ycgs/newhaven-multires-bucket - | jq -r '.outputs.deploy_commands.value')"
 
-preview:
-  caddy file-server --browse --listen :8000
+# Serve website/ at http://localhost:8000/ (Caddy: range requests, no caching; localhost only)
+serve port="8000":
+  PORT={{port}} caddy run --config scripts/website/Caddyfile --adapter caddyfile

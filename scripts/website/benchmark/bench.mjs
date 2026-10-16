@@ -2,7 +2,7 @@
 //
 //   node bench.mjs [--runs 5] [--latency 40] [--out results.json] [--products a/b,c/d] [--only REGEX] NAME=URL ...
 //
-// e.g. node bench.mjs before=http://localhost:8001/website/ after=http://localhost:8000/website/
+// e.g. node bench.mjs before=http://localhost:8001/ after=http://localhost:8000/
 //
 // Each URL is a copy of website/ (same catalog.json and image-data/). For each
 // scenario and site, a fresh browser context opens the page and the script

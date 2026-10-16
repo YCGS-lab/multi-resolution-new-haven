@@ -10,7 +10,7 @@ Showing what New Haven, CT looks like at different spatial resolutions.
   - `create-cog.py` → `website/image-data/<dataset>.tif` + `.json` (data stored for one timestep), or
     `website-layers.py` → `website/image-data/<dataset>.json` (data the website reads live, for any timestep), for the website
 - `scripts/common/` — shared view definitions, resampling, figure output, tile/ImageServer/WMS clients, and website data (`web.py`)
-- `scripts/website/` — `build_catalog.py` → `website/catalog.json` (the website's image menu), `serve.py` (local server)
+- `scripts/website/` — `build_catalog.py` → `website/catalog.json` (the website's image menu), `Caddyfile` (local server, `just serve`)
 - `data/landmarks.json` — landmark coordinates (from `scripts/landmarks/geocode.py`); other data, figures and website image data are not tracked
 
 ## Views
@@ -84,12 +84,12 @@ the browser for the lidar and 3DEP DEMs), and categorical colors (with a legend)
 ```sh
 uv run scripts/<dataset>/create-cog.py        # or website-layers.py; see below
 uv run scripts/website/build_catalog.py       # website/image-data/*.json -> website/catalog.json
-uv run scripts/website/serve.py               # from anywhere; serves the repository root
-# open http://localhost:8000/website/
+just serve                                    # Caddy, serves website/ on localhost
+# open http://localhost:8000/
 ```
 
-`serve.py` is needed instead of `python -m http.server` because the COGs are read with HTTP
-range requests.
+The local server is [Caddy](https://caddyserver.com/) (`scripts/website/Caddyfile`) rather than
+`python -m http.server` because the COGs are read with HTTP range requests.
 
 | Script | Datasets |
 |---|---|
@@ -153,7 +153,7 @@ Earthdata S3 credentials in us-west-2, not part of this Terraform yet; while it 
 datasets stay disabled online too).
 
 `website/` is static: `terraform/aws/` puts it in a private S3 bucket behind CloudFront (which,
-like `serve.py`, serves range requests), and makes an IAM user whose access key can only assume
+like the local Caddy server, serves range requests), and makes an IAM user whose access key can only assume
 a deploy role, which can only sync the bucket and invalidate the distribution. Works with
 Terraform or OpenTofu (`tofu`); run as an AWS admin:
 

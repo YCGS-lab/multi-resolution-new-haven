@@ -24,7 +24,7 @@ async function main() {
   } catch (err) {
     return fatal(
       `Could not load <code>catalog.json</code> (${err.message}).`,
-      "Build it with <code>uv run scripts/website/build_catalog.py</code>, then serve the repository root with <code>uv run scripts/website/serve.py</code> and open <code>/website/</code>.",
+      "Build it with <code>uv run scripts/website/build_catalog.py</code>, then serve it with <code>just serve</code> (Caddy) and open <code>http://localhost:8000/</code>.",
     );
   }
   if (catalog.isEmpty) {

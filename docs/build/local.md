@@ -2,31 +2,33 @@
 
 ```sh
 just download && just build        # data, COGs, catalog (needs credentials for some datasets)
-uv run scripts/website/serve.py    # http://localhost:8000/website/
+just serve                         # http://localhost:8000/
 ```
 
-## serve.py <Badge type="warning" text="decision" />
+## Local server <Badge type="warning" text="decision" />
 
-`scripts/website/serve.py` serves the repository root.
+`just serve` runs [Caddy](https://caddyserver.com/) with
+`scripts/website/Caddyfile`: it serves `website/` only (the site needs
+nothing outside it), on localhost only, with `Cache-Control: no-cache` so a
+rebuilt COG or catalog is seen at once.
 
 ::: code-group
-<<< @/../scripts/website/serve.py#range-requests [scripts/website/serve.py#range-requests]
+<<< @/../scripts/website/Caddyfile [scripts/website/Caddyfile]
 :::
 
 ::: warning Why not `python -m http.server`
 COG readers fetch byte ranges (`Range: bytes=a-b`). Python's built-in
 server ignores the header and sends the whole file, so every tile request
-would download the whole 40 MB impervious-surface COG. `serve.py` subclasses
-`SimpleHTTPRequestHandler` to answer single ranges with `206 Partial
-Content`, including suffix ranges (`bytes=-N`), and `416` for impossible
-ranges. It also sets `.wasm` to `application/wasm`, so browsers can compile
-the LERC decoder while it downloads, and sends `Cache-Control: no-cache`, so
-a rebuilt COG or catalog is seen at once.
+would download the whole 40 MB impervious-surface COG. Caddy's file server
+answers ranges with `206 Partial Content` (including suffix ranges and `416`
+for impossible ones) and sends `.wasm` as `application/wasm`, so browsers
+can compile the LERC decoder while it downloads. (An earlier `serve.py`
+did this in Python, serving the repository root.)
 :::
 
-`just preview` uses [Caddy](https://caddyserver.com/) instead. It also
-serves ranges, but it serves the whole repository to the network: see
-[Issues and improvements](/issues#preview-exposes-repo).
+To test the cloud-only datasets locally, run the tiler too
+(`tiler/serve-local.sh`, port 8100) and open
+`http://localhost:8000/?cloud=1&service.tiler=http://localhost:8100`.
 
 ## The justfile <Badge type="tip" text="standard" />
 

@@ -1,0 +1,15 @@
+# Local web server for website/ (Range requests for the COGs, no caching):
+#   just serve            # or: caddy run --config scripts/website/Caddyfile --adapter caddyfile
+#   open http://localhost:8000/
+# Run from the repository root; PORT overrides the port.
+{
+	admin off
+	auto_https off
+}
+
+http://localhost:{$PORT:8000}, http://127.0.0.1:{$PORT:8000} {
+	bind 127.0.0.1 [::1]
+	root * website
+	header Cache-Control no-cache
+	file_server
+}
