@@ -18,7 +18,7 @@ keep=0
 
 docker buildx version >/dev/null 2>&1 || die "docker with buildx is needed (and running) to build the Lambda image"
 command -v aws >/dev/null || die "the AWS CLI is needed (image push, version pruning)"
-require_minutes 45
+require_minutes 30
 
 # region secrets
 eval "$(python3 - <<'EOF'
