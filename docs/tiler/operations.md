@@ -89,6 +89,9 @@ deployment: `tiler-smoke.sh https://xxxx.cloudfront.net [api-endpoint ...]`.
 
 ## The persistent deployment
 
+To deploy the tiler together with the website, wired to each other, use
+[`terraform/complete`](/build/complete) instead.
+
 It lives in `ycgs-aws-infra` as a thin stack calling this module by Git URL
 at a tag, with its own S3 state, providers and tags; the test example is
 its reference. Deploying a new version: tag this repository, bump `ref`

@@ -27,3 +27,8 @@ output "example_urls" {
     id => "https://${aws_cloudfront_distribution.this.domain_name}/datasets/${id}/${keys(ds.renders)[0]}/WebMercatorQuad/tilejson.json"
   }
 }
+
+output "cors_origins" {
+  description = "Origins allowed in CORS."
+  value       = var.cors_origins
+}

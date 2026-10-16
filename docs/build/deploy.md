@@ -4,6 +4,11 @@
 `website/`, served by CloudFront over HTTPS, and a deploy identity that can
 do nothing but update the site. It works with Terraform or OpenTofu.
 
+To deploy it together with the [tiler](/tiler/), with the website's
+`env.json` pointing at it, use [`terraform/complete`](./complete): it calls
+this module with `env` set, so the module writes `env.json` itself and its
+`deploy_commands` leave that file alone.
+
 ```mermaid
 flowchart TB
   User(("browser")) -->|"HTTPS, HTTP/2 or 3"| CF["CloudFront<br/>cache: CachingOptimized"]

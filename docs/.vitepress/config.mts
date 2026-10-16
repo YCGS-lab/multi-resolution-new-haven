@@ -100,6 +100,7 @@ export default withMermaid(
             { text: "Vendored bundle", link: "/build/vendor" },
             { text: "Local development", link: "/build/local" },
             { text: "Deployment (AWS)", link: "/build/deploy" },
+            { text: "Website and tiler together", link: "/build/complete" },
             { text: "Fixtures and benchmark", link: "/build/benchmark" },
           ],
         },

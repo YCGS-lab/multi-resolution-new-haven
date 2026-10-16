@@ -114,3 +114,129 @@ state_count() {
   local dir="$1" run_dir="$2"
   run_tofu "$dir" "$run_dir" state list 2>/dev/null | wc -l | tr -d ' '
 }
+
+# region tiler-secrets
+# The tiler's credentials as ephemeral TF_VAR_* variables (never printed or
+# stored in state): the Earthdata login from ~/.netrc
+# (urs.earthdata.nasa.gov) and the CDS API key from _credentials.toml.
+export_tiler_secrets() {
+  eval "$(cd "$REPO" && python3 - <<'PY'
+import shlex, tomllib
+from pathlib import Path
+out = {}
+rc = Path.home() / ".netrc"
+words = rc.read_text().split() if rc.exists() else []
+for i, w in enumerate(words[:-1]):
+    if w == "machine" and words[i + 1] == "urs.earthdata.nasa.gov":
+        rest = words[i + 2 :]
+        rest = rest[: rest.index("machine")] if "machine" in rest else rest
+        entry = dict(zip(rest[::2], rest[1::2]))
+        out["TF_VAR_earthdata_username"] = entry.get("login", "")
+        out["TF_VAR_earthdata_password"] = entry.get("password", "")
+creds = Path("_credentials.toml")
+if creds.exists() and (key := tomllib.loads(creds.read_text()).get("cds_api_key")):
+    out["TF_VAR_cds_api_key"] = key
+for k, v in out.items():
+    print(f"export {k}={shlex.quote(v)}")
+PY
+)"
+  [[ -n "${TF_VAR_earthdata_username:-}" ]] || die "no urs.earthdata.nasa.gov login in ~/.netrc"
+  [[ -n "${TF_VAR_cds_api_key:-}" ]] || die "no cds_api_key in _credentials.toml"
+}
+# endregion tiler-secrets
+
+# region deploy-website
+# Deploy website/ exactly as documented: the deploy user's access key (from
+# the example's outputs) assumes the deploy role (profiles from aws_config),
+# then deploy_commands. A freshly created role's policy can take a minute to
+# apply, so the deploy is retried.
+# Usage: deploy_website <example-dir> <run-dir> <site name>
+deploy_website() {
+  local example="$1" run_dir="$2" name="$3"
+  local cfg="$run_dir/aws-config" creds="$run_dir/aws-credentials" cmds
+  run_tofu "$example" "$run_dir" output -raw aws_config >"$cfg"
+  (
+    umask 077
+    printf '[%s-deploy-user]\naws_access_key_id = %s\naws_secret_access_key = %s\n' "$name" \
+      "$(run_tofu "$example" "$run_dir" output -raw deploy_access_key_id)" \
+      "$(run_tofu "$example" "$run_dir" output -raw deploy_secret_access_key)" >"$creds"
+  )
+  cmds="$(run_tofu "$example" "$run_dir" output -raw deploy_commands)"
+  (
+    unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE
+    export AWS_CONFIG_FILE="$cfg" AWS_SHARED_CREDENTIALS_FILE="$creds"
+    for i in $(seq 1 24); do # new IAM keys take a few seconds to work
+      aws --profile "$name-deploy" sts get-caller-identity >/dev/null 2>&1 && break
+      sleep 5
+    done
+    cd "$REPO"
+    for i in $(seq 1 12); do
+      bash -euo pipefail -c "$cmds" && exit 0
+      echo "deploy failed (attempt $i); retrying in 15 s (IAM propagation)"
+      sleep 15
+    done
+    exit 1
+  )
+}
+# endregion deploy-website
+
+# region start-run
+# Start a test run of an example: run id, state directory (with what
+# destroy.sh needs), and a trap that destroys the run on any exit (unless
+# keep=1) and then sweeps. Sets run_id, run_dir, example and vars.
+# Usage: start_run <kind> <example-dir>
+start_run() {
+  kind="$1"
+  example="$2"
+  run_id="$(new_run_id)"
+  run_dir="$RUNS_DIR/$kind-$run_id"
+  mkdir -p "$run_dir"
+  echo "$example" >"$run_dir/example"
+  vars=(-var "run_id=$run_id" -var "delete_after=$(delete_after)")
+  echo "${vars[*]}" >"$run_dir/vars"
+  log "run $run_id (state: ${run_dir#$REPO/})"
+  trap cleanup_run EXIT INT TERM
+}
+
+cleanup_run() {
+  local status=$?
+  trap - EXIT INT TERM
+  if ((${keep:-0})); then
+    log "kept; destroy with: scripts/aws-tests/destroy.sh $kind-$run_id"
+    exit "$status"
+  fi
+  log "destroy"
+  if tofu_destroy "$example" "$run_dir" "${vars[@]}" && [[ "$(state_count "$example" "$run_dir")" == 0 ]]; then
+    "$REPO/scripts/aws-tests/sweep.sh" "$run_id" && rm -rf "$run_dir"
+  else
+    log "DESTROY FAILED: re-run scripts/aws-tests/destroy.sh $kind-$run_id"
+    status=1
+  fi
+  exit "$status"
+}
+# endregion start-run
+
+# region checks
+# check <description> <command...>: report ok / FAIL; a failure sets fail=1.
+check() {
+  local d="$1"
+  shift
+  if "$@"; then echo "  ok    $d"; else echo "  FAIL  $d"; fail=1; fi
+}
+
+status_of() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+
+# What the viewer relies on, against a deployed website (url ends with "/").
+check_website() {
+  local url="$1" bucket="$2" cog
+  cog="$(cd "$REPO/website" && ls image-data/*.tif | head -1)"
+  check "index.html 200" test "$(status_of "$url")" = 200
+  check "catalog.json 200" test "$(status_of "${url}catalog.json")" = 200
+  check "http redirects to https" test "$(status_of "${url/https:/http:}")" = 301
+  check "COG range request 206 ($cog)" test "$(status_of -r 0-1023 "$url$cog")" = 206
+  check "range body is 1024 bytes" test "$(curl -s -r 0-1023 "$url$cog" | wc -c | tr -d ' ')" = 1024
+  check "bucket is not public" test "$(status_of "https://$bucket.s3.amazonaws.com/index.html")" = 403
+  check "objects carry the deploy cache-control" \
+    bash -c "curl -sI '${url}catalog.json' | grep -qi 'cache-control: public, max-age=300'"
+}
+# endregion checks

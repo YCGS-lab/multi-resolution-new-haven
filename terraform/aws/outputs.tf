@@ -58,8 +58,13 @@ output "aws_config" {
 output "deploy_commands" {
   description = "Run from the repository root."
   value       = <<-EOT
-    aws --profile ${var.name}-deploy s3 sync website/ s3://${aws_s3_bucket.site.id}/ --delete --exclude ".DS_Store" --cache-control "public, max-age=300"
+    aws --profile ${var.name}-deploy s3 sync website/ s3://${aws_s3_bucket.site.id}/ --delete --exclude ".DS_Store"${var.env == null ? "" : " --exclude env.json"} --cache-control "public, max-age=300"
     aws --profile ${var.name}-deploy cloudfront create-invalidation --distribution-id ${aws_cloudfront_distribution.site.id} --paths "/*"
   EOT
 }
 # endregion deploy-commands
+
+output "env_json" {
+  description = "The env.json the module writes to the bucket (null when var.env is null)."
+  value       = var.env == null ? null : aws_s3_object.env[0].content
+}

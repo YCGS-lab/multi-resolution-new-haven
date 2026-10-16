@@ -150,7 +150,7 @@ resource "aws_cloudfront_distribution" "site" {
     cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
     compress               = true
   }
-# endregion cloudfront
+  # endregion cloudfront
 
   restrictions {
     geo_restriction {
@@ -165,3 +165,19 @@ resource "aws_cloudfront_distribution" "site" {
     minimum_protocol_version       = var.attach_domain ? "TLSv1.2_2021" : "TLSv1"
   }
 }
+
+# region env-json
+# --- env.json (optional) ---
+
+# Written from Terraform when the caller knows the service URLs (e.g. the
+# tiler deployed alongside, terraform/complete); deploy_commands then skip it.
+resource "aws_s3_object" "env" {
+  count = var.env == null ? 0 : 1
+
+  bucket        = aws_s3_bucket.site.id
+  key           = "env.json"
+  content       = jsonencode(var.env)
+  content_type  = "application/json"
+  cache_control = "no-cache"
+}
+# endregion env-json

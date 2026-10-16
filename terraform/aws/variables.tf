@@ -49,3 +49,9 @@ variable "extra_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "env" {
+  description = "Contents of the website's env.json (cloud flag and service URLs, e.g. the tiler's). When set, the module writes env.json to the bucket and the deploy commands leave it alone; null: website/env.json is deployed as is."
+  type        = any
+  default     = null
+}
