@@ -1,14 +1,17 @@
 # Optical imagery
 
-Four sources, from 7.6 cm aerial photography to 30 m Landsat. The two aerial
-sets are read live from Connecticut's image services. Planet is stored
-locally to keep its API key out of the browser. Landsat is stored locally
-because the website builds five products from its bands.
+Four sources, from 7.6 cm aerial photography to 30 m Landsat, all read live
+by the website for the date the user picks (see [Time, live data and
+credentials](../../website/time)): the CT orthoimagery from Connecticut's
+image service of each flight year, NAIP and Landsat from the Microsoft
+Planetary Computer, Planet from its tile service with the user's own API
+key. Only the Landsat panchromatic band is still stored locally.
 
-## CT orthoimagery 2023
+## CT orthoimagery
 
-**7.6 cm (3 in), 4 bands, leaf-off, flown 2023-03-27 to 04-13.** Scripts:
-`visualize-remote.py`, `website-layers.py`.
+**Statewide flights 1934-2023; the figures use 2023: 7.6 cm (3 in), 4 bands,
+leaf-off, flown 2023-03-27 to 04-13.** Scripts: `ct-ortho-2023/visualize-remote.py`
+(figures), `ct-ortho/website-layers.py` (website, all years).
 
 - **Figures** request raw 8-bit bands from the CT ECO `Ortho_2023`
   ImageServer through [`arcgis_export_image`](../remote#arcgis-exportimage-and-wms).
@@ -17,20 +20,29 @@ because the website builds five products from its bands.
   vegetation is dark. Products: true color (bands 0, 1, 2) and color infrared
   (3, 0, 1).
 - **Website**: an `arcgis_source` per product with server-side band
-  reordering, shown unstretched (`identity`). No copy of the ~45-gigapixel
-  mosaic is made.
+  reordering, shown unstretched (`identity`), whose `variants` switch the
+  service with the selected flight year (a drop-down: 1934, 1990 and 2004 in
+  black and white, 2008 color, 2012-2023 color and near infrared). No copy
+  of the multi-gigapixel mosaics is made.
+
+::: code-group
+<<< @/../scripts/ct-ortho/website-layers.py#ortho-years [scripts/ct-ortho/website-layers.py#ortho-years]
+:::
 - The service has no per-tile dates, so the flight window is a constant
   taken from CT ECO's metadata page.
 
 ## NAIP
 
-**0.3 m, 4 bands, flown 2023-07-05 to 07-11.** Scripts: `visualize-remote.py`,
-`website-layers.py`.
+**0.3-1 m, 4 bands, every 2-3 years per state since 2010; the figures use
+2023 (0.3 m, flown 2023-07-05 to 07-11).** Scripts: `visualize-remote.py`
+(figures, CT ECO `NAIP_2023`), `website-layers.py` (website, Planetary
+Computer).
 
-::: warning Design decision: CT ECO instead of the Planetary Computer
-The same USDA tiles (DOQQs) are on the Planetary Computer. CT ECO serves
-them already mosaicked, as raw values, through the same `exportImage`
-interface as the CT orthoimagery, so both use one code path.
+::: warning Design decision: the Planetary Computer for the website
+CT ECO serves Connecticut's NAIP years as separate services. The Planetary
+Computer's `naip` collection has every year for the contiguous US, with a
+STAC API that says which years cover the area in view, so the website uses
+it (a year drop-down) and works beyond Connecticut. The figures keep CT ECO.
 :::
 
 ::: code-group
@@ -43,17 +55,17 @@ avoids aliasing at the view's pixel size. Flight dates come from the catalog
 names of the tiles covering each view (`/query`, USDA naming `..._YYYYMMDD_...`).
 
 ::: code-group
-<<< @/../scripts/naip/website-layers.py#server-values-as-is [scripts/naip/website-layers.py#server-values-as-is]
+<<< @/../scripts/naip/website-layers.py#naip-live-source [scripts/naip/website-layers.py#naip-live-source]
 :::
 
-`acquisition_dates()` and the service constants are duplicated between the
-two NAIP scripts, and `fetch_bands` between NAIP and CT ortho. The scripts
-are standalone, so they don't import each other.
+The website shows the server's 8-bit values as PNG tiles of the year's
+mosaic (`fmt="png"`), unstretched.
 
 ## Planet
 
-**4.8 m Mercator (≈3.6 m ground), monthly basemap, July 2026.** Scripts:
-`visualize-remote.py`, `create-cog.py`.
+**4.8 m Mercator (≈3.6 m ground), monthly basemaps; the figures use July
+2026.** Scripts: `visualize-remote.py` (figures), `website-layers.py`
+(website).
 
 The tiles come from Planet's basemap XYZ service at zoom 15, its native
 level; Planet would only upsample at finer zooms. The figures use average
@@ -62,22 +74,24 @@ neighbor for the central one, so blocks show. The API key is never printed:
 request errors are re-raised with the key replaced by `<planet_api_key>`.
 
 ::: code-group
-<<< @/../scripts/planet/create-cog.py#tile-aligned-grid [scripts/planet/create-cog.py#tile-aligned-grid]
+<<< @/../scripts/planet/website-layers.py#planet-live-source [scripts/planet/website-layers.py#planet-live-source]
 :::
 
-::: warning Design decision: a local copy to keep the key private
-The website could read Planet tiles live like the street maps, but the key
-would be visible in the browser. Instead the z15 tiles are copied 1:1 onto
-a grid whose pixels are the tile pixels (nearest neighbor), and stored as a
-~20 MB JPEG COG. Missing tiles have no no-data mask: alpha is dropped, and
-only the no-data fraction is printed.
+::: warning Design decision: the user's own key, in the browser
+The website reads Planet's tiles live, with the API key the user enters in
+the Credentials dialog (kept in their browser, sent only to Planet). The
+months are the `global_monthly_YYYY_MM_mosaic` basemaps that key can read
+(Basemaps API). Without a key the dataset is locked. (An earlier version
+stored one month as a local COG to keep the project's key out of the
+browser.)
 :::
 
 ## Landsat 8
 
 **30 m surface reflectance and temperature (Collection 2 Level-2), 15 m
-panchromatic (Level-1), 2024-08-27.** Scripts: `select_scene.py`, `scene.py`,
-`download.py`, `visualize.py`, `visualize-remote.py`, `create-cog.py`.
+panchromatic (Level-1); the figures use 2024-08-27, the website any date
+since 2013.** Scripts: `select_scene.py`, `scene.py`, `download.py`,
+`visualize.py`, `visualize-remote.py`, `website-layers.py`, `create-cog.py`.
 
 ```mermaid
 flowchart LR
@@ -141,17 +155,30 @@ the greater view, except true color: its three bands share one range. That
 keeps the color balance (gray stays gray), at the cost of less contrast.
 :::
 
-### Website COGs
+### Website: live Level-2 mosaics
 
 ::: code-group
-<<< @/../scripts/landsat/create-cog.py#l2-cog-fetch [scripts/landsat/create-cog.py#l2-cog-fetch]
-<<< @/../scripts/landsat/create-cog.py#website-stretches [scripts/landsat/create-cog.py#website-stretches]
+<<< @/../scripts/landsat/website-layers.py#landsat-live-source [scripts/landsat/website-layers.py#landsat-live-source]
+<<< @/../scripts/landsat/website-layers.py#live-stretches [scripts/landsat/website-layers.py#live-stretches]
 :::
 
-All seven Level-2 bands go into one 30 m COG, as reflectance and °C (LERC
-error 0.0005). The 15 m pan band goes into a separate COG. The five
-products are render specs over these files: four `rgb` composites with the
-same stretches as the figures, and an `inferno` colormap for temperature.
-Unlike the figure script, `fetch_l2` makes one unchunked request without
-retries. It covers the 30 m grid (717 × 404 px), much smaller than a
-3840 × 2160 view.
+The website lists the Landsat 8-9 acquisition dates over the area in view
+from the Planetary Computer STAC API (with each scene's cloud cover, for
+the "max cloud cover" filter, 100% by default), and reads raw tiles of the
+selected date, or of a window of dates mosaicked with the latest, median or
+average pixel, from its data API. The scale factors turn the DNs into
+reflectance and °C in the browser; the five products are render specs as
+before, with fixed stretches (per-scene percentiles do not carry over to
+arbitrary dates).
+
+::: warning Design decision: scene cloud cover, not a per-pixel cloud mask
+The filter uses each scene's `eo:cloud_cover`, which can miss clouds over
+New Haven (as `select_scene.py` notes). The data API cannot mask pixels with
+`QA_PIXEL` before mosaicking (an expression with bit masks fails on the
+server), so for cloud-free images use a window with the median pixel.
+:::
+
+The Level-1 panchromatic band is not on the Planetary Computer and needs
+AWS requester-pays keys, so `create-cog.py` still stores the one scene's
+15 m pan band as a COG (dataset `landsat-pan`), shown as a single
+pre-built timestep.

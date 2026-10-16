@@ -30,15 +30,22 @@ bookmarked or shared:
 
 | Key | Meaning |
 |---|---|
-| `tab=grid` | Grid tab open |
+| `tab=grid` | Grid, animation or ICESat-2 tab open |
 | `a`, `b`, `mode` | Viewer image A, comparison image B, and mode (swipe, opacity, spy) |
 | `cols`, `g` | Grid columns and the images in its slots, `\|`-separated, empty for empty slots |
+| `anim`, `from`, `to` | Animation tab: image and date range |
+| `beam` | ICESat-2 tab: sample line and position along it (`2@3500`) |
 | `labels=0` | Landmarks and scale bar hidden |
+
+Images carry their time: `landsat/truecolor@2026-06-01..2026-08-31;px=median;cc=30`
+(timestep, optional end of a window, options and filters that differ from
+the defaults); without `@` an image follows the latest timestep with data in
+view. See [Time, live data and credentials](./time#one-map-s-selection-slot).
 
 The hash is updated with `history.replaceState`, so changing images does not
 add browser-history entries. Unknown or unbuilt product ids are ignored. An
-`@<view>` suffix from links made by an older version is stripped. The map
-position is *not* in the URL.
+`@<view>` suffix from links made by an older version is ignored (only an
+`@` followed by a date is a time). The map position is *not* in the URL.
 
 ## Keyboard shortcuts <Badge type="tip" text="standard" />
 
@@ -46,9 +53,11 @@ position is *not* in the URL.
 <<< @/../website/js/main.js#keyboard [website/js/main.js#keyboard]
 :::
 
-`L` toggles labels, `[` and `]` step through image A's group, and `0`
-resets the view. Shortcuts are ignored while typing in a field or while the
-picker is open.
+`L` toggles labels, `[` and `]` step through image A's group, `,` and `.`
+step image A to the previous / next timestep with data in view, and `0`
+resets the view; in the animation tab, space plays / pauses and ← → step
+frames. Shortcuts are ignored while typing in a field or while the picker,
+a calendar or the credentials dialog is open.
 
 ## The image picker <Badge type="tip" text="standard" />
 

@@ -129,8 +129,22 @@ local day.
 The Copernicus API returns every combination of the requested days and
 hours. The four times can span two UTC dates, so the result is cut down to
 exactly the four wanted times. All four maps, in both views, share one color
-range, so the daily cycle can be read off them. The website COG has the
-four times as four bands, one product each.
+range, so the daily cycle can be read off them.
+
+### Website: any hour, live from the CDS <Badge type="warning" text="decision" />
+
+::: code-group
+<<< @/../scripts/era5-land/website-layers.py#era5-live-source [scripts/era5-land/website-layers.py#era5-live-source]
+:::
+
+The website no longer stores the four times. With the user's own CDS API
+key (Credentials dialog; locked without one), it requests the selected hour
+(a calendar plus an hour drop-down, any hour from 1950 to about a week ago)
+over the area in view, waits for the job in the CDS queue, downloads the
+GRIB file and decodes it in the browser (`website/js/grib.js`, GRIB 1 and 2,
+simple packing), then draws the 0.1° cells with one fixed color range
+(-20 to 40 °C). The animation tab requests all of its hours in one job per
+month. See [Time, live data and credentials](../../website/time#era5-land-from-the-climate-data-store).
 
 ## PRISM
 

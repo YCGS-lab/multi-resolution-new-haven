@@ -8,7 +8,23 @@ in how each download reads only what it needs.
 ## SMAP
 
 **SPL4SMGP v008 root-zone soil moisture, 9 km EASE-Grid 2.0, 2026-07-30
-15:00–18:00 UTC.** Scripts: `download.py`, `visualize.py`, `create-cog.py`.
+15:00–18:00 UTC.** Scripts: `download.py`, `visualize.py`, `create-cog.py`
+(the pre-built snapshot, dataset `smap-prebuilt`), `website-layers.py` (the
+live, cloud-only dataset).
+
+::: warning Design decision: cloud-only live data, plus the snapshot
+The granules are HDF5 files in NSIDC's S3 bucket (Earthdata, AWS us-west-2).
+The public titiler-cmr deployment cannot open them (tested: "file signature
+not found"), so the live dataset (any 3-hour mean, calendar + time of day)
+needs a titiler-cmr style service with Earthdata S3 credentials running next
+to the data (env.json `earthdata_tiler`): it is cloud-only, grayed out with a
+cloud icon when testing locally. The pre-built 2026-07-30 snapshot stays in
+the menu and works locally.
+:::
+
+::: code-group
+<<< @/../scripts/smap/website-layers.py#smap-live-source [scripts/smap/website-layers.py#smap-live-source]
+:::
 
 The date is the day after the CHIRPS storm below, when the soil should be
 near its wettest. v008 is the current version.
@@ -53,7 +69,15 @@ the file's coordinates against the nominal EASE-Grid 2.0 9 km transform
 ## VIIRS Black Marble
 
 **VNP46A4 v002 annual composite for 2025, tile h10v04, near-nadir snow-free
-radiance.** Scripts: `download.py`, `visualize.py`, `create-cog.py`.
+radiance.** Scripts: `download.py`, `visualize.py`, `create-cog.py` (the
+pre-built 2025 snapshot, dataset `viirs-nightlights-prebuilt`),
+`website-layers.py` (the live, cloud-only dataset: any year; the public
+titiler-cmr deployment has no S3 access to LAADS, so it needs the same
+`earthdata_tiler` service as SMAP).
+
+::: code-group
+<<< @/../scripts/viirs-nightlights/website-layers.py#nightlights-live-source [scripts/viirs-nightlights/website-layers.py#nightlights-live-source]
+:::
 
 ::: code-group
 <<< @/../scripts/viirs-nightlights/download.py#cmr-temporal-quirk [scripts/viirs-nightlights/download.py#cmr-temporal-quirk]

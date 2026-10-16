@@ -478,3 +478,27 @@ are, so they are defense in depth:
   every `just download` transfers the global field again.
 - **ICESat-2 `download.py`:** the docstring says the sample lines are
   2025–2026 passes, but `select_lines` takes them from all seasons.
+
+## Time and live data (known limitations)
+
+- **Untested against the real services:** the Planet (key) and ERA5-Land
+  (CDS key) paths were only tested with mocked responses. The CDS download
+  host's CORS headers and the GRIB edition / packing it sends for
+  ERA5-Land are unverified; anything other than simple packing on a
+  regular lat / lon grid is reported as an error on the map.
+- **Cloud-only datasets need a service that does not exist yet:** the live
+  SMAP and Black Marble datasets call `env.services.earthdata_tiler`, a
+  titiler-cmr deployment with Earthdata S3 credentials (not in
+  `terraform/`). Even then SMAP's EASE-Grid 2.0 HDF5 may need CRS handling
+  titiler-cmr lacks.
+- **Scene cloud cover is scene-wide:** the Landsat "max cloud cover" filter
+  uses `eo:cloud_cover`, so a 3%-cloudy scene can be white over New Haven.
+  Per-pixel QA masking is not possible through the mosaic API (an
+  expression with bit masks fails on the server).
+- **Uncompressed raw tiles:** Planetary Computer NPY tiles are not
+  compressed (2 MB for a 512 px, 3-band Landsat tile), which makes
+  pre-loading long animations heavy.
+- **NISAR tiles are slow** (5-10 s each through the public titiler-cmr).
+- **Availability is per view box:** timesteps are listed for the whole box
+  in view, so a date can be listed although only a corner of the view has
+  data.

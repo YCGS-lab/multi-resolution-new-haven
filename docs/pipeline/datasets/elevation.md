@@ -9,21 +9,22 @@ The two lidar-based models are read live from ArcGIS ImageServers, as raw
 float32 elevations; the browser colors and shades them. ASTER is a local
 COG with its hillshade stored as a second band.
 
-## CT lidar 2023
+## CT lidar
 
 **Bare-earth DEM, 2 ft (0.6 m), and maximum-surface DSM, 4 ft Mercator
-(~0.9 m ground), spring 2023.** Scripts: `visualize-remote.py`,
-`website-layers.py`.
+(~0.9 m ground), spring 2023; the website also has the 2016 DEM.** Scripts:
+`ct-lidar-2023/visualize-remote.py` (figures), `ct-lidar/website-layers.py`
+(website).
 
-Two CT ECO services:
-- `Statewide2023`: the bare-earth digital elevation model (DEM), in the state
-  plane CRS, US survey feet, NAVD88.
+CT ECO services:
+- `Statewide2023` (and `Statewide2016`, the year drop-down's other choice):
+  the bare-earth digital elevation model (DEM), in US survey feet, NAVD88.
 - `MaxSurfaceHeight_2023`: the digital surface model (DSM), the highest
   return, including buildings and trees. It is an absolute elevation, not a
   height above ground, published in Web Mercator.
 
 ::: code-group
-<<< @/../scripts/ct-lidar-2023/website-layers.py#raw-float-scaled-sources [scripts/ct-lidar-2023/website-layers.py#raw-float-scaled-sources]
+<<< @/../scripts/ct-lidar/website-layers.py#raw-float-scaled-sources [scripts/ct-lidar/website-layers.py#raw-float-scaled-sources]
 :::
 
 ::: warning Design decision: convert units in the browser

@@ -122,6 +122,10 @@ export class TimeControl {
       panel.hidden = !panel.hidden;
       adv.setAttribute("aria-expanded", String(!panel.hidden));
     });
+    if (slot.sel.t2 && $(".tc-advanced")) {
+      $(".tc-advanced").hidden = false;
+      adv.setAttribute("aria-expanded", "true");
+    }
     $(".tc-window input")?.addEventListener("change", (e) => {
       if (!e.target.checked) return slot.setTime({ t2: null });
       const t = slot.sel.t ?? slot.steps?.latest();

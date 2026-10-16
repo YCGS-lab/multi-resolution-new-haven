@@ -71,6 +71,7 @@ export default withMermaid(
             { text: "COG layers (deck.gl-raster)", link: "/website/cog-layers" },
             { text: "Image-service layers", link: "/website/image-services" },
             { text: "Viewer, compare and grid", link: "/website/viewer-and-grid" },
+            { text: "Time, live data, credentials, animation, ICESat-2", link: "/website/time" },
             { text: "Page, picker and URL state", link: "/website/page" },
           ],
         },

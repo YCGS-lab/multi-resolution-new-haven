@@ -67,16 +67,21 @@ data exactly:
 
 ::: code-group
 <<< @/../scripts/nisar-gcov/visualize-remote.py#db-channel-ranges [scripts/nisar-gcov/visualize-remote.py#db-channel-ranges]
-<<< @/../scripts/nisar-gcov/create-cog.py#db-cog [scripts/nisar-gcov/create-cog.py#db-cog]
+<<< @/../scripts/nisar-gcov/website-layers.py#nisar-live-source [scripts/nisar-gcov/website-layers.py#nisar-live-source]
 :::
 
 The channels are HH and HV in dB and their ratio, HH − HV in dB. The
 ranges and channel assignments follow the titiler-cmr browser's NISAR
 renders.
 
-::: warning Design decision: store dB, compute the ratio in the browser
-titiler-cmr reads the HDF5 for every request, which is too slow for
-interactive tiles, so the website gets a local COG. It stores HH and HV
-already in dB (LERC error 0.01 dB). The ratio is not stored: the render
-spec's expression `"hh - hv"` computes it per pixel in the browser.
+::: warning Design decision: live tiles from the public titiler-cmr
+The website reads raw HHHH / HVHV tiles (NPY) of the selected day straight
+from the public titiler-cmr deployment, which opens the granules in ASF's
+S3 bucket next to the data, and converts them to dB in the browser
+(`derive`); the ratio is the render spec's expression `"hh - hv"`. Dates
+come from CMR (public), and a window of dates can be mosaicked (latest,
+median or average pixel, which also reduces speckle). Each tile takes 5-10 s
+(the service opens the HDF5 granules for every request), so the menu says
+the dataset is slow; the animation tab's pre-loading helps. (An earlier
+version stored one granule as a local COG for speed.)
 :::

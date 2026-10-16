@@ -7,7 +7,8 @@ Showing what New Haven, CT looks like at different spatial resolutions.
 - `scripts/<dataset>/` — PEP 723 scripts, run with `uv run scripts/<dataset>/<script>.py`
   - `download.py` → `data/<dataset>/`, then `visualize.py` → `figures/<dataset>/`
   - `visualize-remote.py` for datasets read straight from a tile / image service (no download step)
-  - `create-cog.py` → `website/image-data/<dataset>.tif` + `.json`, or `website-layers.py` → `website/image-data/<dataset>.json`, for the website
+  - `create-cog.py` → `website/image-data/<dataset>.tif` + `.json` (data stored for one timestep), or
+    `website-layers.py` → `website/image-data/<dataset>.json` (data the website reads live, for any timestep), for the website
 - `scripts/common/` — shared view definitions, resampling, figure output, tile/ImageServer/WMS clients, and website data (`web.py`)
 - `scripts/website/` — `build_catalog.py` → `website/catalog.json` (the website's image menu), `serve.py` (local server)
 - `data/landmarks.json` — landmark coordinates (from `scripts/landmarks/geocode.py`); other data, figures and website image data are not tracked
@@ -63,12 +64,15 @@ used and how to update it), styled after
 Yale typefaces from yale-webfonts.yalespace.org). It does not use the figures: it draws
 each image itself, tile by tile, over the Greater New Haven extent, from
 
-- **local Cloud-Optimized GeoTIFFs** of the real values (temperature, reflectance, elevation,
-  backscatter, ...), written by each dataset's `create-cog.py` to `website/image-data/`, or
-- **image services read directly** (no local copy), declared by `website-layers.py`: the CT ECO
-  ImageServers (orthoimagery and NAIP as the server's 8-bit band values, shown as is; lidar DEM / DSM
-  as float elevations), the USGS 3DEP ImageServer (float elevations), and XYZ map tiles (the
-  ICESat-2 basemap, and the street maps).
+- **data read live from the original APIs** for the timestep the user picks (no local copy),
+  declared by `website-layers.py`: Landsat 8-9 and NAIP mosaics from the Microsoft Planetary
+  Computer (raw values, colored in the browser), the CT ECO ImageServers of each flight year
+  (orthoimagery 1934-2023, lidar 2016 / 2023), NISAR through the public titiler-cmr, Planet
+  monthly basemaps and ERA5-Land (Copernicus CDS, decoded from GRIB in the browser) with the
+  user's own API keys, the USGS 3DEP ImageServer, and XYZ map tiles; or
+- **local Cloud-Optimized GeoTIFFs** of the real values for one timestep (VIIRS and GOES LST,
+  PRISM, CHIRPS, SMAP and Black Marble snapshots, Landsat pan, ASTER, ICESat-2, CT impervious),
+  written by each dataset's `create-cog.py` to `website/image-data/`.
 
 COGs are read and drawn by deck.gl-raster, colored on the GPU by shaders generated from the
 render specs; image-service tiles are colored in the browser's main thread. Each dataset's `.json`
@@ -89,8 +93,11 @@ range requests.
 
 | Script | Datasets |
 |---|---|
-| `create-cog.py` | landsat, viirs-lst, goes-lst, viirs-nightlights, smap, chirps, era5-land, prism, icesat2, nisar-gcov, planet, aster-dem, ct-impervious-2023 |
-| `website-layers.py` | ct-ortho-2023, naip, ct-lidar-2023, 3dep, streetmap |
+| `create-cog.py` | landsat (pan only), viirs-lst, goes-lst, viirs-nightlights, smap, chirps, prism, icesat2, aster-dem, ct-impervious-2023 |
+| `website-layers.py` | landsat, naip, ct-ortho, ct-lidar, planet, era5-land, nisar-gcov, smap, viirs-nightlights, 3dep, streetmap |
+
+`website-layers.py` scripts need no downloads or credentials, so a local test of the website
+needs only those and `build_catalog.py`; the `create-cog.py` datasets appear once built.
 
 `streetmap` adds reference maps that need no credentials: OpenStreetMap Standard, Esri World
 Street Map, and the USGS National Map topographic base map (public domain). Map tiles are
@@ -105,13 +112,30 @@ Planet basemap (stored locally so the API key stays out of the browser), lossles
 the rasterized impervious-surface classes (0.5 m). NISAR is stored locally because
 titiler-cmr is too slow for interactive tiles.
 
+- **Time**: every image with a time dimension has a time control: a drop-down for a few isolated
+  timesteps (survey years), a calendar with the dates without data in view grayed out for many
+  (plus a time-of-day drop-down for hourly / 3-hourly data), previous / next timestep with data
+  (`,` / `.`), filters such as max cloud cover (default 100%: all imagery), and for Landsat and
+  NISAR an **Advanced** end date: the images in the window are mosaicked (latest, median or
+  average pixel). By default an image shows its latest timestep with data in view.
 - **Viewer**: pick an image from a grouped, searchable menu (`[` / `]` step through an image's
-  group, e.g. the ERA5 timesteps). Pan and zoom are limited to the Greater New Haven extent;
-  native pixels stay sharp blocks when zoomed in. **Compare** adds image B over A, revealed by
-  a swipe divider, by fading (opacity), or inside a lens that follows the cursor (spy).
+  group). Pan and zoom are limited to the Greater New Haven extent; native pixels stay sharp
+  blocks when zoomed in. **Compare** adds image B over A, revealed by a swipe divider, by
+  fading (opacity), or inside a lens that follows the cursor (spy); B starts as A one timestep
+  earlier, for comparisons through time.
 - **Grid**: any number of images with synchronized pan and zoom (one WebGL canvas, one
-  deck.gl view per slot). Empty slots say "Add image"; **Add row** adds slots; **Rearrange**
-  lets you drag images onto other slots to swap them.
+  deck.gl view per slot), each with its own time. Empty slots say "Add image"; **Add row** adds
+  slots; **Rearrange** lets you drag images onto other slots to swap them.
+- **Animation**: pick an image, a start and an end date; **Load imagery** fetches every frame
+  for the area in view ahead of time (with a progress bar), then a slider and Play (speed, loop)
+  step through the frames, as in NASA Worldview.
+- **ICESat-2**: the sample beam passes on a map (click to select) with an arrow you drag along
+  the beam, synchronized with a dashed line in the beam's classified photon cross-section.
+- **Credentials** (🔑): API keys for Planet and the Copernicus CDS, kept in the browser and sent
+  only to the provider. Images needing a missing key are grayed out with a lock; images that
+  can only be read in the cloud deployment (SMAP and Black Marble live data: NASA HDF5 in S3,
+  which needs a tiler next to the data, `earthdata_tiler` in `website/env.json`) are grayed out
+  with a cloud icon when testing locally. A notice on the map says why an image is not drawn.
 - Titles, axes, colorbars and legends are HTML; landmarks and the scale bar can be toggled
   with **Labels** (or `L`). The current images, comparison and grid are kept in the URL.
 
@@ -119,6 +143,12 @@ The menu's groups and labels are set in `TREE` in `build_catalog.py`; products n
 there appear under "Other".
 
 ## Deploying
+
+The website decides at runtime whether it runs "in the cloud" (`website/env.json`: `"cloud": "auto"`
+= any host but localhost; `?cloud=1` in the page URL forces it for testing). Cloud-only datasets
+also need their service URL in `env.json` (`earthdata_tiler`: a titiler-cmr deployment with
+Earthdata S3 credentials in us-west-2, not part of this Terraform yet; while it is `null` those
+datasets stay disabled online too).
 
 `website/` is static: `terraform/aws/` puts it in a private S3 bucket behind CloudFront (which,
 like `serve.py`, serves range requests), and makes an IAM user whose access key can only assume
@@ -144,6 +174,8 @@ an ACM certificate; have `certificate_validation_records` and a CNAME from the h
 `terraform apply` to refresh it), set `attach_domain = true` and apply again.
 
 ## Credentials
+
+For the scripts (the website's keys are entered in the browser, see above):
 
 - NASA Earthdata: `~/.netrc` (used by `earthaccess`)
 - Planet, Copernicus CDS, AWS (Landsat L1 requester-pays): `_credentials.toml` (not tracked),

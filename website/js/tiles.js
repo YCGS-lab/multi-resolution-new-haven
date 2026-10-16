@@ -485,6 +485,20 @@ function pcSearch(spec, product, ctx) {
 }
 // #endregion pc-register
 
+/**
+ * How a mosaic combines its images: the latest valid pixel, or (in a window)
+ * the median / mean of all of them, which needs the tiler to read every
+ * image rather than stop once the tile is full (its default).
+ */
+function setPixelSelection(params, ctx) {
+  const px = ctx.t2 ? (ctx.options?.px ?? "first") : "first";
+  params.set("pixel_selection", px);
+  if (px !== "first") {
+    params.set("exitwhenfull", "false");
+    params.set("skipcovered", "false");
+  }
+}
+
 // #region pc-tile
 /** Asset query parameters (in band order) for the bands a layer reads. */
 function pcAssets(spec, bands) {
@@ -513,7 +527,7 @@ async function pcTile(catalog, product, layer, ctx, { x, y, z }, box, signal) {
   const bands = r.type === "identity" ? spec.bands.slice(0, 3) : usedBands(r, spec.bands);
   const { params, names } = pcAssets(spec, bands);
   params.set("collection", spec.collection);
-  params.set("pixel_selection", ctx.t2 ? (ctx.options?.px ?? "first") : "first");
+  setPixelSelection(params, ctx);
   const url = `${spec.api}/mosaic/${id}/tiles/WebMercatorQuad/${z}/${x}/${y}@2x.${spec.format}?${params}`;
   const res = await fetchOk(url, { signal }, "Planetary Computer");
   if (!res) return null;
@@ -544,8 +558,8 @@ async function cmrTile(catalog, product, layer, ctx, { x, y, z }, box, signal) {
     temporal: `${iso(ctx.start)}/${iso(new Date(Date.parse(ctx.end) - 1000).toISOString())}`,
     tilesize: String(TILE_SIZE),
     reproject: "nearest",
-    pixel_selection: ctx.t2 ? (ctx.options?.px ?? "first") : "first",
   });
+  setPixelSelection(p, ctx);
   for (const v of spec.variables) p.append("variables", v);
   if (spec.group) p.set("group", spec.group);
   const res = await fetchOk(`${base}/xarray/tiles/WebMercatorQuad/${z}/${x}/${y}.npy?${p}`, { signal }, "titiler-cmr");
