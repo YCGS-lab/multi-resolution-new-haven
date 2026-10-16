@@ -24,3 +24,8 @@ deploy:
 # Serve website/ at http://localhost:8000/ (Caddy: range requests, no caching; localhost only)
 serve port="8000":
   PORT={{port}} caddy run --config scripts/website/Caddyfile --adapter caddyfile
+
+# Rebuild just the ICESat-2 data for the website
+is2:
+  uv run scripts/icesat2/download.py
+  uv run scripts/icesat2/create-cog.py
