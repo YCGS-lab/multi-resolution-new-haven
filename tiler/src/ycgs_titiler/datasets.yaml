@@ -1,0 +1,306 @@
+# region header
+# Dataset presets, served as /datasets/{id}/{render}/{tiles|bbox|point|info}/...
+#
+# Read by the app (ycgs_titiler.presets) and by OpenTofu (cloudfront.tf), which
+# routes /datasets/{id}/* to the dataset's `deployment`: nasa (us-west-2, next
+# to NASA Earthdata Cloud), noaa (us-east-1, next to NOAA Open Data) or ecmwf
+# (var.ecmwf_region, default eu-south-1, nearest to ECMWF's data centre).
+#
+# Expressions use positional bands: b1, b2, ... are `variables` (xarray
+# backends) or `assets` (rasterio backend), in order. Multiple `rescale`
+# entries apply per output band. A list value becomes a repeated query key.
+
+# Greater New Haven (lon/lat), used to list available times.
+aoi: [-73.05, 41.25, -72.79, 41.36]
+# endregion header
+
+datasets:
+  # region nisar
+  nisar-gcov:
+    title: NISAR L2 GCOV, L-band SAR backscatter (provisional)
+    description: >-
+      RTC gamma0 covariance terms HHHH and HVHV, read from the ASF HDF5
+      granules by titiler-cmr. A date selects that day's granules (newest
+      first). Renders follow the titiler-cmr-browser NISAR GCOV composites:
+      HH = 10 log10(b1) [-20, 0] dB, HV = 10 log10(b2) [-30, 5] dB,
+      HH/HV = 10 log10(b1/b2) [2, 18] dB.
+    attribution: NISAR (NASA JPL / ISRO), ASF DAAC
+    deployment: nasa
+    backend: cmr-xarray
+    params:
+      collection_concept_id: C2854338529-ASF
+      variables: [HHHH, HVHV]
+      sort_key: -start_date
+    zooms:
+      # Frequency B (coarser posting) for overviews, frequency A (10 m) up close.
+      - maxzoom: 9
+        params: {group: /science/LSAR/GCOV/grids/frequencyB}
+      - params: {group: /science/LSAR/GCOV/grids/frequencyA}
+    time: {kind: granule, align: day, default: "2026-07-17"}
+    minzoom: 6
+    maxzoom: 16
+    renders:
+      balanced:
+        title: Balanced dual-pol RGB (HH, HV, HH/HV)
+        params:
+          expression: 10*log10(b1);10*log10(b2);10*log10(b1/b2)
+          rescale: ["-20,0", "-30,5", "2,18"]
+      vegetation:
+        title: Vegetation / volume emphasis (HV, HH, HH/HV)
+        params:
+          expression: 10*log10(b2);10*log10(b1);10*log10(b1/b2)
+          rescale: ["-30,5", "-20,0", "2,18"]
+      urban:
+        title: Urban / built structure emphasis (HH/HV, HH, HV)
+        params:
+          expression: 10*log10(b1/b2);10*log10(b1);10*log10(b2)
+          rescale: ["2,18", "-20,0", "-30,5"]
+      water:
+        title: Water / smooth surface emphasis (HV, HH/HV, HH)
+        params:
+          expression: 10*log10(b2);10*log10(b1/b2);10*log10(b1)
+          rescale: ["-30,5", "2,18", "-20,0"]
+      hh:
+        title: HH backscatter (dB)
+        params: {expression: 10*log10(b1), rescale: "-20,0"}
+      hv:
+        title: HV backscatter (dB)
+        params: {expression: 10*log10(b2), rescale: "-30,5"}
+      raw:
+        title: HHHH, HVHV linear power (float32; use .tif or .npy)
+  # endregion nisar
+
+  # region smap
+  smap-l4:
+    title: SMAP L4 root-zone soil moisture (SPL4SMGP v008)
+    description: >-
+      3-hourly 9 km EASE-Grid 2.0 analysis. A datetime selects the granule
+      whose 3-hour window contains it.
+    attribution: SMAP L4 (NASA GMAO), NSIDC DAAC
+    deployment: nasa
+    # The data variables are in /Geophysical_Data, but the x/y coordinates and
+    # the EASE-Grid 2.0 grid mapping are in the root group.
+    backend: cmr-xarray-grouped
+    params:
+      collection_concept_id: C3480440870-NSIDC_CPRD
+      group: Geophysical_Data
+      variables: [sm_rootzone]
+    time: {kind: granule, align: instant, default: "2026-07-30T16:30:00Z"}
+    minzoom: 0
+    maxzoom: 10
+    renders:
+      rootzone:
+        title: Root-zone soil moisture (m3/m3)
+        params: {rescale: "0.05,0.5", colormap_name: ylgnbu}
+      raw:
+        title: Root-zone soil moisture (float32; use .tif or .npy)
+  # endregion smap
+
+  # region hls
+  hls-l30:
+    title: HLS Landsat 30 m surface reflectance (HLSL30 v2.0)
+    description: >-
+      Harmonized Landsat Sentinel-2, Landsat 8/9 part (Cloud-Optimized
+      GeoTIFFs, one per band). A date selects that day's granules. Band
+      combinations match the website's Landsat products.
+    attribution: HLS (NASA), LP DAAC
+    deployment: nasa
+    backend: cmr-rasterio
+    params:
+      collection_concept_id: C2021957657-LPCLOUD
+      assets_regex: B[0-9][0-9]
+    time: {kind: granule, align: day, default: "2024-08-27"}
+    minzoom: 8
+    maxzoom: 15
+    renders:
+      truecolor:
+        title: True color (B04, B03, B02)
+        params: {assets: [B04, B03, B02], rescale: ["0,2000", "0,2000", "0,2000"], color_formula: gamma rgb 1.6}
+      cir:
+        title: Color infrared (B05, B04, B03)
+        params: {assets: [B05, B04, B03], rescale: ["0,4500", "0,2000", "0,2000"], color_formula: gamma rgb 1.2}
+      veg:
+        title: False color, vegetation (B06, B05, B04)
+        params: {assets: [B06, B05, B04], rescale: ["0,3500", "0,4500", "0,2000"], color_formula: gamma rgb 1.2}
+      urban:
+        title: False color, urban (B07, B06, B04)
+        params: {assets: [B07, B06, B04], rescale: ["0,3000", "0,3500", "0,2000"], color_formula: gamma rgb 1.2}
+      ndvi:
+        title: NDVI
+        params: {assets: [B05, B04], expression: (b1-b2)/(b1+b2), rescale: "-0.2,0.9", colormap_name: rdylgn}
+      raw:
+        title: B02-B07 surface reflectance x 10000 (int16; use .tif or .npy)
+        params: {assets: [B02, B03, B04, B05, B06, B07]}
+  # endregion hls
+
+  # region goes
+  goes19-abi:
+    title: GOES-19 ABI cloud and moisture imagery, CONUS
+    description: >-
+      ABI-L2-MCMIPC (all 16 bands on the 2 km grid, one NetCDF file per
+      5-minute scan) from NOAA Open Data. A datetime selects the nearest scan;
+      without one, the latest scan is used (cached for 60 s). red-500m reads the
+      0.5 km band 2 file (ABI-L2-CMIPC) for the same scan time.
+    attribution: GOES-19 ABI (NOAA)
+    deployment: noaa
+    backend: xarray
+    time: {kind: scan, bucket: noaa-goes19, product: ABI-L2-MCMIPC}
+    bounds: [-152.0, 14.0, -50.0, 57.0]  # CONUS sector (approximate)
+    minzoom: 3
+    maxzoom: 11
+    renders:
+      truecolor:
+        title: True color (red, synthetic green, blue)
+        description: Green = 0.45 red + 0.10 veggie (0.86 um) + 0.45 blue.
+        params:
+          variables: [CMI_C02, CMI_C03, CMI_C01]
+          expression: b1;0.45*b1+0.1*b2+0.45*b3;b3
+          rescale: ["0,1", "0,1", "0,1"]
+          color_formula: gamma rgb 2.2
+      naturalcolor:
+        title: Natural color (1.6 um, 0.86 um, red)
+        params:
+          variables: [CMI_C05, CMI_C03, CMI_C02]
+          rescale: ["0,1", "0,1", "0,1"]
+          color_formula: gamma rgb 1.8
+      ir-clean:
+        title: Clean longwave IR window (10.3 um), brightness temperature (deg C)
+        params: {variables: [CMI_C13], expression: b1-273.15, rescale: "-80,40", colormap_name: rdylbu_r}
+      water-vapor:
+        title: Mid-level water vapor (6.9 um), brightness temperature (deg C)
+        params: {variables: [CMI_C09], expression: b1-273.15, rescale: "-70,-10", colormap_name: bupu_r}
+      red-500m:
+        title: Red reflectance (0.64 um) at 0.5 km
+        params: {variables: [CMI], rescale: "0,1", color_formula: gamma r 2.2}
+        time: {product: ABI-L2-CMIPC, channel: C02}
+        maxzoom: 13
+      raw:
+        title: Reflectance / brightness temperature (float32; use .tif or .npy; `variables` may be given)
+        params: {variables: [CMI_C01, CMI_C02, CMI_C03, CMI_C13]}
+  # endregion goes
+
+  # region era5
+  era5-land-t2m:
+    title: ERA5-Land hourly 2 m air temperature
+    description: >-
+      0.1 deg hourly reanalysis from the Copernicus Climate Data Store
+      analysis-ready (ARCO) Zarr, time-chunked layout. A datetime becomes a
+      lazy nearest-neighbor selection on the time dimension; `diff` takes a
+      second datetime (`datetime2`) and shows datetime2 - datetime.
+    attribution: ERA5-Land (Copernicus Climate Change Service / ECMWF)
+    deployment: ecmwf
+    backend: xarray
+    params:
+      url: https://arco.datastores.ecmwf.int/cadl-arco-time-007/arco/reanalysis_era5_land/sfc-2m-temperature/timeChunked.zarr
+      variables: [t2m]
+    time: {kind: dimension, dim: time, method: nearest, default: "2026-07-20T17:00:00"}
+    minzoom: 0
+    maxzoom: 10
+    renders:
+      celsius:
+        title: 2 m temperature (deg C)
+        params: {expression: b1-273.15, rescale: "10,35", colormap_name: rdylbu_r}
+      diff:
+        title: 2 m temperature change, datetime2 - datetime (K)
+        two_times: true
+        params: {expression: b2-b1, rescale: "-10,10", colormap_name: rdbu_r}
+      raw:
+        title: 2 m temperature (K, float32; use .tif or .npy)
+  # endregion era5
+
+  # region blackmarble
+  viirs-blackmarble:
+    title: VIIRS Black Marble annual night lights (VNP46A4 v002)
+    description: >-
+      Annual near-nadir, snow-free radiance composite, 15 arc-second HDF-EOS5
+      tiles (10 x 10 deg) from LAADS. A date selects that year's tiles. The
+      tiles carry 1-D lat/lon arrays (upper-left cell corners) rather than
+      coordinates; the grouped reader turns them into an EPSG:4326 grid.
+    attribution: NASA Black Marble (S-NPP VIIRS DNB), LAADS DAAC
+    deployment: nasa
+    backend: cmr-xarray-grouped
+    params:
+      collection_concept_id: C3860065683-LAADS
+      group: HDFEOS/GRIDS/VIIRS_Grid_DNB_2d/Data Fields
+      variables: [NearNadir_Composite_Snow_Free]
+    time: {kind: granule, align: year, default: "2025"}
+    minzoom: 4
+    maxzoom: 12
+    renders:
+      radiance:
+        title: Radiance, log scale 0.5-200 nW cm-2 sr-1
+        params: {expression: log10(b1), rescale: "-0.3,2.3", colormap_name: magma}
+      raw:
+        title: Radiance (nW cm-2 sr-1, float32; use .tif or .npy)
+  # endregion blackmarble
+
+  # region goes-lst
+  goes19-lst:
+    title: GOES-19 ABI land surface temperature, CONUS (hourly)
+    description: >-
+      ABI-L2-LSTC (2 km, one NetCDF file per hourly scan) from NOAA Open Data.
+      A datetime selects the nearest scan; without one, the latest.
+    attribution: GOES-19 ABI (NOAA)
+    deployment: noaa
+    backend: xarray
+    time: {kind: scan, bucket: noaa-goes19, product: ABI-L2-LSTC}
+    bounds: [-152.0, 14.0, -50.0, 57.0]
+    minzoom: 3
+    maxzoom: 11
+    renders:
+      celsius:
+        title: Land surface temperature (deg C)
+        params: {variables: [LST], expression: b1-273.15, rescale: "20,45", colormap_name: inferno}
+      raw:
+        title: LST (K) and data quality flag DQF (float32; use .tif or .npy)
+        params: {variables: [LST, DQF]}
+  # endregion goes-lst
+
+  # region chirps
+  chirps-daily:
+    title: CHIRPS v3.0 daily precipitation (final, IMERG-disaggregated)
+    description: >-
+      0.05 deg daily COGs from the Climate Hazards Center (no CORS headers, so
+      browsers cannot read them directly). A date selects that day's file.
+    attribution: CHIRPS v3.0, Climate Hazards Center, UC Santa Barbara
+    deployment: noaa
+    backend: cog
+    time:
+      kind: template
+      url: "https://data.chc.ucsb.edu/products/CHIRPS/v3.0/daily/final/sat/{t:%Y}/chirps-v3.0.sat.{t:%Y.%m.%d}.tif"
+      step: day
+      default: "2026-07-29"
+      latency_days: 45
+    bounds: [-180.0, -60.0, 180.0, 60.0]
+    minzoom: 0
+    maxzoom: 10
+    renders:
+      precip:
+        title: Precipitation (mm/day)
+        params: {rescale: "0,60", colormap_name: ylgnbu}
+      raw:
+        title: Precipitation (mm/day, float32; use .tif or .npy)
+  # endregion chirps
+
+  # region aster
+  aster-gdem:
+    title: ASTER Global DEM v3 (1 arc-second)
+    description: >-
+      1 x 1 deg GeoTIFF tiles from LP DAAC; static (2000-2013 stereo).
+    attribution: ASTER GDEM v3 (NASA/METI), LP DAAC
+    deployment: nasa
+    backend: cmr-rasterio
+    params:
+      collection_concept_id: C1711961296-LPCLOUD
+      assets_regex: dem
+      assets: [dem]
+    time: {kind: static}
+    minzoom: 8
+    maxzoom: 14
+    renders:
+      elevation:
+        title: Elevation (m)
+        params: {rescale: "0,400", colormap_name: terrain}
+      raw:
+        title: Elevation (m, int16; use .tif or .npy)
+  # endregion aster

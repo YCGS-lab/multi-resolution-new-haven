@@ -66,7 +66,8 @@ TREE = [
             "Land surface temperature",
             item("landsat", "lst", "Landsat 8-9 (100 m)", "Landsat 8-9 land surface temperature"),
             item("viirs-lst", "lst", "VIIRS, 2026-06-03 (750 m)", "VIIRS land surface temperature (750 m)"),
-            item("goes-lst", "lst", "GOES-19 ABI, 2026-06-03 (2 km)", "GOES-19 ABI land surface temperature (2 km)"),
+            item("goes-lst", "lst", "GOES-19 ABI, hourly (2 km)", "GOES-19 ABI land surface temperature (2 km)"),
+            item("goes-lst-prebuilt", "lst", "GOES-19 ABI, 2026-06-03 (2 km, pre-built)", "GOES-19 ABI land surface temperature (2 km)"),
         ),
         group(
             "Air temperature",
@@ -126,7 +127,11 @@ TREE = [
             item("smap", "sm_rootzone", "3-hourly", "SMAP L4 root-zone soil moisture (0-100 cm)"),
             item("smap-prebuilt", "sm_rootzone", "2026-07-30 (pre-built)", "SMAP L4 root-zone soil moisture (0-100 cm)"),
         ),
-        item("chirps", "precip", "CHIRPS daily precipitation (0.05°)", "CHIRPS v3 daily precipitation"),
+        group(
+            "CHIRPS precipitation (0.05°)",
+            item("chirps", "precip", "Daily", "CHIRPS v3 daily precipitation"),
+            item("chirps-prebuilt", "precip", "2026-07-29 (pre-built)", "CHIRPS v3 daily precipitation"),
+        ),
     ),
     group(
         "Night lights",

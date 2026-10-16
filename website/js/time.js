@@ -266,6 +266,7 @@ export function availability(catalog, product, bbox) {
   let key;
   if (a.type === "list") key = `${product.id}|list`;
   else if (a.type === "zarr") key = `zarr|${product.dataset}/${a.source}|${credential(catalog.sources[`${product.dataset}/${a.source}`].credential).slice(-6)}`;
+  else if (a.type === "range") key = `${product.id}|range`;
   else if (a.type === "planet") key = `planet|${a.prefix}|${credential("planet").slice(-6)}`;
   else if (a.type === "stac") key = `stac|${product.dataset}/${a.source}|${time.step}|${box}`;
   else key = `${a.type}|${a.concept_id}|${time.step}|${box}`;
@@ -326,6 +327,19 @@ const PROVIDERS = {
     return new HourlySteps(first, last);
   },
   // #endregion avail-zarr
+
+  // #region avail-range
+  /** Every step from `start` to now minus the product's latency (one file per step at a known place). */
+  async range(catalog, product, a) {
+    const step = product.time.step;
+    const end = new Date(Date.now() - (a.latency_hours ?? 0) * 3600e3);
+    if (step === "hour") return new HourlySteps(keyStart(dateKey(new Date(a.start), "hour"), "hour"), keyStart(dateKey(end, "hour"), "hour"));
+    const entries = [];
+    for (let d = keyStart(dateKey(new Date(a.start), step), step); d <= end && entries.length < 50000; d = keyEnd(dateKey(d, step), step))
+      entries.push({ key: dateKey(d, step) });
+    return new Steps(step, entries);
+  },
+  // #endregion avail-range
 
   // #region avail-stac
   /** STAC items over the box (newest first), grouped by timestep. */

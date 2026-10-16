@@ -15,6 +15,8 @@
 //     for the selected timestep or window and filters, whose tiles are raw
 //     values (NPY), colored on the CPU like ArcGIS tiles, or 8-bit images.
 //   - titiler-cmr ("titiler-cmr"): raw values (NPY) of NASA granules
+//   - tiler ("tiler"): raw values (NPY) of a dataset preset of this repository's
+//     tiler (tiler/, deployed next to the data in AWS)
 //     mosaicked over the selected timestep or window.
 //
 // Layers on ARCO Zarr stores ("zarr", e.g. ERA5-Land) are one image of the
@@ -570,6 +572,27 @@ async function cmrTile(catalog, product, layer, ctx, { x, y, z }, box, signal) {
 // #endregion titiler-cmr-tile
 
 // --------------------------------------------------------------------------
+// This repository's tiler (dataset presets)
+// --------------------------------------------------------------------------
+
+// #region tiler-tile
+async function tilerTile(catalog, product, layer, ctx, { x, y, z }, box, signal) {
+  const spec = catalog.sources[layer.source];
+  const base = env.services[spec.service];
+  if (!base) throw new Error(`no "${spec.service}" service in env.json`);
+  const iso = (d) => new Date(d).toISOString().replace(".000Z", "Z");
+  const p = new URLSearchParams({ tilesize: String(TILE_SIZE), reproject: "nearest" });
+  if (ctx && spec.time_param === "interval") p.set("datetime", `${iso(ctx.start)}/${iso(Date.parse(ctx.end) - 1000)}`);
+  else if (ctx && spec.time_param) p.set("datetime", iso(ctx.start));
+  const url = `${base}/datasets/${spec.preset}/raw/tiles/WebMercatorQuad/${z}/${x}/${y}.npy?${p}`;
+  const res = await fetchOk(url, { signal }, "tiler");
+  if (!res) return null;
+  const npy = parseNpy(await res.arrayBuffer());
+  return toImage(layer.render, npyWindow(npy, spec.variables, spec, box, spec.derive));
+}
+// #endregion tiler-tile
+
+// --------------------------------------------------------------------------
 // Tile cache (shared by the maps and the animation's pre-loading)
 // --------------------------------------------------------------------------
 
@@ -628,11 +651,11 @@ export function tileRenderer(catalog, product, layer, ctx) {
       render: ({ x, y, z }, signal) => renderArcgisTile(catalog, layer, tileBox(x, y, z), TILE_SIZE, TILE_SIZE, signal, t),
     };
   }
-  if (spec.type === "pc-mosaic" || spec.type === "titiler-cmr") {
-    if (!ctx) return null;
-    const fn = spec.type === "pc-mosaic" ? pcTile : cmrTile;
+  if (spec.type === "pc-mosaic" || spec.type === "titiler-cmr" || spec.type === "tiler") {
+    if (!ctx && !(spec.type === "tiler" && !spec.time_param)) return null;
+    const fn = { "pc-mosaic": pcTile, "titiler-cmr": cmrTile, tiler: tilerTile }[spec.type];
     return {
-      key: `${spec.type}|${layer.source}|${ctx.key}|${rkey}`,
+      key: `${spec.type}|${layer.source}|${ctx?.key ?? "static"}|${rkey}`,
       tileSize: TILE_SIZE,
       maxZoom: spec.max_zoom ?? maxTileZoom(spec.res),
       render: (index, signal) => fn(catalog, product, layer, ctx, index, tileBox(index.x, index.y, index.z), signal),
@@ -856,7 +879,7 @@ export function productLayers(id, catalog, product, { loading, props = () => ({}
         smooth: spec.smooth && spec.type === "xyz",
       });
     if (spec.type === "xyz" && !/\{(time|credential):/.test(spec.url)) return xyzLayers(lid, catalog, layer, { props: props("lnglat") });
-    if (spec.type === "xyz" || spec.type === "pc-mosaic" || spec.type === "titiler-cmr") return []; // timestep not resolved yet
+    if (["xyz", "pc-mosaic", "titiler-cmr", "tiler"].includes(spec.type)) return []; // timestep not resolved yet
     throw new Error(`${layer.source}: unsupported source type ${spec.type}`);
   });
 }

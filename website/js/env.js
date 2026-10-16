@@ -2,10 +2,11 @@
 //
 //   - env.json: "cloud" ("auto": the deployed website, i.e. any host but
 //     localhost; or true / false) and the URLs of cloud services (e.g.
-//     titiler-cmr, which reads NASA data next to it in AWS us-west-2).
+//     titiler-cmr and this repository's tiler, which read data next to it in AWS).
 //     Datasets that need the cloud (product.requires.cloud) are disabled
-//     elsewhere. `?cloud=1` / `?cloud=0` in the page URL overrides it, for
-//     testing.
+//     elsewhere. `?cloud=1` / `?cloud=0` in the page URL overrides it, and
+//     `?service.<name>=<url>` sets a service, for testing (e.g.
+//     `?cloud=1&service.tiler=http://localhost:8100` with tiler/serve-local.sh).
 //   - Credentials (API keys) the user enters in the Credentials dialog, kept
 //     in this browser only: localStorage when "remember" is ticked, else
 //     sessionStorage. Datasets that need one (product.requires.credential)
@@ -25,10 +26,12 @@ export async function loadEnv(url = "env.json") {
   const local = /^(localhost|127\.|\[::1\]|0\.0\.0\.0)|\.local$/.test(location.hostname) || location.protocol === "file:";
   let cloud = cfg.cloud ?? "auto";
   if (cloud === "auto") cloud = !local;
-  const q = new URLSearchParams(location.search).get("cloud");
+  const query = new URLSearchParams(location.search);
+  const q = query.get("cloud");
   if (q === "1" || q === "0") cloud = q === "1";
   env.cloud = !!cloud;
-  env.services = cfg.services ?? {};
+  env.services = { ...(cfg.services ?? {}) };
+  for (const [k, v] of query) if (k.startsWith("service.") && /^https?:\/\//.test(v)) env.services[k.slice(8)] = v.replace(/\/$/, "");
   return env;
 }
 // #endregion load-env

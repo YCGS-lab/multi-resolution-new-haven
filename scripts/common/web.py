@@ -568,6 +568,41 @@ def titiler_cmr_source(
 # endregion titiler-cmr-source
 
 
+# region tiler-source
+def tiler_source(
+    preset: str,
+    bands: list[str],
+    native_m: float,
+    time_param: str | None = "instant",
+    derive: dict[str, str] | None = None,
+    service: str = "tiler",
+) -> dict:
+    """A dataset preset of this repository's tiler (tiler/, deployed with
+    terraform/tiler next to the data in AWS): raw values of the preset's `raw`
+    render as NPY tiles, bands `bands` in order.
+
+    `time_param` says how the selected timestep is sent as `datetime`:
+    "instant" (its start: nearest scan, a time step, a day's file),
+    "interval" (start/end: the granules of that window) or None (static).
+    `derive` adds bands computed from them (name -> JS expression, e.g.
+    "DQF <= 1 ? LST - 273.15 : NaN"). The website calls env.json's `service`.
+    """
+    s = dict(
+        type="tiler",
+        service=service,
+        preset=preset,
+        variables=bands,
+        bands=[*bands, *(derive or {})],
+        res=native_m * EXTENT_VIEW.merc_scale,
+        pixel_m=native_m,
+        time_param=time_param,
+    )
+    if derive:
+        s["derive"] = derive
+    return s
+# endregion tiler-source
+
+
 # region arco-zarr-source
 def arco_zarr_source(
     url: str,
@@ -673,6 +708,13 @@ def avail_zarr(source: str) -> dict:
     ERA5-Land), from its first to its last time: read from the store, so the
     latest timestep follows the store's own latency."""
     return dict(type="zarr", source=source)
+
+
+def avail_range(step: str, start: str, latency_hours: float = 0) -> dict:
+    """Every step from `start` to now minus `latency_hours`, without listing
+    them (a product with a file per step at a known place, e.g. hourly GOES
+    scans or daily CHIRPS files)."""
+    return dict(type="range", start=start, latency_hours=latency_hours)
 
 
 def window_spec(max_days: int, options: list[dict] | None = None, label: str = "End date") -> dict:

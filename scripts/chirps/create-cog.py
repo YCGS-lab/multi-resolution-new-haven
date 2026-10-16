@@ -39,8 +39,9 @@ def main():
             layers=[web.layer("precip", web.colormap(CMAP, NORM, "Precipitation (mm/day)", band="precip", extend="max"))],
         )
     }
-    # pre-built for one timestep: shown as such (no live source for the website)
-    web.write_spec(DATASET, sources, products, dict(time=web.snapshot_time(f"{DATE:%Y-%m-%d}", "day", label="Day")))
+    # pre-built for one timestep, as "<dataset>-prebuilt" (works locally; the live
+    # dataset, website-layers.py, needs the tiler)
+    web.write_spec(f"{DATASET}-prebuilt", sources, products, dict(time=web.snapshot_time(f"{DATE:%Y-%m-%d}", "day", label="Day")))
 
 
 if __name__ == "__main__":
