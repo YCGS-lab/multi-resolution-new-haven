@@ -80,6 +80,5 @@ module "tiler" {
   secret_recovery_days = var.secret_recovery_days
   earthdata_username   = var.earthdata_username
   earthdata_password   = var.earthdata_password
-  earthdata_token      = var.earthdata_token
   cds_api_key          = var.cds_api_key
 }

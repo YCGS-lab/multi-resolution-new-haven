@@ -8,11 +8,9 @@
 
 from __future__ import annotations
 
-import base64
 import hmac
 import json
 import os
-import time
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -122,15 +120,13 @@ def create_app() -> FastAPI:
     app.include_router(ColorMapFactory().router, tags=["ColorMaps"])
 
     if "cmr" in settings.feature_set:
-        if os.environ.get("YCGS_EARTHDATA_TOKEN") or (
-            os.environ.get("TITILER_CMR_EARTHDATA_USERNAME") and os.environ.get("TITILER_CMR_EARTHDATA_PASSWORD")
-        ):
+        if os.environ.get("TITILER_CMR_EARTHDATA_USERNAME") and os.environ.get("TITILER_CMR_EARTHDATA_PASSWORD"):
             app.mount("/cmr", cmr_app())
         else:
             app.mount(
                 "/cmr",
                 unavailable(
-                    "Earthdata login not configured (set YCGS_EARTHDATA_TOKEN, or TITILER_CMR_EARTHDATA_USERNAME / _PASSWORD, or the Earthdata secret)"
+                    "Earthdata login not configured (set TITILER_CMR_EARTHDATA_USERNAME / _PASSWORD, or the Earthdata secret)"
                 ),
             )
 
@@ -177,16 +173,7 @@ def unavailable(detail: str) -> ASGIApp:
 
 
 def cmr_app() -> FastAPI:
-    """titiler-cmr's app, plus an xarray backend for HDF5 groups without coordinates.
-
-    Earthdata: a bearer token (YCGS_EARTHDATA_TOKEN) if set, else titiler-cmr's
-    username / password login (which it trades for a token itself).
-    """
-    token = os.environ.get("YCGS_EARTHDATA_TOKEN")
-    if token:
-        # titiler-cmr's settings require a login at import; the token replaces it after startup.
-        os.environ.setdefault("TITILER_CMR_EARTHDATA_USERNAME", "unused (token)")
-        os.environ.setdefault("TITILER_CMR_EARTHDATA_PASSWORD", "unused (token)")
+    """titiler-cmr's app, plus an xarray backend for HDF5 groups without coordinates."""
     from titiler.cmr import main as cmr
     from titiler.cmr.dependencies import interpolated_xarray_ds_params
     from titiler.cmr.factory import CMRTilerFactory
@@ -212,48 +199,7 @@ def cmr_app() -> FastAPI:
         cmr.app.state.ycgs_grouped = True
     # Lambda (Mangum) does not run lifespans; create the CMR client and Earthdata auth now.
     cmr.startup(cmr.app)
-    if token:
-        use_token(cmr.app, token)
     return cmr.app
-
-
-def use_token(cmr_app: FastAPI, token: str) -> None:
-    """Make titiler-cmr authenticate with a fixed Earthdata bearer token."""
-    from titiler.cmr.credentials import GetS3Credentials
-
-    provider = StaticToken(token)
-    cmr_app.state.earthdata_token_provider = provider
-    if cmr_app.state.s3_access:
-        cmr_app.state.get_s3_credentials = GetS3Credentials(provider)
-
-
-class StaticToken:
-    """An Earthdata Login user token (a JWT; EDL issues them for 60 days).
-
-    It cannot be refreshed: once expired, requests fail with a 503 that says
-    so, until a new token is written to the secret.
-    """
-
-    def __init__(self, token: str) -> None:
-        self.token = token
-        self.expires = jwt_expiry(token)
-
-    def __call__(self) -> str:
-        if self.expires is not None and self.expires <= time.time():
-            from fastapi import HTTPException
-
-            day = time.strftime("%Y-%m-%d", time.gmtime(self.expires))
-            raise HTTPException(503, f"Earthdata token expired on {day}: generate a new one and update the secret")
-        return self.token
-
-
-def jwt_expiry(token: str) -> float | None:
-    """The `exp` (Unix time) of a JWT, unverified; None if it has none or is not a JWT."""
-    try:
-        payload = token.split(".")[1]
-        return float(json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))["exp"])
-    except IndexError, KeyError, TypeError, ValueError:
-        return None
 
 
 # endregion cmr-app

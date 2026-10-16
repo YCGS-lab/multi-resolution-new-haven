@@ -8,7 +8,7 @@ resource "aws_secretsmanager_secret" "earthdata" {
   #checkov:skip=CKV_AWS_149:AWS-managed key is sufficient
   provider                = aws.nasa
   name                    = "${var.name}/earthdata"
-  description             = "NASA Earthdata Login (token, or username and password) for titiler-cmr"
+  description             = "NASA Earthdata Login for titiler-cmr"
   recovery_window_in_days = var.secret_recovery_days
 }
 
@@ -18,7 +18,6 @@ resource "aws_secretsmanager_secret_version" "earthdata" {
   secret_string_wo = jsonencode({
     TITILER_CMR_EARTHDATA_USERNAME = var.earthdata_username
     TITILER_CMR_EARTHDATA_PASSWORD = var.earthdata_password
-    YCGS_EARTHDATA_TOKEN           = var.earthdata_token
   })
   secret_string_wo_version = var.secrets_version
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run the tiler locally with real credentials: the Earthdata login from
-# ~/.netrc (urs.earthdata.nasa.gov), or the token earthdata_token from the
-# repository's _credentials.toml, and the CDS API key from it (cds_api_key). Earthdata granules are read over HTTPS
+# ~/.netrc (urs.earthdata.nasa.gov) and the CDS API key from the repository's
+# _credentials.toml (cds_api_key). Earthdata granules are read over HTTPS
 # (direct S3 access only works inside AWS us-west-2).
 #
 # Usage: tiler/serve-local.sh [port]   (default 8100)
@@ -25,10 +25,7 @@ for i, w in enumerate(words[:-1]):
         out["TITILER_CMR_EARTHDATA_PASSWORD"] = entry.get("password", "")
         break
 creds = Path("../_credentials.toml")
-toml = tomllib.loads(creds.read_text()) if creds.exists() else {}
-if token := toml.get("earthdata_token"):
-    out["YCGS_EARTHDATA_TOKEN"] = token
-if key := toml.get("cds_api_key"):
+if creds.exists() and (key := tomllib.loads(creds.read_text()).get("cds_api_key")):
     out["YCGS_CDS_API_KEY"] = key
 for k, v in out.items():
     print(f"export {k}={shlex.quote(v)}")

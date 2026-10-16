@@ -117,9 +117,8 @@ state_count() {
 
 # region tiler-secrets
 # The tiler's credentials as ephemeral TF_VAR_* variables (never printed or
-# stored in state): the Earthdata token (earthdata_token) and the CDS API key
-# (cds_api_key) from _credentials.toml; without a token, the Earthdata login
-# from ~/.netrc (urs.earthdata.nasa.gov).
+# stored in state): the Earthdata login from ~/.netrc
+# (urs.earthdata.nasa.gov) and the CDS API key from _credentials.toml.
 export_tiler_secrets() {
   eval "$(cd "$REPO" && python3 - <<'PY'
 import shlex, tomllib
@@ -135,17 +134,13 @@ for i, w in enumerate(words[:-1]):
         out["TF_VAR_earthdata_username"] = entry.get("login", "")
         out["TF_VAR_earthdata_password"] = entry.get("password", "")
 creds = Path("_credentials.toml")
-toml = tomllib.loads(creds.read_text()) if creds.exists() else {}
-if token := toml.get("earthdata_token"):
-    out = {"TF_VAR_earthdata_token": token}
-if key := toml.get("cds_api_key"):
+if creds.exists() and (key := tomllib.loads(creds.read_text()).get("cds_api_key")):
     out["TF_VAR_cds_api_key"] = key
 for k, v in out.items():
     print(f"export {k}={shlex.quote(v)}")
 PY
 )"
-  [[ -n "${TF_VAR_earthdata_token:-}${TF_VAR_earthdata_username:-}" ]] ||
-    die "no earthdata_token in _credentials.toml, nor urs.earthdata.nasa.gov login in ~/.netrc"
+  [[ -n "${TF_VAR_earthdata_username:-}" ]] || die "no urs.earthdata.nasa.gov login in ~/.netrc"
   [[ -n "${TF_VAR_cds_api_key:-}" ]] || die "no cds_api_key in _credentials.toml"
 }
 # endregion tiler-secrets

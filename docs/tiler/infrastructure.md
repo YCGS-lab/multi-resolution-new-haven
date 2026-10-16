@@ -238,7 +238,7 @@ the `live` alias.
 
 | Secret | Region | Contents | Used by |
 |---|---|---|---|
-| `<name>/earthdata` | `aws.nasa` | `YCGS_EARTHDATA_TOKEN`, or `TITILER_CMR_EARTHDATA_USERNAME`, `..._PASSWORD` | titiler-cmr: CMR, Earthdata S3 credentials |
+| `<name>/earthdata` | `aws.nasa` | `TITILER_CMR_EARTHDATA_USERNAME`, `..._PASSWORD` | titiler-cmr: CMR, Earthdata S3 credentials |
 | `<name>/cds` | `aws.ecmwf` | `YCGS_CDS_API_KEY` | the reader, for the ECMWF ARCO store |
 
 Each lives in the region of the function that reads it.
@@ -256,20 +256,14 @@ plan files, and `secret_string_wo` is a *write-only* argument, sent to
 Secrets Manager and not stored. `secret_string_wo_version` controls when:
 on create and whenever `secrets_version` changes.
 
-- **First apply:** export `TF_VAR_earthdata_token` (an Earthdata Login user
-  token, from "Generate Token" on urs.earthdata.nasa.gov; or instead
-  `TF_VAR_earthdata_username` and `TF_VAR_earthdata_password`) and
-  `TF_VAR_cds_api_key` for both plan and apply (ephemeral values are not
-  saved in a plan file). The CDS key is only for the tiler's ERA5-Land
-  preset; the website reads ERA5-Land itself, with the user's key.
+- **First apply:** export `TF_VAR_earthdata_username`,
+  `TF_VAR_earthdata_password` and `TF_VAR_cds_api_key` for both plan and
+  apply (ephemeral values are not saved in a plan file).
 - **Later applies:** leave them unset. The variables then encode to JSON
   nulls, but `secret_string_wo_version` is unchanged, so the provider does
   not send them (worth confirming in `tofu plan`: no change to the secret
   version).
-- **Rotation:** set the new values and bump `secrets_version`. An
-  Earthdata token lasts 60 days and cannot be refreshed by the tiler (a
-  username and password can: titiler-cmr trades them for a new token):
-  after it expires, `/cmr` answers 503 "Earthdata token expired on ...".
+- **Rotation:** set the new values and bump `secrets_version`.
 
 A first apply without the variables creates secrets holding nulls; the
 handler skips nulls, `/cmr` answers 503 "Earthdata login not configured"
