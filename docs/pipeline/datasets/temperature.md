@@ -1,6 +1,7 @@
 # Temperature
 
-Two satellite land surface temperatures (VIIRS at 750 m, GOES at 2 km),
+Two satellite land surface temperatures (VIIRS at 750 m, daily at 1 km on
+the website; GOES at 2 km),
 matched to within 9 minutes of each other, and two air-temperature products
 (ERA5-Land at 0.1°, PRISM at 800 m). Landsat's 100 m surface temperature is
 covered with [Landsat](./optical#landsat-8).
@@ -11,7 +12,9 @@ VIIRS and GOES share one color scale (`styles.LST_RANGE`, 20–45 °C,
 ## VIIRS LST
 
 **VNP21 v002 (Suomi NPP), 750 m swath, 2026-06-03 17:48–17:54 UTC.**
-Scripts: `download.py`, `visualize.py`, `create-cog.py`.
+Scripts: `download.py`, `visualize.py`, `create-cog.py` (the pre-built
+snapshot, dataset `viirs-lst-prebuilt`), `website-layers.py` (the live,
+cloud-only dataset: the daily 1 km grid, below).
 
 ::: warning Design decision: one screened granule
 `download.py`'s docstring records the screening. 417 VIIRS LST granules were
@@ -55,6 +58,22 @@ The website COG uses the same k-d tree resampling onto a
 [fine grid](../views-and-grids#fine-grids-for-the-website) sized from the
 measured swath spacing. Its quality overlays are not carried over: cloud
 and water are simply transparent.
+
+### Live: the daily 1 km grid <Badge type="warning" text="decision" />
+
+A swath cannot be tiled on request: every tile would read and resample the
+whole ~83 MB granule. The website's live dataset is VNP21A1D v002 instead,
+the same TES retrieval gridded daily (daytime overpasses) on the 1 km
+sinusoidal grid, as 10° HDF5 tiles of ~3 MB (New Haven: h12v04). The tiler
+preset `viirs-lst-daily` reads them; the grouped reader takes the grid
+group's `XDim` / `YDim` (cell corners, shifted to centers), the sinusoidal
+mapping, and masks the fill value, spelled `_Fillvalue` in these files so
+that CF decoding misses it. The cost: 1 km cells instead of ~750 m pixels,
+and one value per day without the swath's exact scan time.
+
+::: code-group
+<<< @/../scripts/viirs-lst/website-layers.py#viirs-lst-live-source [scripts/viirs-lst/website-layers.py#viirs-lst-live-source]
+:::
 
 ## GOES LST
 

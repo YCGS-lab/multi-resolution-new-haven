@@ -6,7 +6,8 @@
 band lst (deg C; best and nominal QA, as in visualize.py). The L2 swath is
 resampled onto a ~30 m Web Mercator grid by nearest neighbor (pyresample
 kd-tree, as in visualize.py), so each ~750 m swath pixel keeps its footprint
-(the Voronoi cell of its center).
+(the Voronoi cell of its center). Written as "viirs-lst-prebuilt"; the live
+daily 1 km product is website-layers.py.
 """
 
 import sys
@@ -57,8 +58,9 @@ def main():
             ],
         )
     }
-    # pre-built for one timestep: shown as such (no live source for the website)
-    web.write_spec(DATASET, sources, products, dict(time=web.snapshot_time(f"{t:%Y-%m-%dT%H:%M}Z", "time", label="Overpass (UTC)")))
+    # pre-built for one timestep, as "<dataset>-prebuilt" (works locally; the live
+    # dataset, from website-layers.py, is the daily 1 km grid)
+    web.write_spec(f"{DATASET}-prebuilt", sources, products, dict(time=web.snapshot_time(f"{t:%Y-%m-%dT%H:%M}Z", "time", label="Overpass (UTC)")))
 
 
 if __name__ == "__main__":

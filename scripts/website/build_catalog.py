@@ -66,7 +66,8 @@ TREE = [
         group(
             "Land surface temperature",
             item("landsat", "lst", "Landsat 8-9 (100 m)", "Landsat 8-9 land surface temperature"),
-            item("viirs-lst", "lst", "VIIRS, 2026-06-03 (750 m)", "VIIRS land surface temperature (750 m)"),
+            item("viirs-lst", "lst", "VIIRS, daily (1 km)", "VIIRS land surface temperature (daily, 1 km)"),
+            item("viirs-lst-prebuilt", "lst", "VIIRS, 2026-06-03 (750 m swath, pre-built)", "VIIRS land surface temperature (750 m)"),
             item("goes-lst", "lst", "GOES-19 ABI, hourly (2 km)", "GOES-19 ABI land surface temperature (2 km)"),
             item("goes-lst-prebuilt", "lst", "GOES-19 ABI, 2026-06-03 (2 km, pre-built)", "GOES-19 ABI land surface temperature (2 km)"),
         ),
@@ -159,6 +160,7 @@ EXAMPLES = {
     "naip": dict(t="2023", note="2023-07-05, the latest NAIP over New Haven"),
     "planet": dict(t="2026-07", note="July 2026, as in the figures"),
     "landsat": dict(t="2025-08-22", note="Landsat 9, 2025-08-22: Tier 1, 0.2% cloud over Greater New Haven"),
+    "viirs-lst": dict(t="2026-06-03", note="2026-06-03: clear, near nadir (the pre-built swath's day)"),
     "goes-lst": dict(t="2026-06-03T18:00Z", note="2026-06-03 18:00 UTC: clear, high quality (as the pre-built image)"),
     "era5-land": dict(t="2026-07-20T17:00Z", note="2026-07-20 17:00 UTC: a sunny summer afternoon"),
     "ct-lidar": dict(t="2023", note="2023 flight (QL1)"),
