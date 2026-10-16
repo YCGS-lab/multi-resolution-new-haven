@@ -6,7 +6,9 @@
   data is read, so a time step costs only the chunks of that time step.
 - `GroupedXarrayGranuleReader` (the /cmr/xarray-grouped endpoints): titiler-cmr's
   granule reader for HDF5 files whose data variables sit in a group without
-  coordinates (SMAP L4), taking x/y and the grid mapping from the root group.
+  coordinates: x/y and the grid mapping from the root group (SMAP L4), from
+  1-D lat/lon variables (HDF-EOS5 geographic grids, Black Marble) or from the
+  grid group's XDim/YDim (HDF-EOS5 projected grids, VIIRS LST VNP21A1D).
 """
 
 from __future__ import annotations
@@ -298,10 +300,41 @@ def latlon_grid(ds: xr.Dataset) -> xr.Dataset:
     return xr.Dataset(data, coords={"y": lat, "x": lon}).rio.write_crs("epsg:4326")
 
 
+def hdfeos_projected_grid(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
+    """HDF-EOS5 projected grid (VIIRS L3 such as VNP21A1D, sinusoidal): the 2-D
+    (YDim, XDim) variables of a "Data Fields" group on y/x coordinates from the
+    grid group's XDim / YDim, with the CRS of the CF grid-mapping variable next
+    to the data.
+
+    XDim / YDim are the cells' upper-left corners (GridOrigin UL: XDim[0] is
+    StructMetadata's UpperLeftPointMtrs); they are shifted to cell centers.
+    Fill values are given as `_Fillvalue`, which CF decoding ignores; those
+    cells are masked here.
+    """
+    x, y = grid["XDim"].values.astype("float64"), grid["YDim"].values.astype("float64")
+    x = x + (x[1] - x[0]) / 2
+    y = y + (y[1] - y[0]) / 2
+    data = {}
+    for name, v in ds.data_vars.items():
+        if v.dims != ("YDim", "XDim"):
+            continue
+        fill = np.ravel(v.attrs.get("_Fillvalue", []))
+        if fill.size and np.issubdtype(fill.dtype, np.number):
+            # the decoded value of the stored fill
+            v = v.where(v != fill[0] * v.encoding.get("scale_factor", 1) + v.encoding.get("add_offset", 0))
+        attrs = {k: a for k, a in v.attrs.items() if k not in ("coordinates", "grid_mapping", "_Fillvalue")}
+        # (decoded as float64; scaled 8 / 16-bit integers fit float32)
+        data[name] = xr.DataArray(v.data.astype("float32"), dims=("y", "x"), attrs=attrs)
+    out = xr.Dataset(data, coords={"y": y, "x": x})
+    crs = crs_from_grid_mapping(ds)
+    return out.rio.write_crs(crs) if crs else out
+
+
 def open_dataset_with_root_coords(src_path: str, group: str | None = None, **kwargs) -> xr.Dataset:
     """titiler-cmr's opener, plus x/y coordinates: from 1-D `lat`/`lon` variables in
-    the group (HDF-EOS5 geographic grids), or with the grid mapping from the root
-    group when `group` has its dimensions but not their coordinate variables (SMAP L4)."""
+    the group (HDF-EOS5 geographic grids), from the parent group's XDim / YDim
+    (HDF-EOS5 projected grids), or with the grid mapping from the root group when
+    `group` has its dimensions but not their coordinate variables (SMAP L4)."""
     ds = cmr_open_dataset(src_path, group=group, **kwargs)
     if "x" in ds.coords and "y" in ds.coords:
         return ds
@@ -309,6 +342,10 @@ def open_dataset_with_root_coords(src_path: str, group: str | None = None, **kwa
         return latlon_grid(ds)
     if group in (None, "", "/"):
         return ds
+    if {"YDim", "XDim"} <= set(ds.dims) and "/" in group.strip("/"):
+        grid = cmr_open_dataset(src_path, group=group.strip("/").rsplit("/", 1)[0], **kwargs)
+        if "XDim" in grid.variables and "YDim" in grid.variables:
+            return hdfeos_projected_grid(ds, grid)
     root = cmr_open_dataset(src_path, group=None, **kwargs)
     # Dimensions may be named after the root dimension scales or be phony; match by size.
     renames = {}

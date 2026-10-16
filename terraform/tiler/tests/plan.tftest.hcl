@@ -133,6 +133,7 @@ run "plan" {
       "/datasets/goes19-abi/*"        = "noaa"
       "/datasets/era5-land-t2m/*"     = "ecmwf"
       "/datasets/viirs-blackmarble/*" = "nasa"
+      "/datasets/viirs-lst-daily/*"   = "nasa"
       "/datasets/goes19-lst/*"        = "noaa"
       "/datasets/chirps-daily/*"      = "noaa"
       "/datasets/aster-gdem/*"        = "nasa"

@@ -235,6 +235,32 @@ datasets:
         title: Radiance (nW cm-2 sr-1, float32; use .tif or .npy)
   # endregion blackmarble
 
+  # region viirs-lst
+  viirs-lst-daily:
+    title: VIIRS daily land surface temperature, 1 km (VNP21A1D v002, daytime)
+    description: >-
+      S-NPP daily daytime LST (TES algorithm, as the VNP21 swath) on the 1 km
+      sinusoidal grid, 10 x 10 deg HDF5 tiles from LP DAAC; cloudy pixels are
+      not produced. A date selects that day's tiles. The grouped reader takes
+      the grid group's XDim / YDim (cell corners) and the sinusoidal mapping.
+    attribution: VIIRS LST&E VNP21A1D (NASA), LP DAAC
+    deployment: nasa
+    backend: cmr-xarray-grouped
+    params:
+      collection_concept_id: C2545314555-LPCLOUD
+      group: HDFEOS/GRIDS/VIIRS_Grid_Daily_1km_LST21/Data Fields
+      variables: [LST_1KM]
+    time: {kind: granule, align: day, default: "2026-06-03"}
+    minzoom: 4
+    maxzoom: 12
+    renders:
+      celsius:
+        title: Land surface temperature (deg C)
+        params: {expression: b1-273.15, rescale: "20,45", colormap_name: inferno}
+      raw:
+        title: Land surface temperature (K, float32; use .tif or .npy)
+  # endregion viirs-lst
+
   # region goes-lst
   goes19-lst:
     title: GOES-19 ABI land surface temperature, CONUS (hourly)

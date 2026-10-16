@@ -54,6 +54,7 @@ with its own providers, tags and state.
 | `smap-l4` | SMAP L4 root-zone soil moisture (HDF5, NSIDC) | us-west-2 | the 3-hourly granule | colormapped |
 | `hls-l30` | HLS Landsat surface reflectance (COGs, LP DAAC) | us-west-2 | that day's granules | true color, CIR, vegetation, urban, NDVI |
 | `viirs-blackmarble` | VIIRS Black Marble annual night lights (HDF-EOS5, LAADS) | us-west-2 | that year's tiles | log radiance |
+| `viirs-lst-daily` | VIIRS daily daytime land surface temperature, 1 km (HDF-EOS5 sinusoidal, LP DAAC) | us-west-2 | that day's tiles | °C |
 | `aster-gdem` | ASTER Global DEM v3 (GeoTIFF, LP DAAC) | us-west-2 | nothing (static) | elevation |
 | `goes19-abi` | GOES-19 ABI imagery (NetCDF, NOAA) | us-east-1 | nearest 5-minute scan | true color, natural color, IR, water vapor, 0.5 km red |
 | `goes19-lst` | GOES-19 ABI land surface temperature (NetCDF, NOAA) | us-east-1 | nearest hourly scan | °C |

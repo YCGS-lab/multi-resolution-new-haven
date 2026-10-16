@@ -39,6 +39,7 @@ for pass in 1 2; do
   tile era5-land-t2m celsius 6 19 23
   tile era5-land-t2m diff 6 19 23 "datetime=2026-07-20T09:00&datetime2=2026-07-20T17:00"
   tile viirs-blackmarble radiance 9 152 191 "datetime=2025"
+  tile viirs-lst-daily celsius 9 152 191 "datetime=2026-06-03"
   tile chirps-daily precip 6 19 23 "datetime=2026-07-29"
   tile aster-gdem elevation 10 304 381
 done
@@ -46,6 +47,7 @@ done
 echo "== raw NPY tiles, as the website requests them"
 for p in "smap-l4/raw/tiles/WebMercatorQuad/6/19/23.npy?tilesize=512&datetime=2026-07-30T15:00:00Z/2026-07-30T17:59:59Z" \
   "viirs-blackmarble/raw/tiles/WebMercatorQuad/8/76/95.npy?tilesize=512&datetime=2025-01-01T00:00:00Z/2025-12-31T23:59:59Z" \
+  "viirs-lst-daily/raw/tiles/WebMercatorQuad/8/76/95.npy?tilesize=512&datetime=2026-06-03T00:00:00Z/2026-06-03T23:59:59Z" \
   "goes19-lst/raw/tiles/WebMercatorQuad/5/9/11.npy?tilesize=512&datetime=2026-06-03T18:00:00Z" \
   "chirps-daily/raw/tiles/WebMercatorQuad/4/4/5.npy?tilesize=512&datetime=2026-07-29T00:00:00Z"; do
   expect 200 "$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$url/datasets/$p")" "${p%%\?*}"

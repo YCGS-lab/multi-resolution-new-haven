@@ -104,6 +104,37 @@ def test_group_without_coordinates_gets_root_coordinates(tmp_path, monkeypatch):
     assert da.rio.crs.to_dict()["proj"] == "cea"
 
 
+def test_hdfeos_projected_grid(tmp_path, monkeypatch):
+    """Like VNP21A1D: data in <grid>/Data Fields on YDim/XDim, whose corner coordinates
+    are in <grid>; a sinusoidal grid mapping next to the data; fill given as _Fillvalue."""
+    path = tmp_path / "vnp21a1d.h5"
+    grid = "HDFEOS/GRIDS/VIIRS_Grid_Daily_1km_LST21"
+    d = 926.625433055684
+    x = -6671703.118 + d * np.arange(4)
+    y = 5559752.598333 - d * np.arange(3)
+    xr.Dataset(coords={"XDim": x, "YDim": y}).to_netcdf(path, group=grid, engine="h5netcdf")
+    raw = np.array([[0, 15000, 15050, 15100]] * 3, "uint16")
+    lst = xr.Variable(("YDim", "XDim"), raw, {"scale_factor": 0.02, "add_offset": 0.0, "_Fillvalue": np.uint16(0)})
+    sinu = {"grid_mapping_name": "sinusoidal", "earth_radius": 6371007.181, "longitude_of_central_meridian": 0.0,
+            "false_easting": 0.0, "false_northing": 0.0}  # fmt: skip
+    xr.Dataset({"LST_1KM": lst, "Projection": (("one",), [0], sinu)}).to_netcdf(
+        path, group=f"{grid}/Data Fields", mode="a", engine="h5netcdf"
+    )
+
+    def fake_open(src_path, group=None, **kw):
+        return xr.open_dataset(src_path, group=group, engine="h5netcdf", decode_coords="all")
+
+    monkeypatch.setattr(readers, "cmr_open_dataset", fake_open)
+    ds = open_dataset_with_root_coords(str(path), group=f"{grid}/Data Fields", auth_token="t")
+    assert list(ds.data_vars) == ["LST_1KM"]
+    np.testing.assert_allclose(ds.x.values, x + d / 2)
+    np.testing.assert_allclose(ds.y.values, y - d / 2)
+    assert ds.rio.crs.to_dict()["proj"] == "sinu"
+    v = ds["LST_1KM"].values
+    assert np.isnan(v[:, 0]).all()
+    np.testing.assert_allclose(v[0, 1:], [300.0, 301.0, 302.0])
+
+
 # region latlon-grid
 def test_latlon_variables_become_a_geographic_grid():
     """HDF-EOS5 geographic grid (VNP46A4): 1-D lat/lon variables giving cell upper-left corners."""
