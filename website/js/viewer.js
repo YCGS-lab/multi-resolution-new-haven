@@ -1,5 +1,7 @@
 // Single-image viewer with a Worldview-style comparison mode: image B is
 // revealed over image A by a swipe divider, by fading, or inside a lens (spy).
+// A and B each have a product and a time (slot.js), so B can be the same
+// image at another date: turning comparison on starts B one timestep before A.
 
 import { Deck, MapView, PathLayer, SolidPolygonLayer } from "../vendor/deck-gl-raster.js";
 import {
@@ -14,11 +16,16 @@ import {
   landmarkLayers,
   overlayProps,
   productLayers,
+  showNotices,
   titleHTML,
   toDeckViewState,
   unproject,
+  viewBounds,
 } from "./mapview.js";
+import { openCredentials } from "./env.js";
 import { Picker } from "./picker.js";
+import { Slot, slippyZoom } from "./slot.js";
+import { TimeControl } from "./timecontrol.js";
 
 const SPY_RADIUS = 130; // px
 
@@ -31,8 +38,16 @@ export class Viewer {
     this.chrome = new MapChrome(root.querySelector(".viewer-frame"), catalog);
     this.handle = root.querySelector(".swipe-handle");
     this.loading = new LoadingState(root.querySelector(".map-message"));
+    this.noticeEl = root.querySelector(".map-notice");
 
-    this.sel = { a: null, b: null }; // product ids
+    this.slots = {
+      a: new Slot(catalog, { onChange: () => this.slotChanged("a") }),
+      b: new Slot(catalog, { onChange: () => this.slotChanged("b") }),
+    };
+    this.timeControls = {
+      a: new TimeControl(root.querySelector("#time-a"), this.slots.a),
+      b: new TimeControl(root.querySelector("#time-b"), this.slots.b),
+    };
     this.compare = false;
     this.mode = "swipe";
     this.opacity = 0.5;
@@ -48,6 +63,7 @@ export class Viewer {
       root.querySelector(`#next-${k}`).addEventListener("click", () => this.step(k, 1));
     }
     root.querySelector("#compare-toggle").addEventListener("change", (e) => this.setCompare(e.target.checked));
+    root.querySelector("#b-same-as-a").addEventListener("click", () => this.compareThroughTime());
     root.querySelectorAll("#compare-mode button").forEach((b) => b.addEventListener("click", () => this.setMode(b.dataset.mode)));
     root.querySelector("#opacity-slider").addEventListener("input", (e) => {
       this.opacity = e.target.value / 100;
@@ -93,19 +109,35 @@ export class Viewer {
     // #endregion viewer-deck
   }
 
-  /** Current state, for the URL. */
+  /** Current state, for the URL: selections (slot.js) of A and B. */
   get state() {
-    return { a: this.sel.a, b: this.compare ? this.sel.b : null, mode: this.mode };
+    return { a: this.slots.a.sel, b: this.compare ? this.slots.b.sel : null, mode: this.mode };
   }
 
   select(k, id) {
-    this.sel[k] = this.catalog.get(id) ? id : null;
-    this.pickers[k].set(this.sel[k]);
+    this.slots[k].select(this.catalog.get(id) ? id : null);
+  }
+
+  /** Restore a full selection (product and time). */
+  setSel(k, sel) {
+    this.slots[k].setSel(sel);
+  }
+
+  slotChanged(k) {
+    this.pickers[k].set(this.slots[k].sel.id);
+    this.timeControls[k].render();
     this.update();
   }
 
+  /** Previous / next image in the product's menu group. */
   step(k, d) {
-    if (this.sel[k]) this.select(k, this.catalog.sibling(this.sel[k], d));
+    const id = this.slots[k].sel.id;
+    if (id) this.select(k, this.catalog.sibling(id, d));
+  }
+
+  /** Previous / next timestep of A (or B). */
+  stepTime(k, d) {
+    this.slots[k].step(d);
   }
 
   setCompare(on) {
@@ -114,9 +146,27 @@ export class Viewer {
     this.root.querySelector(".compare-controls").hidden = !on;
     this.root.querySelector(".tag-a").hidden = !on;
     this.root.classList.toggle("comparing", on);
-    if (on && !this.sel.b && this.sel.a) this.select("b", this.catalog.sibling(this.sel.a, 1));
+    if (on && !this.slots.b.sel.id && this.slots.a.sel.id) this.compareThroughTime();
     this.update();
   }
+
+  // #region compare-through-time
+  /**
+   * B = A's image one timestep earlier (the timestep before A's with data in
+   * view), or, for a product without time, the next image in A's group.
+   */
+  compareThroughTime() {
+    const a = this.slots.a;
+    if (a.product?.time && a.steps && a.sel.t) {
+      const prev = a.steps.neighbor(a.sel.t, -1);
+      this.slots.b.setSel({ ...a.sel, t: prev ?? a.sel.t, t2: null, auto: !prev });
+    } else if (a.product?.time && !a.steps) {
+      this.slots.b.setSel({ ...a.sel });
+    } else {
+      this.select("b", this.catalog.sibling(a.sel.id, 1));
+    }
+  }
+  // #endregion compare-through-time
 
   setMode(mode) {
     this.mode = mode;
@@ -160,13 +210,26 @@ export class Viewer {
   // #endregion swipe-handle
 
   // #region compare-layers
+  /** The product of slot k if it can be drawn (else null; slot.status() says why). */
+  drawable(k) {
+    const slot = this.slots[k];
+    const p = slot.product;
+    if (!p) return null;
+    const st = slot.status();
+    return st ? null : p;
+  }
+
+  extra(k) {
+    return { time: this.slots[k].ctx(), view: this.bounds, onReady: () => this.update() };
+  }
+
   layers() {
     const c = this.catalog;
     const [w, h] = this.size;
     const layers = [backgroundLayer("bg", c)];
-    const a = c.get(this.sel.a);
-    if (a) layers.push(...productLayers("a", c, a, this.loading));
-    const b = this.compare && c.get(this.sel.b);
+    const a = this.drawable("a");
+    if (a) layers.push(...productLayers("a", c, a, this.loading, undefined, this.extra("a")));
+    const b = this.compare && this.drawable("b");
     if (b) {
       let overlay = null;
       let lens = null;
@@ -194,11 +257,11 @@ export class Viewer {
       if (overlay) {
         // B's own no-data background, so A does not show through B's transparent pixels.
         if (this.mode !== "opacity") layers.push(backgroundLayer("bg-b", c, overlayProps(c, overlay)));
-        layers.push(...productLayers("b", c, b, this.loading, overlay));
+        layers.push(...productLayers("b", c, b, this.loading, overlay, this.extra("b")));
         if (lens) layers.push(lens);
       }
     }
-    if (this.settings.labels) layers.push(...landmarkLayers("landmarks", c, a?.landmark_color));
+    if (this.settings.labels) layers.push(...landmarkLayers("landmarks", c, this.slots.a.product?.landmark_color));
     return layers;
   }
   // #endregion compare-layers
@@ -216,7 +279,19 @@ export class Viewer {
   render() {
     const c = this.catalog;
     const [w, h] = this.size;
+    this.bounds = viewBounds(this.viewState, c, w, h);
+    const z = slippyZoom(this.viewState.zoom);
+    this.slots.a.setView(this.bounds, z);
+    if (this.compare) this.slots.b.setView(this.bounds, z);
     this.deck.setProps({ viewState: toDeckViewState(this.viewState, c), layers: this.layers() });
+    showNotices(
+      this.noticeEl,
+      [
+        { tag: this.compare ? "A" : "", status: this.slots.a.status() },
+        ...(this.compare && this.slots.b.product ? [{ tag: "B", status: this.slots.b.status() }] : []),
+      ],
+      (name) => openCredentials(name),
+    );
     this.chrome.update(this.viewState, w, h, this.settings.labels);
 
     const swipe = this.compare && this.mode === "swipe";
@@ -225,13 +300,17 @@ export class Viewer {
     this.mapEl.classList.toggle("spy", this.compare && this.mode === "spy");
 
     // Titles and keys (HTML), only rebuilt when the selection changes.
-    const ra = c.get(this.sel.a);
-    const rb = this.compare ? c.get(this.sel.b) : null;
-    const key = JSON.stringify([this.sel.a, rb && this.sel.b]);
+    const ra = this.slots.a.product;
+    const rb = this.compare ? this.slots.b.product : null;
+    const ta = this.slots.a.timeLabel();
+    const tb = rb ? this.slots.b.timeLabel() : "";
+    const key = JSON.stringify([ra?.id, ta, this.slots.a.sel.t, rb?.id, tb]);
     if (key !== this.titlesKey) {
       this.titlesKey = key;
       const tag = (t) => (rb ? `<span class="slot-tag tag-${t.toLowerCase()}">${t}</span>` : "");
-      const col = (p, t) => (p ? `<div class="title-block">${titleHTML(p, { tag: tag(t) })}</div>` : "");
+      const times = { A: [ta, this.slots.a.sel.t], B: [tb, this.slots.b.sel.t] };
+      const col = (p, t) =>
+        p ? `<div class="title-block">${titleHTML(p, { tag: tag(t), time: times[t][0], t: times[t][1] })}</div>` : "";
       const keyCol = (p, t) => (p ? `<div class="key-block">${keyHTML(p, c, { tag: tag(t) })}</div>` : "");
       this.root.querySelector(".viewer-titles").innerHTML = col(ra, "A") + col(rb, "B");
       this.root.querySelector(".viewer-legends").innerHTML = keyCol(ra, "A") + keyCol(rb, "B");

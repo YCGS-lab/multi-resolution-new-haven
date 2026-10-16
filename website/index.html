@@ -23,8 +23,13 @@
         <nav class="tabs" role="tablist">
           <button role="tab" data-tab="viewer" aria-selected="true">Viewer</button>
           <button role="tab" data-tab="grid" aria-selected="false">Grid</button>
+          <button role="tab" data-tab="animation" aria-selected="false">Animation</button>
+          <button role="tab" data-tab="icesat2" aria-selected="false">ICESat-2</button>
         </nav>
         <div class="header-options">
+          <button type="button" class="pill cred-button" id="credentials-button" title="Enter API keys for locked datasets">
+            <span aria-hidden="true">🔑</span> Credentials
+          </button>
           <label class="toggle pill" title="Landmarks and scale bar (L)">
             <input type="checkbox" id="labels-toggle" checked />
             <span>Labels</span>
@@ -43,6 +48,7 @@
             <button class="icon-btn" id="prev-a" title="Previous image in this group ([)">&#9664;</button>
             <button class="icon-btn" id="next-a" title="Next image in this group (])">&#9654;</button>
           </div>
+          <div class="time-host" id="time-a"></div>
           <label class="toggle compare-toggle">
             <input type="checkbox" id="compare-toggle" />
             <span>Compare</span>
@@ -52,12 +58,14 @@
             <div class="picker-host" id="picker-b"></div>
             <button class="icon-btn" id="prev-b" title="Previous image in this group">&#9664;</button>
             <button class="icon-btn" id="next-b" title="Next image in this group">&#9654;</button>
+            <button class="btn subtle" id="b-same-as-a" title="Compare through time: B = A's image at its previous date">A, earlier</button>
             <div class="segmented" id="compare-mode" role="radiogroup" aria-label="Comparison mode">
               <button data-mode="swipe" aria-pressed="true" title="Drag the divider to reveal B">Swipe</button>
               <button data-mode="opacity" aria-pressed="false" title="Fade between A and B">Opacity</button>
               <button data-mode="spy" aria-pressed="false" title="B is shown inside a lens that follows the cursor">Spy</button>
             </div>
             <input type="range" id="opacity-slider" min="0" max="100" value="50" hidden aria-label="Opacity of B" />
+            <div class="time-host" id="time-b"></div>
           </div>
         </div>
         <div class="viewer-titles"></div>
@@ -70,6 +78,7 @@
             </div>
             <div class="scalebar"></div>
             <div class="map-message" hidden></div>
+            <div class="map-notice" hidden aria-live="polite"></div>
             <div class="map-buttons">
               <button id="viewer-zoom-in" title="Zoom in">+</button>
               <button id="viewer-zoom-out" title="Zoom out">−</button>
@@ -113,6 +122,104 @@
           <button class="btn subtle" id="remove-row" title="Remove the last row (only when it is empty)">Remove empty row</button>
         </div>
       </section>
+
+      <!-- Animation through time (after NASA Worldview) -->
+      <section id="animation" class="tab-panel" role="tabpanel" hidden>
+        <div class="anim-controls">
+          <div class="picker-host" id="anim-picker"></div>
+          <label class="field">From <input type="date" id="anim-from" /></label>
+          <label class="field">To <input type="date" id="anim-to" /></label>
+          <label class="field anim-every" hidden
+            >Every
+            <select id="anim-every">
+              <option value="1">1 hour</option>
+              <option value="3">3 hours</option>
+              <option value="6">6 hours</option>
+              <option value="12">12 hours</option>
+              <option value="24">24 hours</option>
+            </select>
+          </label>
+          <span class="anim-filters"></span>
+          <span class="anim-count"></span>
+          <button type="button" class="btn primary" id="anim-load" title="Fetch every frame for the area in view ahead of time">Load imagery</button>
+          <div class="anim-progress" hidden>
+            <div class="bar"></div>
+            <span class="anim-progress-text"></span>
+          </div>
+        </div>
+        <div class="viewer-titles anim-title"></div>
+        <div class="map-frame viewer-frame anim-frame">
+          <div class="axis axis-left"></div>
+          <div class="map" id="anim-map">
+            <div class="scalebar"></div>
+            <div class="map-message" hidden></div>
+            <div class="map-notice" hidden aria-live="polite"></div>
+            <div class="map-buttons">
+              <button id="anim-zoom-in" title="Zoom in">+</button>
+              <button id="anim-zoom-out" title="Zoom out">−</button>
+              <button id="anim-reset" title="Full extent">⤢</button>
+            </div>
+          </div>
+          <div class="axis-corner"></div>
+          <div class="axis axis-bottom"></div>
+        </div>
+        <div class="anim-timeline">
+          <button type="button" class="icon-btn" id="anim-prev" title="Previous frame (←)">&#9664;</button>
+          <button type="button" class="icon-btn play" id="anim-play" title="Play (space)" aria-pressed="false">&#9654;</button>
+          <button type="button" class="icon-btn" id="anim-next" title="Next frame (→)">&#9654;&#9654;</button>
+          <div class="anim-slider-wrap">
+            <input type="range" id="anim-slider" min="0" max="0" value="0" aria-label="Frame" />
+            <div class="anim-ticks" aria-hidden="true"></div>
+          </div>
+          <span id="anim-date" class="anim-date">—</span>
+          <label class="field"
+            >Speed
+            <select id="anim-speed">
+              <option value="0.5">0.5 frames/s</option>
+              <option value="1">1 frame/s</option>
+              <option value="2" selected>2 frames/s</option>
+              <option value="4">4 frames/s</option>
+              <option value="8">8 frames/s</option>
+            </select>
+          </label>
+          <label class="toggle"><input type="checkbox" id="anim-loop" checked /> <span>Loop</span></label>
+        </div>
+        <div class="viewer-legends anim-legend"></div>
+      </section>
+
+      <!-- ICESat-2 beams and photon profiles -->
+      <section id="icesat2" class="tab-panel" role="tabpanel" hidden>
+        <div class="is2-body">
+          <div class="is2-left">
+            <div class="is2-lines" aria-label="Beam passes"></div>
+            <div class="map-frame is2-map-frame">
+              <div class="axis axis-left"></div>
+              <div class="map" id="is2-map">
+                <div class="scalebar"></div>
+                <div class="is2-arrow" tabindex="0" role="slider" aria-label="Position along the beam: drag along the track, or arrow keys" hidden>
+                  <svg viewBox="-14 -20 28 34" width="28" height="34" aria-hidden="true">
+                    <path d="M0 -18 L12 10 L0 3 L-12 10 Z" />
+                  </svg>
+                </div>
+              </div>
+              <div class="axis-corner"></div>
+              <div class="axis axis-bottom"></div>
+            </div>
+            <label class="toggle is2-canopy"><input type="checkbox" id="is2-canopy" /> <span>Show ATL08 canopy heights (2019-2026)</span></label>
+          </div>
+          <div class="is2-right">
+            <div class="is2-title"></div>
+            <div class="is2-plot"><canvas id="is2-profile" tabindex="0" aria-label="Photon cross-section: click or drag to move the position; wheel to zoom"></canvas></div>
+            <div class="is2-under">
+              <span class="is2-readout"></span>
+              <button type="button" class="btn subtle" id="is2-zoom-reset" disabled title="Whole line (double-click)">Reset zoom</button>
+            </div>
+            <div class="legend is2-legend-wrap"><div class="lg-title">ATL08 photon class</div><div class="lg-entries is2-legend" style="--ncol:5"></div></div>
+            <p class="is2-help">Click a beam on the map to select it. Drag the arrow along the beam, or drag the dashed line in the profile (wheel: zoom, double-click: whole line).
+              NASA ICESat-2 ATL03/ATL08 release 007 via SlideRule Earth.</p>
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- #region grid-canvas-markup -->
@@ -121,5 +228,21 @@
     <!-- #endregion grid-canvas-markup -->
     <!-- Shared popup for every image picker -->
     <div id="picker-popup" class="picker-popup" hidden></div>
+
+    <!-- API keys for locked datasets (kept in this browser only) -->
+    <dialog id="credentials-dialog" class="credentials-dialog" aria-labelledby="credentials-title">
+      <form method="dialog">
+        <h2 id="credentials-title">Credentials</h2>
+        <p class="cred-intro">
+          Some datasets are read straight from their providers' APIs with your own key. Keys stay in this browser
+          (session only, unless you tick "Remember") and are sent only to the provider.
+        </p>
+        <div class="cred-fields"></div>
+        <div class="cred-actions">
+          <button type="button" class="btn subtle cred-cancel">Cancel</button>
+          <button type="submit" class="btn primary">Save</button>
+        </div>
+      </form>
+    </dialog>
   </body>
 </html>

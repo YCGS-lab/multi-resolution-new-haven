@@ -65,7 +65,8 @@ def main():
             ],
         )
     }
-    web.write_spec(DATASET, sources, products)
+    # pre-built for one timestep: shown as such (no live source for the website)
+    web.write_spec(DATASET, sources, products, dict(time=web.snapshot_time(f"{t0:%Y-%m-%dT%H:%M}Z", "time", label="Scan start (UTC)")))
 
 
 if __name__ == "__main__":

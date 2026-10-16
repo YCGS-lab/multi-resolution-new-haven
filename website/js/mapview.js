@@ -107,9 +107,22 @@ export function overlayProps(catalog, { opacity, clipX, maskId } = {}, kind = "l
   return {};
 }
 
-/** The product's layers (see tiles.js); `overlay` as for overlayProps. */
-export function productLayers(id, catalog, product, loading, overlay) {
-  return tileLayers(id, catalog, product, { loading, props: (kind) => overlayProps(catalog, overlay, kind) });
+/**
+ * The product's layers (see tiles.js); `overlay` as for overlayProps; `extra`:
+ * {time, view, onReady} (the selected time context, the area in view, and a
+ * redraw callback for data that arrives later).
+ */
+export function productLayers(id, catalog, product, loading, overlay, extra = {}) {
+  return tileLayers(id, catalog, product, { loading, props: (kind) => overlayProps(catalog, overlay, kind), ...extra });
+}
+
+/** Lon / lat [w, s, e, n] of a w x h px map at a world view state. */
+export function viewBounds(vs, catalog, w, h) {
+  const [x0, y1] = unproject(vs, w, h, 0, 0);
+  const [x1, y0] = unproject(vs, w, h, w, h);
+  const [west, south] = catalog.worldToLngLat(x0, y0);
+  const [east, north] = catalog.worldToLngLat(x1, y1);
+  return [Math.max(-180, west), Math.max(-85, south), Math.min(180, east), Math.min(85, north)];
 }
 // #endregion overlay-props
 
@@ -129,13 +142,23 @@ export class LoadingState {
   start() {
     if (this.pending++ === 0) {
       this.errors = 0;
+      this.lastError = null;
       clearTimeout(this.timer);
       this.timer = setTimeout(() => this.show(), 250);
     }
   }
 
+  /** A longer status while loading (e.g. a queued CDS request); "" to clear. */
+  note(text) {
+    this.noteText = text;
+    this.show();
+  }
+
   end(error) {
-    if (error) this.errors++;
+    if (error) {
+      this.errors++;
+      this.lastError = error.message ?? String(error);
+    }
     if (--this.pending === 0) {
       clearTimeout(this.timer);
       this.show();
@@ -143,9 +166,14 @@ export class LoadingState {
   }
 
   show() {
-    const msg = this.pending ? "Loading…" : this.errors ? `${this.errors} tile${this.errors > 1 ? "s" : ""} failed to load` : "";
+    const msg = this.pending
+      ? this.noteText || "Loading…"
+      : this.errors
+        ? `${this.errors} tile${this.errors > 1 ? "s" : ""} failed to load`
+        : "";
     this.el.hidden = !msg;
     this.el.textContent = msg;
+    this.el.title = !this.pending && this.lastError ? this.lastError : "";
     this.el.classList.toggle("error", !this.pending && !!this.errors);
   }
 
@@ -153,11 +181,38 @@ export class LoadingState {
   reset() {
     this.pending = 0;
     this.errors = 0;
+    this.noteText = "";
     clearTimeout(this.timer);
     this.show();
   }
 }
 // #endregion loading-state
+
+// #region map-notice
+const NOTICE_ICONS = { credential: "🔒", cloud: "☁", outside: "⌖", zoom: "🔍", missing: "⏱", empty: "⏱", error: "⚠", loading: "" };
+
+/**
+ * Show what a map cannot draw (slot.status()), in its .map-notice element:
+ * notices: [{tag, status}] (tag "A" / "B" in comparisons, or "").
+ * `onCredentials(name)` opens the credentials dialog.
+ */
+export function showNotices(el, notices, onCredentials) {
+  const shown = notices.filter((n) => n.status);
+  const key = JSON.stringify(shown.map((n) => [n.tag, n.status.kind, n.status.message]));
+  if (key === el.dataset.key) return;
+  el.dataset.key = key;
+  el.hidden = !shown.length;
+  el.innerHTML = shown
+    .map(({ tag, status: s }) => {
+      const btn = s.kind === "credential" ? `<button type="button" class="btn notice-btn" data-cred="${esc(s.credential)}">Enter API key</button>` : "";
+      return `<div class="notice ${s.kind}">${tag ? `<span class="slot-tag tag-${tag.toLowerCase()}">${tag}</span>` : ""}
+        <span class="notice-icon" aria-hidden="true">${NOTICE_ICONS[s.kind] ?? ""}</span>
+        <span class="notice-text">${esc(s.message)}</span>${btn}</div>`;
+    })
+    .join("");
+  el.querySelectorAll("[data-cred]").forEach((b) => b.addEventListener("click", () => onCredentials?.(b.dataset.cred)));
+}
+// #endregion map-notice
 
 // #region landmark-layers
 /** Landmark markers and names, as in render.add_landmarks. */
@@ -293,9 +348,10 @@ export class MapChrome {
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
-/** Title, subtitle and native-resolution line of a product. */
-export function titleHTML(p, { tag = "", compact = false } = {}) {
-  const sub = p.subtitle;
+/** Title, subtitle (with the selected time) and native-resolution line of a product. */
+export function titleHTML(p, { tag = "", compact = false, time = "", t = null } = {}) {
+  const sub = [time, p.subtitle].filter(Boolean).join(compact ? " · " : "\n");
+  const native = (t && p.native_by_time?.[t]) || p.native;
   const subHTML = sub
     ? compact
       ? `<div class="subtitle compact" title="${esc(sub)}">${esc(sub.split("\n")[0])}</div>`
@@ -304,7 +360,7 @@ export function titleHTML(p, { tag = "", compact = false } = {}) {
   return `
     <div class="title-row">${tag}<h2 class="title">${esc(p.title || p.menu_title)}</h2></div>
     ${subHTML}
-    ${p.native ? `<div class="view-line">Native resolution: ${esc(p.native)}</div>` : ""}`;
+    ${native ? `<div class="view-line">Native resolution: ${esc(native)}</div>` : ""}`;
 }
 
 function linearTicks(lo, hi, n = 5) {

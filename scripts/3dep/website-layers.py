@@ -53,7 +53,7 @@ def main():
             layers=[web.layer("dem", web.colormap("gray", Normalize(0, 1), band="elevation", hillshade=True))],
         ),
     }
-    web.write_spec(DATASET, sources, products)
+    web.write_spec(DATASET, sources, products, dict(coverage=web.CONUS, min_zoom=10))
 
 
 if __name__ == "__main__":

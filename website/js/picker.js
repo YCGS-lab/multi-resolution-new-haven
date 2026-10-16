@@ -1,9 +1,15 @@
 // Hierarchical image picker: a button that opens a searchable, collapsible
-// tree of groups -> products.
+// tree of groups -> products. Products that need an API key the user has not
+// entered (lock) or the cloud deployment (cloud) are grayed out, with the
+// reason as a tooltip; picking a locked one opens the credentials dialog.
+
+import { openCredentials, requirement } from "./env.js";
 
 const popup = () => document.getElementById("picker-popup");
 const collapsed = new Set(); // group paths collapsed by the user (shared by all pickers)
 let active = null; // the picker whose popup is open
+
+const REQ_ICON = { credential: "🔒", cloud: "☁" };
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
@@ -39,13 +45,14 @@ export class Picker {
       return;
     }
     const path = r.path.join(" › ");
+    const req = requirement(r);
     this.button.innerHTML = `
       <span class="pb-text">
         <span class="pb-path">${esc(path)}</span>
-        <span class="pb-label">${esc(r.label)}</span>
+        <span class="pb-label">${req.ok ? "" : `<span class="req-icon ${req.kind}" aria-hidden="true">${REQ_ICON[req.kind]}</span>`}${esc(r.label)}</span>
       </span>
       <span class="caret">▾</span>`;
-    this.button.title = `${path} › ${r.label}`;
+    this.button.title = `${path} › ${r.label}${req.ok ? "" : `\n${req.message}`}`;
   }
 
   open() {
@@ -101,10 +108,13 @@ export class Picker {
       if (node.layers) {
         if (!matches(node)) return false;
         const isCur = cur === node;
+        const req = requirement(node);
+        const icon = req.ok ? "" : `<span class="req-icon ${req.kind}" aria-hidden="true">${REQ_ICON[req.kind]}</span>`;
         html.push(`
-          <div class="pk-item${isCur ? " current" : ""}" style="--depth:${depth}">
+          <div class="pk-item${isCur ? " current" : ""}${req.ok ? "" : ` unavailable ${req.kind}`}" style="--depth:${depth}">
             <button type="button" class="pk-pick" data-id="${esc(node.id)}" role="option" aria-selected="${isCur}"
-              title="${esc(node.title || node.menu_title)}">${esc(node.label)}</button>
+              ${req.ok ? "" : `aria-disabled="true" data-req="${req.kind}" data-cred="${esc(req.credential ?? "")}"`}
+              title="${esc(req.ok ? node.title || node.menu_title : req.message)}">${icon}${esc(node.label)}</button>
           </div>`);
         return true;
       }
@@ -142,7 +152,14 @@ export class Picker {
       this.set(id);
       this.onSelect?.(id);
     };
-    tree.querySelectorAll(".pk-pick").forEach((b) => b.addEventListener("click", () => pick(b.dataset.id)));
+    tree.querySelectorAll(".pk-pick").forEach((b) =>
+      b.addEventListener("click", () => {
+        if (b.dataset.req === "credential") {
+          close();
+          openCredentials(b.dataset.cred);
+        } else if (!b.dataset.req) pick(b.dataset.id);
+      }),
+    );
   }
   // #endregion picker-tree
 }

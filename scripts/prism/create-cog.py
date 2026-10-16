@@ -44,7 +44,8 @@ def main():
             ],
         )
     }
-    web.write_spec(DATASET, sources, products)
+    # pre-built for one timestep: shown as such (no live source for the website)
+    web.write_spec(DATASET, sources, products, dict(time=web.snapshot_time("2026-07", "month", label="Month")))
 
 
 if __name__ == "__main__":

@@ -19,6 +19,11 @@ as in visualize.py), read directly from tile.openstreetmap.org, and grows
 the footprints to a few screen pixels when zoomed out.
 
 Products: canopy_height, canopy_height_allyears, tracks.
+
+Also writes website/image-data/icesat2-profiles.json for the website's
+ICESat-2 tab: the sample lines' ground tracks and their ATL03 photons with
+ATL08 classes (the data of figures/icesat2/profile_<n>.png), from the same
+downloaded files.
 """
 
 import sys
@@ -26,12 +31,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import json
+
 import numpy as np
 from rasterio.features import rasterize
 from shapely.geometry import LineString
 
 from common import remote, web
-from visualize import ALL_YEARS, CANOPY_CMAP, CANOPY_NORM, LINE_COLORS, NO_CANOPY, RECENT, load_20m, load_lines, pass_summary
+from visualize import ALL_YEARS, CANOPY_CMAP, CANOPY_NORM, CLASSES, LINE_COLORS, NO_CANOPY, RECENT, load_20m, load_lines, pass_summary
 
 # region burn-footprint-discs
 PIXEL_M = 2.5
@@ -124,6 +131,69 @@ def main():
     )
     # endregion dilated-products
     web.write_spec("icesat2", sources, products)
+    write_profiles(lines)
+
+
+# region profiles-json
+TRACK_STEP_M = 10.0  # ground track vertices every 10 m along track
+
+
+def write_profiles(lines):
+    """website/image-data/icesat2-profiles.json: per sample line, the ground
+    track (lon / lat every TRACK_STEP_M, with its along-track distance) and the
+    photons (distance along track and height in decimeters, ATL08 class), plus
+    the plot's height range (as in visualize.profile)."""
+    out = []
+    for line, color in zip(lines, LINE_COLORS):
+        ph = line["photons"].sort_values("dist_km")
+        d = ph["dist_km"].values * 1000
+        h = ph["height"].values
+        cls = ph["atl08_class"].values.astype(int)
+        lon, lat = ph.geometry.x.values, ph.geometry.y.values
+        signal = np.isin(cls, (1, 2, 3))
+        ground = h[cls == 1]
+        lo = float(np.percentile(ground, 0.5) - 15)
+        hi = float(np.percentile(h[signal], 99.9) + 25)
+        keep = (h > lo - 50) & (h < hi + 50)  # photons far outside the plotted range are left out
+        bins = np.floor(d / TRACK_STEP_M).astype(int)
+        track = []
+        for b in np.unique(bins):
+            m = bins == b
+            track.append([round(float(lon[m].mean()), 6), round(float(lat[m].mean()), 6), round(float(d[m].mean()), 1)])
+        strength = "strong" if line["spot"] in (1, 3, 5) else "weak"
+        out.append(
+            dict(
+                n=line["n"],
+                color=color,
+                label=line["label"],
+                time=str(ph.index.min())[:16],
+                rgt=line["rgt"],
+                cycle=line["cycle"],
+                beam=line["beam"],
+                spot=line["spot"],
+                strength=strength,
+                length_m=round(float(d.max()), 1),
+                height_range=[round(lo, 1), round(hi, 1)],
+                track=track,
+                photons=dict(
+                    dist_dm=np.round(d[keep] * 10).astype(int).tolist(),
+                    height_dm=np.round(h[keep] * 10).astype(int).tolist(),
+                    cls="".join(map(str, cls[keep])),
+                ),
+            )
+        )
+        print(f"  line {line['n']}: {keep.sum()} photons, {len(track)} track vertices")
+    classes = [dict(code=c, label=l, color=col, order=o) for c, (l, col, o) in CLASSES.items()]
+    path = web.WEB_DATA / "icesat2-profiles.json"
+    data = dict(
+        source=DATA_SOURCE,
+        note="Distance along track from the southern edge of the Greater New Haven view",
+        classes=classes,
+        lines=out,
+    )
+    path.write_text(json.dumps(data, separators=(",", ":")) + "\n")
+    print(f"  wrote {path.relative_to(web.config.REPO)} ({path.stat().st_size / 1e6:.1f} MB)")
+# endregion profiles-json
 
 
 if __name__ == "__main__":

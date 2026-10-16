@@ -39,7 +39,8 @@ def main():
             layers=[web.layer("precip", web.colormap(CMAP, NORM, "Precipitation (mm/day)", band="precip", extend="max"))],
         )
     }
-    web.write_spec(DATASET, sources, products)
+    # pre-built for one timestep: shown as such (no live source for the website)
+    web.write_spec(DATASET, sources, products, dict(time=web.snapshot_time(f"{DATE:%Y-%m-%d}", "day", label="Day")))
 
 
 if __name__ == "__main__":

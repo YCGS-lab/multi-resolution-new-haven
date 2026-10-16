@@ -42,41 +42,35 @@ TREE = [
         "Optical imagery",
         group(
             "True color",
-            item("ct-ortho-2023", "truecolor", "CT orthoimagery 2023 (7.6 cm)", "Connecticut 2023 orthoimagery, true color"),
-            item("naip", "truecolor", "NAIP 2023 (0.3 m)", "NAIP 2023, true color"),
-            item("planet", "truecolor", "Planet basemap, July 2026 (4.8 m)", "Planet monthly basemap, true color"),
-            item("landsat", "truecolor", "Landsat 8, 2024-08-27 (30 m)", "Landsat 8 true color"),
+            item("ct-ortho", "truecolor", "CT orthoimagery, 1934-2023 (7.6 cm-1 m)", "Connecticut orthoimagery, true color"),
+            item("naip", "truecolor", "NAIP (0.3-1 m)", "NAIP, true color"),
+            item("planet", "truecolor", "Planet monthly basemap (4.8 m)", "Planet monthly basemap, true color"),
+            item("landsat", "truecolor", "Landsat 8-9 (30 m)", "Landsat 8-9 true color"),
         ),
         group(
             "Color infrared",
-            item("ct-ortho-2023", "cir", "CT orthoimagery 2023 (7.6 cm)", "Connecticut 2023 orthoimagery, color infrared"),
-            item("naip", "cir", "NAIP 2023 (0.3 m)", "NAIP 2023, color infrared"),
-            item("landsat", "cir", "Landsat 8 (30 m)", "Landsat 8 color infrared"),
+            item("ct-ortho", "cir", "CT orthoimagery, 2012-2023 (7.6-30 cm)", "Connecticut orthoimagery, color infrared"),
+            item("naip", "cir", "NAIP (0.3-1 m)", "NAIP, color infrared"),
+            item("landsat", "cir", "Landsat 8-9 (30 m)", "Landsat 8-9 color infrared"),
         ),
         group(
-            "Landsat 8, 2024-08-27",
-            item("landsat", "pan", "Panchromatic (15 m)", "Landsat 8 panchromatic (OLI band 8)"),
-            item("landsat", "veg", "False color: vegetation", "Landsat 8 false color (vegetation)"),
-            item("landsat", "urban", "False color: urban", "Landsat 8 false color (urban)"),
+            "Landsat 8-9",
+            item("landsat", "veg", "False color: vegetation", "Landsat 8-9 false color (vegetation)"),
+            item("landsat", "urban", "False color: urban", "Landsat 8-9 false color (urban)"),
+            item("landsat-pan", "pan", "Panchromatic, 2024-08-27 (15 m)", "Landsat 8 panchromatic (OLI band 8)"),
         ),
     ),
     group(
         "Temperature",
         group(
             "Land surface temperature",
-            item("landsat", "lst", "Landsat 8, 2024-08-27 (100 m)", "Landsat 8 land surface temperature"),
+            item("landsat", "lst", "Landsat 8-9 (100 m)", "Landsat 8-9 land surface temperature"),
             item("viirs-lst", "lst", "VIIRS, 2026-06-03 (750 m)", "VIIRS land surface temperature (750 m)"),
             item("goes-lst", "lst", "GOES-19 ABI, 2026-06-03 (2 km)", "GOES-19 ABI land surface temperature (2 km)"),
         ),
         group(
             "Air temperature",
-            group(
-                "ERA5-Land 2 m, 2026-07-20 (0.1°)",
-                item("era5-land", "t2m_sunrise", "Sunrise", "ERA5-Land 2 m air temperature, sunrise"),
-                item("era5-land", "t2m_midday", "Solar noon", "ERA5-Land 2 m air temperature, solar noon"),
-                item("era5-land", "t2m_sunset", "Sunset", "ERA5-Land 2 m air temperature, sunset"),
-                item("era5-land", "t2m_night", "Middle of the night", "ERA5-Land 2 m air temperature, middle of the night"),
-            ),
+            item("era5-land", "t2m", "ERA5-Land 2 m, hourly (0.1°)", "ERA5-Land 2 m air temperature"),
             item("prism", "tmean", "PRISM July 2026 mean (800 m)", "PRISM mean air temperature"),
         ),
     ),
@@ -84,17 +78,17 @@ TREE = [
         "Elevation",
         group(
             "Bare-earth elevation",
-            item("ct-lidar-2023", "elevation", "CT lidar 2023 (0.6 m)", "Connecticut 2023 lidar elevation (bare earth)"),
+            item("ct-lidar", "elevation", "CT lidar 2016, 2023 (0.6 m)", "Connecticut lidar elevation (bare earth)"),
             item("3dep", "elevation", "USGS 3DEP (~1 m)", "USGS 3DEP elevation"),
             item("aster-dem", "elevation", "ASTER GDEM v3 (30 m)", "ASTER GDEM v3 elevation"),
         ),
         group(
             "Hillshade",
-            item("ct-lidar-2023", "hillshade", "CT lidar 2023 (0.6 m)", "Connecticut 2023 lidar hillshade (bare earth)"),
+            item("ct-lidar", "hillshade", "CT lidar 2016, 2023 (0.6 m)", "Connecticut lidar hillshade (bare earth)"),
             item("3dep", "hillshade", "USGS 3DEP (~1 m)", "USGS 3DEP hillshade"),
             item("aster-dem", "hillshade", "ASTER GDEM v3 (30 m)", "ASTER GDEM v3 hillshade"),
         ),
-        item("ct-lidar-2023", "surface", "Surface elevation: CT lidar 2023 (0.9 m)", "Connecticut 2023 lidar surface elevation"),
+        item("ct-lidar", "surface", "Surface elevation: CT lidar 2023 (0.9 m)", "Connecticut 2023 lidar surface elevation"),
     ),
     group(
         "Vegetation and land cover",
@@ -111,7 +105,7 @@ TREE = [
         ),
     ),
     group(
-        "Radar: NISAR L-band SAR, 2026-07-17",
+        "Radar: NISAR L-band SAR (slow: ~5-10 s per tile)",
         group(
             "Dual-pol composites",
             item("nisar-gcov", "balanced", "Balanced", "NISAR L-band SAR: balanced dual-pol RGB"),
@@ -127,12 +121,17 @@ TREE = [
     ),
     group(
         "Water",
-        item("smap", "sm_rootzone", "SMAP root-zone soil moisture (9 km)", "SMAP L4 root-zone soil moisture (0-100 cm)"),
+        group(
+            "SMAP root-zone soil moisture (9 km)",
+            item("smap", "sm_rootzone", "3-hourly", "SMAP L4 root-zone soil moisture (0-100 cm)"),
+            item("smap-prebuilt", "sm_rootzone", "2026-07-30 (pre-built)", "SMAP L4 root-zone soil moisture (0-100 cm)"),
+        ),
         item("chirps", "precip", "CHIRPS daily precipitation (0.05°)", "CHIRPS v3 daily precipitation"),
     ),
     group(
         "Night lights",
-        item("viirs-nightlights", "radiance", "VIIRS Black Marble 2025 (500 m)", "VIIRS Black Marble night lights"),
+        item("viirs-nightlights", "radiance", "VIIRS Black Marble, annual (500 m)", "VIIRS Black Marble night lights"),
+        item("viirs-nightlights-prebuilt", "radiance", "VIIRS Black Marble 2025 (500 m, pre-built)", "VIIRS Black Marble night lights"),
     ),
     group(
         "Street maps",
@@ -146,17 +145,42 @@ TREE = [
 
 # region load-and-resolve
 def load_specs() -> tuple[dict, dict]:
-    """Sources {"<dataset>/<name>": source} and products {"<dataset>/<product>": product}."""
+    """Sources {"<dataset>/<name>": source} and products {"<dataset>/<product>": product}.
+
+    Each product gets its dataset's `meta` (time, requires, coverage, min_zoom;
+    the product's own keys win), and, if it has no coverage, the bounds of its
+    COG sources (data stored for the website extent only)."""
     sources, products = {}, {}
     for path in sorted(web.WEB_DATA.glob("*.json")):
         spec = json.loads(path.read_text())
+        if "dataset" not in spec:
+            continue  # e.g. the ICESat-2 profiles
         ds = spec["dataset"]
         for name, s in spec["sources"].items():
             sources[f"{ds}/{name}"] = s
         for name, p in spec["products"].items():
+            p = {"dataset": ds, **spec.get("meta", {}), **p}
             p["layers"] = [{**l, "source": f"{ds}/{l['source']}"} for l in p["layers"]]
+            if not p.get("coverage"):
+                p["coverage"] = cog_coverage([sources[l["source"]] for l in p["layers"]])
             products[f"{ds}/{name}"] = p
     return sources, products
+
+
+def cog_coverage(layer_sources: list[dict]) -> dict | None:
+    """Lon / lat bounds of the COG sources among a product's layers (None if it has none)."""
+    from pyproj import Transformer
+
+    cogs = [s for s in layer_sources if s["type"] == "cog"]
+    if not cogs:
+        return None
+    to_ll = Transformer.from_crs(CRS, "EPSG:4326", always_xy=True)
+    xmin = min(s["bounds"][0] for s in cogs)
+    ymin = min(s["bounds"][1] for s in cogs)
+    xmax = max(s["bounds"][2] for s in cogs)
+    ymax = max(s["bounds"][3] for s in cogs)
+    (w, e), (s_, n) = to_ll.transform([xmin, xmax], [ymin, ymax])
+    return web.coverage(round(w, 5), round(s_, 5), round(e, 5), round(n, 5), "the area stored for this website")
 
 
 def resolve(node: dict, products: dict, seen: set) -> dict | None:

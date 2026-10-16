@@ -1,4 +1,5 @@
-// Grid of images with synchronized pan / zoom.
+// Grid of images with synchronized pan / zoom. Each slot has its own product
+// and time (slot.js), e.g. one image at several dates.
 //
 // All slots share ONE deck.gl canvas (fixed behind the page) with one
 // OrthographicView per slot, placed over the slot's map area; the slot's own
@@ -18,10 +19,15 @@ import {
   keyHTML,
   landmarkLayers,
   productLayers,
+  showNotices,
   titleHTML,
   toDeckViewState,
+  viewBounds,
 } from "./mapview.js";
+import { openCredentials } from "./env.js";
 import { Picker } from "./picker.js";
+import { Slot, slippyZoom } from "./slot.js";
+import { TimeControl } from "./timecontrol.js";
 
 let nextUid = 0;
 
@@ -74,9 +80,10 @@ export class Grid {
   // ----- state ---------------------------------------------------------
 
   get state() {
-    return { cols: this.cols, slots: this.slots.map((s) => s.sel) };
+    return { cols: this.cols, slots: this.slots.map((s) => s.ts.sel) };
   }
 
+  /** slots: selections (slot.js) or null. */
   restore({ cols, slots }) {
     this.cols = cols;
     this.root.querySelector("#grid-cols").value = String(cols);
@@ -84,7 +91,7 @@ export class Grid {
     for (const sel of slots) {
       const slot = this.newSlot();
       this.slots.push(slot);
-      if (sel) this.select(slot, sel, false);
+      if (sel?.id) slot.ts.setSel(sel);
     }
     this.pad();
     this.renderSlots();
@@ -97,7 +104,17 @@ export class Grid {
   }
 
   newSlot() {
-    return { uid: `s${nextUid++}`, sel: null }; // sel: product id
+    const slot = { uid: `s${nextUid++}` };
+    slot.ts = new Slot(this.catalog, {
+      onChange: () => {
+        slot.loading?.reset();
+        this.renderSlot(slot);
+        this.update();
+        this.onChange?.();
+      },
+    });
+    Object.defineProperty(slot, "sel", { get: () => slot.ts.sel.id }); // product id
+    return slot;
   }
 
   addRows(n) {
@@ -125,14 +142,9 @@ export class Grid {
     }
   }
 
-  select(slot, id, render = true) {
-    slot.sel = this.catalog.get(id) ? id : null;
-    slot.loading?.reset();
-    if (render) {
-      this.renderSlot(slot);
-      this.layout();
-    }
-    this.onChange?.();
+  select(slot, id) {
+    slot.ts.select(this.catalog.get(id) ? id : null);
+    this.layout();
   }
 
   reset() {
@@ -180,6 +192,7 @@ export class Grid {
         <div class="picker-host"></div>
         <button class="icon-btn clear" title="Remove this image">×</button>
       </div>
+      <div class="time-host"></div>
       <div class="slot-title"></div>
       <div class="map-frame slot-frame">
         <div class="axis axis-left"></div>
@@ -187,6 +200,7 @@ export class Grid {
           <button class="add-image" type="button"><span class="plus">+</span>Add image</button>
           <div class="scalebar"></div>
           <div class="map-message" hidden></div>
+          <div class="map-notice" hidden aria-live="polite"></div>
           <div class="rearrange-overlay"><span>⠿ Drag to move</span></div>
         </div>
         <div class="axis-corner"></div>
@@ -196,6 +210,8 @@ export class Grid {
     slot.el = el;
     slot.map = el.querySelector(".slot-map");
     slot.loading = new LoadingState(el.querySelector(".map-message"));
+    slot.notice = el.querySelector(".map-notice");
+    slot.time = new TimeControl(el.querySelector(".time-host"), slot.ts, { compact: true });
     slot.chrome = new MapChrome(el.querySelector(".slot-frame"), this.catalog, { tickSpacing: [96, 44] });
     slot.picker = new Picker(el.querySelector(".picker-host"), this.catalog, {
       placeholder: "Select an image",
@@ -218,10 +234,12 @@ export class Grid {
     el.draggable = this.rearrange && !!r;
     el.querySelector(".clear").hidden = !r;
     el.querySelector(".add-image").hidden = !!r;
-    const key = JSON.stringify(slot.sel);
+    slot.time.render();
+    const timeLabel = slot.ts.timeLabel();
+    const key = JSON.stringify([slot.sel, timeLabel, slot.ts.sel.t]);
     if (slot.titleKey !== key) {
       slot.titleKey = key;
-      el.querySelector(".slot-title").innerHTML = r ? titleHTML(r, { compact: true }) : "";
+      el.querySelector(".slot-title").innerHTML = r ? titleHTML(r, { compact: true, time: timeLabel, t: slot.ts.sel.t }) : "";
       el.querySelector(".slot-key").innerHTML = r ? keyHTML(r, this.catalog, { source: false }) : "";
     }
     if (!r) el.querySelectorAll(".axis").forEach((a) => (a.innerHTML = ""));
@@ -301,10 +319,15 @@ export class Grid {
     const [w, h] = this.slotSize;
     const views = [];
     const layers = [];
+    const bounds = viewBounds(this.viewState, c, w, h);
+    const zoom = slippyZoom(this.viewState.zoom);
     for (const s of this.slots) {
       if (!s.map) continue;
       const p = c.get(s.sel);
       if (!p) continue;
+      s.ts.setView(bounds, zoom);
+      const status = s.ts.status();
+      showNotices(s.notice, [{ tag: "", status }], (name) => openCredentials(name));
       const b = s.map.getBoundingClientRect();
       if (b.bottom < canvas.top || b.top > canvas.bottom || b.right < canvas.left || b.left > canvas.right) continue;
       views.push(
@@ -317,7 +340,11 @@ export class Grid {
           controller: this.rearrange ? false : CONTROLLER,
         }),
       );
-      layers.push(backgroundLayer(`${s.uid}-bg`, c), ...productLayers(`${s.uid}-image`, c, p, s.loading));
+      layers.push(backgroundLayer(`${s.uid}-bg`, c));
+      if (!status)
+        layers.push(
+          ...productLayers(`${s.uid}-image`, c, p, s.loading, undefined, { time: s.ts.ctx(), view: bounds, onReady: () => this.update() }),
+        );
       if (this.settings.labels) layers.push(...landmarkLayers(`${s.uid}-landmarks`, c, p.landmark_color));
     }
     const deckViewState = toDeckViewState(this.viewState, c);

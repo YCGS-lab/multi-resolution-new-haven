@@ -235,6 +235,7 @@ def arcgis_source(
     raw: bool = False,
     scale: float = 1.0,
     nodata: float | None = None,
+    variants: dict[str, dict] | None = None,
 ) -> dict:
     """An ArcGIS ImageServer, read through exportImage for each website tile.
 
@@ -243,6 +244,9 @@ def arcgis_source(
     raw=True:  float32 values (rendering rule None), named `bands`, multiplied
                by `scale` (e.g. feet to meters); `nodata` is masked.
     native_m: ground pixel size of the source (limits the website's zoom levels).
+    variants: per timestep (a key of the product's time list, e.g. "2019"), the
+              fields that differ for that timestep, e.g. another service URL:
+              {"2019": arcgis_variant(url, native_m, band_ids=...)}.
     """
     s = dict(type="arcgis", url=url.rstrip("/"), raw=raw, res=native_m * EXTENT_VIEW.merc_scale, pixel_m=native_m)
     if raw:
@@ -251,16 +255,35 @@ def arcgis_source(
         s.update(bands=["r", "g", "b"])
     if band_ids is not None:
         s["band_ids"] = band_ids
+    if variants:
+        s["variants"] = variants
     return s
+
+
+def arcgis_variant(url: str, native_m: float, **fields) -> dict:
+    """The fields of an arcgis_source that change for one timestep (see arcgis_source's `variants`)."""
+    return dict(url=url.rstrip("/"), res=native_m * EXTENT_VIEW.merc_scale, pixel_m=native_m, **fields)
 # endregion arcgis-source
 
 
 # region xyz-source
-def xyz_source(url: str, max_zoom: int, attribution: str | None = None, tile_size: int = 256) -> dict:
+def xyz_source(
+    url: str,
+    max_zoom: int,
+    attribution: str | None = None,
+    tile_size: int = 256,
+    smooth: bool = True,
+) -> dict:
     """XYZ (slippy map) tiles, {z}/{x}/{y}: map images shown with `identity()`.
 
     The website picks the zoom level so that map labels come out at about their
-    design size (tile_size=512 for "@2x" tiles) and scales the tiles smoothly.
+    design size (tile_size=512 for "@2x" tiles) and scales the tiles smoothly
+    (smooth=False: imagery, drawn with nearest neighbor at native resolution).
+
+    The URL may also hold {time:<name>} placeholders, filled from the selected
+    timestep's parameters (see time_spec), and {credential:<name>}, filled
+    from the credentials the user entered on the website (never stored in
+    the catalog).
     """
     native_res = 2 * math.pi * 6378137.0 / (tile_size * 2**max_zoom)
     return dict(
@@ -272,7 +295,7 @@ def xyz_source(url: str, max_zoom: int, attribution: str | None = None, tile_siz
         res=native_res,
         pixel_m=native_res / EXTENT_VIEW.merc_scale,
         attribution=attribution,
-        smooth=True,
+        smooth=smooth,
     )
 # endregion xyz-source
 
@@ -400,11 +423,15 @@ def product(
     native: str | None = None,
     legend: dict | None = None,
     landmark_color: str = "white",
+    **meta,
 ) -> dict:
     """A menu image: layers drawn bottom to top, plus the text around it.
 
-    native: short description of the native resolution (shown under the title).
+    native: short description of the native resolution (shown under the title);
+            native_by_time={timestep: text} where it changes with the timestep.
     legend: dict(entries=[(color, label), ...], [title, ncol]).
+    meta: this product's own time / requires / coverage / min_zoom / native_by_time
+          (else the dataset's, see write_spec).
     """
     p = dict(
         title=title,
@@ -413,6 +440,7 @@ def product(
         native=native,
         landmark_color=_hex(landmark_color),
         layers=layers,
+        **meta,
     )
     if legend:
         p["legend"] = dict(
@@ -425,14 +453,262 @@ def product(
 
 
 # region write-spec
-def write_spec(dataset: str, sources: dict[str, dict], products: dict[str, dict]) -> Path:
-    """Write website/image-data/<dataset>.json."""
+def write_spec(dataset: str, sources: dict[str, dict], products: dict[str, dict], meta: dict | None = None) -> Path:
+    """Write website/image-data/<dataset>.json.
+
+    meta: what every product of the dataset shares (a product's own keys win):
+    dict(time=time_spec(...), requires=..., coverage=coverage(...), min_zoom=...); see dataset_meta.
+    """
     for name, p in products.items():
         for l in p["layers"]:
             assert l["source"] in sources, f"{name}: unknown source {l['source']}"
     WEB_DATA.mkdir(parents=True, exist_ok=True)
     path = WEB_DATA / f"{dataset}.json"
-    path.write_text(json.dumps(dict(dataset=dataset, sources=sources, products=products), indent=1, ensure_ascii=False) + "\n")
+    spec = dict(dataset=dataset, meta=meta or {}, sources=sources, products=products)
+    path.write_text(json.dumps(spec, indent=1, ensure_ascii=False) + "\n")
     print(f"  wrote {path.relative_to(config.REPO)}: {', '.join(products)}")
     return path
 # endregion write-spec
+
+
+# --------------------------------------------------------------------------
+# Live sources: data services the website queries for the selected timestep
+# --------------------------------------------------------------------------
+
+PC_STAC = "https://planetarycomputer.microsoft.com/api/stac/v1"
+PC_DATA = "https://planetarycomputer.microsoft.com/api/data/v1"
+
+
+# region pc-mosaic-source
+def pc_mosaic_source(
+    collection: str,
+    bands: dict[str, str],
+    native_m: float,
+    fmt: str = "npy",
+    scale: dict[str, float] | None = None,
+    offset: dict[str, float] | None = None,
+    nodata: float | None = None,
+    query: list[dict] | None = None,
+    max_zoom: int | None = None,
+) -> dict:
+    """A Planetary Computer STAC collection, mosaicked per timestep by its data API.
+
+    For the selected timestep (or start / end window), the website registers a
+    mosaic search (POST {PC_DATA}/mosaic/register: the collection, the window,
+    the user's filters, e.g. eo:cloud_cover, plus `query`, CQL2-JSON
+    conditions) and reads its tiles:
+      fmt="npy": raw values of the assets the render spec needs (named by
+                 `bands`: band -> "asset" or "asset|band index"), times
+                 `scale` plus `offset` per band (e.g. Landsat Collection 2
+                 scale factors); `nodata` = no data
+      fmt="png": the assets as an 8-bit RGB image, shown with identity()
+    """
+    s = dict(
+        type="pc-mosaic",
+        stac=PC_STAC,
+        api=PC_DATA,
+        collection=collection,
+        bands=list(bands),
+        assets=bands,
+        format=fmt,
+        res=native_m * EXTENT_VIEW.merc_scale,
+        pixel_m=native_m,
+        query=query or [],
+    )
+    if scale:
+        s["scale"] = scale
+    if offset:
+        s["offset"] = offset
+    if nodata is not None:
+        s["nodata"] = nodata
+    if max_zoom is not None:
+        s["max_zoom"] = max_zoom
+    return s
+# endregion pc-mosaic-source
+
+
+# region titiler-cmr-source
+def titiler_cmr_source(
+    concept_id: str,
+    variables: list[str],
+    native_m: float,
+    group: str | None = None,
+    derive: dict[str, str] | None = None,
+    attribution: str | None = None,
+    service: str = "titiler_cmr",
+) -> dict:
+    """A NASA Earthdata (CMR) collection read by titiler-cmr's xarray backend.
+
+    titiler-cmr runs next to the data (S3 in us-west-2) and opens the granules
+    of the selected window on the fly. The website calls the service named
+    `service` in env.json: "titiler_cmr" is the public NASA VEDA deployment
+    (works from anywhere); "earthdata_tiler" is a deployment of the same API
+    with Earthdata S3 credentials for the DAACs the public one cannot read,
+    run alongside the website in AWS (cloud-only, see requires_cloud). Tiles
+    are raw values of `variables` (NPY) mosaicked over the selected window;
+    `derive` adds bands computed from them (name -> expression, e.g.
+    "10 * log10(HHHH)").
+    """
+    s = dict(
+        type="titiler-cmr",
+        service=service,
+        concept_id=concept_id,
+        variables=variables,
+        bands=[*variables, *(derive or {})],
+        res=native_m * EXTENT_VIEW.merc_scale,
+        pixel_m=native_m,
+    )
+    if group:
+        s["group"] = group
+    if derive:
+        s["derive"] = derive
+    if attribution:
+        s["attribution"] = attribution
+    return s
+# endregion titiler-cmr-source
+
+
+# region cds-source
+def cds_source(dataset: str, variable: str, band: str, native_deg: float, offset: float = 0.0, max_area_deg: float = 12.0) -> dict:
+    """A Copernicus Climate Data Store dataset on a regular lat / lon grid
+    (e.g. ERA5-Land), requested by the website with the user's CDS API key
+    for the selected hour(s) over the area in view (at most `max_area_deg` on
+    a side), as GRIB; values + `offset` (e.g. -273.15 for K to deg C) become
+    band `band`."""
+    return dict(
+        type="cds",
+        api="https://cds.climate.copernicus.eu/api",
+        dataset=dataset,
+        variable=variable,
+        bands=[band],
+        offset=offset,
+        grid_deg=native_deg,
+        max_area_deg=max_area_deg,
+        res=native_deg * 111320 * EXTENT_VIEW.merc_scale,
+        pixel_m=native_deg * 111320,
+        credential="cds",
+    )
+# endregion cds-source
+
+
+# --------------------------------------------------------------------------
+# Time, requirements, coverage
+# --------------------------------------------------------------------------
+
+
+# region time-spec
+def time_spec(
+    step: str,
+    availability: dict,
+    label: str = "Date",
+    widget: str = "auto",
+    window: dict | None = None,
+    filters: list[dict] | None = None,
+) -> dict:
+    """How a dataset's timesteps are listed and picked on the website.
+
+    step: "year", "month", "day", "hour" or "time" (any time of day): what
+          one timestep is, and its key: "2023", "2026-07", "2026-07-20",
+          "2026-07-20T14:00Z" (hour and time).
+    availability: where the list of timesteps comes from (avail_* below);
+          the website asks for the area in view, so it can say when a
+          timestep has no data there.
+    widget: "auto" (a drop-down for a few timesteps, a calendar for many),
+          "list" or "calendar".
+    window: window_spec(...) if the user may pick an end date too (the
+          images in between are mosaicked); else None.
+    filters: filter_range(...) / ... conditions on the images (e.g. cloud cover).
+    The default is the latest timestep with data in view.
+    """
+    assert step in ("year", "month", "day", "hour", "time"), step
+    t = dict(step=step, availability=availability, label=label, widget=widget)
+    if window:
+        t["window"] = window
+    if filters:
+        t["filters"] = filters
+    return t
+
+
+def avail_list(values: list[str], labels: dict[str, str] | None = None, params: dict[str, dict] | None = None) -> dict:
+    """A fixed list of timesteps (keys as in time_spec), with optional labels
+    and URL parameters per timestep."""
+    a = dict(type="list", values=sorted(values))
+    if labels:
+        a["labels"] = labels
+    if params:
+        a["params"] = params
+    return a
+
+
+def avail_stac(source: str, max_items: int = 4000) -> dict:
+    """Timesteps with STAC items intersecting the view, from the search API of
+    a pc_mosaic_source (its collection and query); the items' properties
+    used by the filters (e.g. eo:cloud_cover) come along."""
+    return dict(type="stac", source=source, max_items=max_items)
+
+
+def avail_cmr(concept_id: str, max_items: int = 2000) -> dict:
+    """Timesteps with CMR granules intersecting the view (CMR search, public)."""
+    return dict(type="cmr", concept_id=concept_id, max_items=max_items)
+
+
+def avail_planet(prefix: str = "global_monthly_", suffix: str = "_mosaic") -> dict:
+    """Monthly Planet basemaps the user's API key can read (Planet Basemaps API):
+    mosaics named <prefix>YYYY_MM<suffix>; the timestep's `mosaic` parameter is the name."""
+    return dict(type="planet", prefix=prefix, suffix=suffix, credential="planet")
+
+
+def avail_hourly(start: str, lag_days: int) -> dict:
+    """Every hour from `start` (YYYY-MM-DD) until `lag_days` before today (e.g. a reanalysis)."""
+    return dict(type="hourly", start=start, lag_days=lag_days)
+
+
+def window_spec(max_days: int, options: list[dict] | None = None, label: str = "End date") -> dict:
+    """An end date may be picked, up to max_days after the start; `options`
+    (option(...)) say how the images in the window are combined."""
+    return dict(max_days=max_days, options=options or [], label=label)
+
+
+def option(id: str, label: str, choices: list[tuple[str, str]], default: str, help: str | None = None) -> dict:
+    """An advanced option: one of `choices` ((value, label) pairs)."""
+    o = dict(id=id, label=label, choices=[dict(value=v, label=l) for v, l in choices], default=default)
+    if help:
+        o["help"] = help
+    return o
+
+
+def filter_range(id: str, label: str, prop: str, lo: float, hi: float, default: float, step: float = 1, unit: str = "") -> dict:
+    """Keep images whose property `prop` is at most the user's value (lo..hi; default = all)."""
+    return dict(id=id, type="max", label=label, property=prop, min=lo, max=hi, default=default, step=step, unit=unit)
+# endregion time-spec
+
+
+# region requirements
+def requires_credential(name: str) -> dict:
+    """The dataset needs a credential the user enters on the website ("planet", "cds")."""
+    return dict(credential=name)
+
+
+def requires_cloud(reason: str, service: str | None = None) -> dict:
+    """The dataset is only read in the cloud deployment (e.g. NASA data in S3,
+    through a tiler next to it), and only if env.json names `service` there."""
+    r = dict(cloud=True, reason=reason)
+    if service:
+        r["service"] = service
+    return r
+
+
+def coverage(west: float, south: float, east: float, north: float, name: str) -> dict:
+    """Where a dataset has data (lon / lat box); outside it the website says so instead of drawing."""
+    return dict(bbox=[west, south, east, north], name=name)
+
+
+CONNECTICUT = coverage(-73.73, 40.95, -71.78, 42.06, "Connecticut")
+CONUS = coverage(-125.0, 24.4, -66.9, 49.5, "the contiguous United States")
+# endregion requirements
+
+
+def snapshot_time(key: str, step: str, label: str = "Date") -> dict:
+    """A dataset stored locally for one timestep only (a COG from create-cog.py):
+    the website shows the timestep, without choices."""
+    return time_spec(step, avail_list([key]), label=label, widget="list")

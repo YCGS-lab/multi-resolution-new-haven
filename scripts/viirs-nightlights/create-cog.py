@@ -48,7 +48,8 @@ def main():
             ],
         )
     }
-    web.write_spec(DATASET, sources, products)
+    # pre-built for one timestep (the live, cloud-only dataset is website-layers.py's)
+    web.write_spec(f"{DATASET}-prebuilt", sources, products, dict(time=web.snapshot_time(start[:4], "year", label="Year")))
 
 
 if __name__ == "__main__":
