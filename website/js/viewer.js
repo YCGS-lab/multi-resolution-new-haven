@@ -89,19 +89,19 @@ export class Viewer {
 
     // #region viewer-deck
     this.size = [this.mapEl.clientWidth || 800, this.mapEl.clientHeight || 450];
-    this.viewState = homeViewState(catalog.extent, ...this.size);
+    this.viewState = homeViewState(catalog.extent, ...this.size, catalog.limits);
     this.deck = new Deck({
       parent: this.mapEl,
       views: new MapView({ id: "main", controller: CONTROLLER }),
       viewState: toDeckViewState(this.viewState, catalog),
       onViewStateChange: ({ viewState }) => {
-        this.viewState = clampViewState(fromDeckViewState(viewState, catalog), catalog.extent, ...this.size);
+        this.viewState = clampViewState(fromDeckViewState(viewState, catalog), catalog.limits, ...this.size);
         this.update();
         return toDeckViewState(this.viewState, catalog);
       },
       onResize: ({ width, height }) => {
         this.size = [width, height];
-        this.viewState = clampViewState(this.viewState, catalog.extent, width, height);
+        this.viewState = clampViewState(this.viewState, catalog.limits, width, height);
         this.update();
       },
       layers: [],
@@ -176,12 +176,12 @@ export class Viewer {
   }
 
   zoomBy(d) {
-    this.viewState = clampViewState({ ...this.viewState, zoom: this.viewState.zoom + d }, this.catalog.extent, ...this.size);
+    this.viewState = clampViewState({ ...this.viewState, zoom: this.viewState.zoom + d }, this.catalog.limits, ...this.size);
     this.update();
   }
 
   reset() {
-    this.viewState = homeViewState(this.catalog.extent, ...this.size);
+    this.viewState = homeViewState(this.catalog.extent, ...this.size, this.catalog.limits);
     this.update();
   }
 
@@ -261,7 +261,7 @@ export class Viewer {
         if (lens) layers.push(lens);
       }
     }
-    if (this.settings.labels) layers.push(...landmarkLayers("landmarks", c, this.slots.a.product?.landmark_color));
+    if (this.settings.labels) layers.push(...landmarkLayers("landmarks", c, this.slots.a.product?.landmark_color, this.viewState.zoom));
     return layers;
   }
   // #endregion compare-layers

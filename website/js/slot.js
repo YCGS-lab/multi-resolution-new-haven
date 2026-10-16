@@ -216,7 +216,7 @@ export class Slot {
         message: this.raw?.size ? "No imagery in view passes the filters." : "Timestep not available: no imagery for this area.",
       };
     if (!this.sel.t2 && !this.steps.has(this.sel.t) && this.time.availability.type !== "list")
-      return { kind: "missing", message: `Timestep not available here: no imagery on ${keyLabel(this.sel.t, this.time.step)} in view.` };
+      return { kind: "missing", message: `Timestep not available here: no imagery for ${keyLabel(this.sel.t, this.time.step)} in view.` };
     return null;
   }
 

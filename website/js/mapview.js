@@ -14,6 +14,9 @@ import { productLayers as tileLayers } from "./tiles.js";
 // Deepest zoom: 2^6 = 64 screen pixels per Web Mercator meter, i.e. ~5 px per
 // 7.6 cm pixel of the CT orthoimagery.
 export const MAX_ZOOM = 6;
+// Shallowest zoom: slippy-map zoom 3 (the contiguous US fills a laptop screen at ~4).
+const MIN_SLIPPY_ZOOM = 3;
+const MIN_ZOOM = MIN_SLIPPY_ZOOM + Math.log2(256 / (2 * Math.PI * 6378137));
 const NODATA_FILL = [208, 208, 208]; // same gray as NODATA_FACE in render.py
 
 // #region deck-view-state
@@ -42,17 +45,19 @@ export function fitZoom(extent, w, h) {
   return Math.log2(Math.min(w / (extent[2] - extent[0]), h / (extent[3] - extent[1])));
 }
 
-/** Initial view state: the whole extent. */
-export function homeViewState(extent, w, h) {
-  return clampViewState({ target: [(extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2, 0], zoom: -Infinity }, extent, w, h);
+/** Initial view state: the whole extent (Greater New Haven), within the pan limits. */
+export function homeViewState(extent, w, h, limits = extent) {
+  return clampViewState({ target: [(extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2, 0], zoom: fitZoom(extent, w, h) }, limits, w, h);
 }
 
 /**
- * Keep the map inside the extent: no zooming out past the whole extent, and
- * no panning beyond its edges (centered on an axis where it does not fill the map).
+ * Keep the map inside the pan limits (catalog.limits: the Web Mercator
+ * world): no zooming out past MIN_SLIPPY_ZOOM (about the contiguous US on a
+ * screen) or past the limits, and no panning beyond their edges (centered on
+ * an axis where they do not fill the map).
  */
 export function clampViewState(vs, extent, w, h) {
-  const minZoom = Math.min(fitZoom(extent, w, h), MAX_ZOOM);
+  const minZoom = Math.min(Math.max(fitZoom(extent, w, h), MIN_ZOOM), MAX_ZOOM);
   const zoom = Math.min(MAX_ZOOM, Math.max(minZoom, vs.zoom));
   const s = 2 ** zoom;
   const axis = (c, lo, hi, half) => (hi - lo <= 2 * half ? (lo + hi) / 2 : Math.min(hi - half, Math.max(lo + half, c)));
@@ -81,9 +86,9 @@ const rect = (b) => [
   [b[0], b[3]],
 ];
 
-/** Gray "no data" background over the whole extent; `props` as from overlayProps. */
+/** Gray "no data" background over the whole map; `props` as from overlayProps. */
 export function backgroundLayer(id, catalog, props = {}) {
-  const polygon = rect(catalog.lngLatExtent);
+  const polygon = rect(catalog.lngLatLimits);
   return new SolidPolygonLayer({ id, data: [{ polygon }], getPolygon: (d) => d.polygon, getFillColor: NODATA_FILL, ...props });
 }
 
@@ -215,8 +220,14 @@ export function showNotices(el, notices, onCredentials) {
 // #endregion map-notice
 
 // #region landmark-layers
-/** Landmark markers and names, as in render.add_landmarks. */
-export function landmarkLayers(id, catalog, color = "#ffffff") {
+// Landmarks are New Haven's: hidden when zoomed out further than this
+// (slippy-map zoom), where they would pile up.
+const LANDMARK_MIN_SLIPPY_ZOOM = 9;
+const SLIPPY_OFFSET = Math.log2((2 * Math.PI * 6378137) / 256);
+
+/** Landmark markers and names, as in render.add_landmarks (none when zoomed out: pass the world zoom). */
+export function landmarkLayers(id, catalog, color = "#ffffff", worldZoom = Infinity) {
+  if (worldZoom + SLIPPY_OFFSET < LANDMARK_MIN_SLIPPY_ZOOM) return [];
   const rgba = hexToRgba(color);
   return [
     new ScatterplotLayer({
@@ -257,10 +268,10 @@ export function landmarkLayers(id, catalog, color = "#ffffff") {
 // Axes and scale bar
 // --------------------------------------------------------------------------
 
-const DEGREE_STEPS = [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1];
+const DEGREE_STEPS = [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 30];
 
 function degreeTicks(lo, hi, maxTicks) {
-  const step = DEGREE_STEPS.find((s) => (hi - lo) / s <= maxTicks) ?? 1;
+  const step = DEGREE_STEPS.find((s) => (hi - lo) / s <= maxTicks) ?? 30;
   const decimals = Math.max(0, Math.ceil(-Math.log10(step) - 1e-9));
   const ticks = [];
   for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(+v.toFixed(decimals + 2));

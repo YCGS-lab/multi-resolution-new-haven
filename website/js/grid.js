@@ -64,7 +64,7 @@ export class Grid {
       layers: [],
       layerFilter: ({ layer, viewport }) => layer.id.startsWith(`${viewport.id}-`),
       onViewStateChange: ({ viewState }) => {
-        this.viewState = clampViewState(fromDeckViewState(viewState, catalog), catalog.extent, ...this.slotSize);
+        this.viewState = clampViewState(fromDeckViewState(viewState, catalog), catalog.limits, ...this.slotSize);
         this.update();
         return toDeckViewState(this.viewState, catalog);
       },
@@ -149,7 +149,7 @@ export class Grid {
 
   reset() {
     if (!this.slotSize) return;
-    this.viewState = homeViewState(this.catalog.extent, ...this.slotSize);
+    this.viewState = homeViewState(this.catalog.extent, ...this.slotSize, this.catalog.limits);
     this.update();
   }
 
@@ -290,13 +290,13 @@ export class Grid {
     if (!first) return;
     const size = [first.map.clientWidth, first.map.clientHeight];
     if (!size[0] || !size[1]) return;
-    const e = this.catalog.extent;
+    const c = this.catalog;
     if (!this.viewState) {
-      this.viewState = homeViewState(e, ...size);
+      this.viewState = homeViewState(c.extent, ...size, c.limits);
     } else if (this.slotSize && (size[0] !== this.slotSize[0] || size[1] !== this.slotSize[1])) {
       // Keep the same ground extent visible when slots change size.
       const zoom = this.viewState.zoom + Math.log2(size[0] / this.slotSize[0]);
-      this.viewState = clampViewState({ ...this.viewState, zoom }, e, ...size);
+      this.viewState = clampViewState({ ...this.viewState, zoom }, c.limits, ...size);
     }
     this.slotSize = size;
     this.update();
@@ -345,7 +345,7 @@ export class Grid {
         layers.push(
           ...productLayers(`${s.uid}-image`, c, p, s.loading, undefined, { time: s.ts.ctx(), view: bounds, onReady: () => this.update() }),
         );
-      if (this.settings.labels) layers.push(...landmarkLayers(`${s.uid}-landmarks`, c, p.landmark_color));
+      if (this.settings.labels) layers.push(...landmarkLayers(`${s.uid}-landmarks`, c, p.landmark_color, this.viewState.zoom));
     }
     const deckViewState = toDeckViewState(this.viewState, c);
     const viewState = Object.fromEntries(views.map((v) => [v.id, deckViewState]));

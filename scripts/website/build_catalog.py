@@ -180,7 +180,7 @@ def cog_coverage(layer_sources: list[dict]) -> dict | None:
     xmax = max(s["bounds"][2] for s in cogs)
     ymax = max(s["bounds"][3] for s in cogs)
     (w, e), (s_, n) = to_ll.transform([xmin, xmax], [ymin, ymax])
-    return web.coverage(round(w, 5), round(s_, 5), round(e, 5), round(n, 5), "the area stored for this website")
+    return web.coverage(round(w, 5), round(s_, 5), round(e, 5), round(n, 5), "Greater New Haven (pre-built for this area only)")
 
 
 def resolve(node: dict, products: dict, seen: set) -> dict | None:

@@ -46,14 +46,27 @@ of 20, so the converted state passes `minZoom`/`maxZoom` explicitly.
 <<< @/../website/js/mapview.js#clamp-view-state [website/js/mapview.js#clamp-view-state]
 :::
 
-- The map cannot zoom out past the whole extent (`fitZoom`). It cannot zoom
-  in past 64 screen pixels per meter (`MAX_ZOOM = 6`), about 5 px per 7.6 cm
-  pixel of the finest data.
-- It cannot pan past the extent's edges. When the extent is narrower than
-  the map on one axis, it is centered on that axis.
+- The maps open on (and **⤢** / `0` return to) the Greater New Haven
+  extent, but pan anywhere: the limits are the Web Mercator world
+  (`catalog.limits`), and the map cannot zoom out past slippy-map zoom 3
+  (about the contiguous US on a screen). It cannot zoom in past 64 screen
+  pixels per meter (`MAX_ZOOM = 6`), about 5 px per 7.6 cm pixel of the
+  finest data.
+- It cannot pan past the limits' edges. When they are narrower than the map
+  on one axis, the map is centered on that axis.
 
-The project is about one place, so there is nothing to see outside the
-extent.
+Most live datasets cover the contiguous US or the world. Each product says
+where it has data (`coverage`: Connecticut for the CT ECO services, the
+contiguous US for NAIP and 3DEP, the stored area for pre-built COGs) and
+from which zoom it may be drawn (`min_zoom`, a slippy-map zoom: 12 for the
+CT orthoimagery and lidar, 11 for NAIP, 10 for 3DEP, 9 for Planet and NISAR,
+7 for Landsat, 5 for ERA5-Land, ...), so huge high-resolution mosaics are
+never requested for large areas. Outside its coverage or below its zoom, a
+map draws nothing for the product and says why ("Dataset unavailable here",
+"Zoom in to view this dataset"); when the selected timestep has no data in
+view, "Timestep not available here". See
+[Time, live data and credentials](./time#why-an-image-is-not-drawn).
+Landmarks (New Haven's) are hidden below slippy-map zoom 9.
 
 ## Loading state <Badge type="tip" text="standard" />
 

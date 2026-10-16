@@ -92,7 +92,7 @@ export class Animation {
     root.querySelector("#anim-zoom-out").addEventListener("click", () => this.zoomBy(-1));
 
     this.size = [800, 450];
-    this.viewState = homeViewState(catalog.extent, ...this.size);
+    this.viewState = homeViewState(catalog.extent, ...this.size, catalog.limits);
   }
 
   /** The Deck is made when the tab is first shown (its map needs a size). */
@@ -100,19 +100,19 @@ export class Animation {
     if (this.deck) return;
     const c = this.catalog;
     this.size = [this.mapEl.clientWidth || 800, this.mapEl.clientHeight || 450];
-    this.viewState = homeViewState(c.extent, ...this.size);
+    this.viewState = homeViewState(c.extent, ...this.size, c.limits);
     this.deck = new Deck({
       parent: this.mapEl,
       views: new MapView({ id: "anim", controller: CONTROLLER }),
       viewState: toDeckViewState(this.viewState, c),
       onViewStateChange: ({ viewState }) => {
-        this.viewState = clampViewState(fromDeckViewState(viewState, c), c.extent, ...this.size);
+        this.viewState = clampViewState(fromDeckViewState(viewState, c), c.limits, ...this.size);
         this.update();
         return toDeckViewState(this.viewState, c);
       },
       onResize: ({ width, height }) => {
         this.size = [width, height];
-        this.viewState = clampViewState(this.viewState, c.extent, width, height);
+        this.viewState = clampViewState(this.viewState, c.limits, width, height);
         this.update();
       },
       layers: [],
@@ -334,12 +334,12 @@ export class Animation {
   // #endregion anim-play
 
   zoomBy(d) {
-    this.viewState = clampViewState({ ...this.viewState, zoom: this.viewState.zoom + d }, this.catalog.extent, ...this.size);
+    this.viewState = clampViewState({ ...this.viewState, zoom: this.viewState.zoom + d }, this.catalog.limits, ...this.size);
     this.update();
   }
 
   reset() {
-    this.viewState = homeViewState(this.catalog.extent, ...this.size);
+    this.viewState = homeViewState(this.catalog.extent, ...this.size, this.catalog.limits);
     this.update();
   }
 
@@ -408,7 +408,7 @@ export class Animation {
         layers.push(...cur.map((l) => (l.clone ? l.clone({ onViewportLoad: () => this.frameLoaded(t) }) : l)));
       } else if (!p.time) layers.push(...productLayers("anim-cur", c, p, this.loading));
     }
-    if (this.settings.labels) layers.push(...landmarkLayers("anim-landmarks", c, p?.landmark_color));
+    if (this.settings.labels) layers.push(...landmarkLayers("anim-landmarks", c, p?.landmark_color, this.viewState.zoom));
     this.deck.setProps({ viewState: toDeckViewState(this.viewState, c), layers });
     this.chrome.update(this.viewState, w, h, this.settings.labels);
     showNotices(

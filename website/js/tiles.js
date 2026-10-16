@@ -669,7 +669,7 @@ function liveTileLayer(id, catalog, tr, { loading, props, extent, smooth = false
     tileSize: tr.tileSize,
     zoomOffset: tr.tileSize === TILE_SIZE ? ZOOM_OFFSET : 0,
     maxZoom: tr.maxZoom,
-    extent: extent ?? catalog.lngLatExtent,
+    extent,
     refinementStrategy: "no-overlap",
     maxRequests: 8,
     getTileData: async ({ index, signal }) => {
@@ -728,7 +728,7 @@ function tileRange([w, s, e, n], z) {
 
 function arcgisLayer(id, catalog, product, layer, { loading, props, time }) {
   const tr = tileRenderer(catalog, product, layer, time);
-  return liveTileLayer(`${id}|${time?.t ?? ""}`, catalog, tr, { loading, props });
+  return liveTileLayer(`${id}|${time?.t ?? ""}`, catalog, tr, { loading, props, extent: product.coverage?.bbox });
 }
 // #endregion arcgis-layer
 
@@ -743,7 +743,6 @@ function xyzLayers(id, catalog, layer, { props }) {
       data: spec.url,
       tileSize: spec.tile_size,
       maxZoom: spec.max_zoom,
-      extent: catalog.lngLatExtent,
       maxRequests: 8,
       renderSubLayers: (p) =>
         p.data &&
@@ -758,7 +757,7 @@ function xyzLayers(id, catalog, layer, { props }) {
   ];
   // Lightening (255 - (1 - l) * (255 - v)) is a white veil of opacity l.
   if (lighten) {
-    const [w, s, e, n] = catalog.lngLatExtent;
+    const [w, s, e, n] = catalog.lngLatLimits;
     layers.push(
       new SolidPolygonLayer({
         id: `${id}-lighten`,
@@ -846,7 +845,13 @@ export function productLayers(id, catalog, product, { loading, props = () => ({}
     if (spec.type === "arcgis") return arcgisLayer(lid, catalog, product, layer, { loading, props: props("lnglat"), time });
     if (spec.type === "cds") return cdsLayer(lid, catalog, layer, { loading, props: props("lnglat"), time, view, onReady });
     const tr = tileRenderer(catalog, product, layer, time);
-    if (tr) return liveTileLayer(`${lid}|${tr.key}`, catalog, tr, { loading, props: props("lnglat"), smooth: spec.smooth && spec.type === "xyz" });
+    if (tr)
+      return liveTileLayer(`${lid}|${tr.key}`, catalog, tr, {
+        loading,
+        props: props("lnglat"),
+        extent: product.coverage?.bbox,
+        smooth: spec.smooth && spec.type === "xyz",
+      });
     if (spec.type === "xyz" && !/\{(time|credential):/.test(spec.url)) return xyzLayers(lid, catalog, layer, { props: props("lnglat") });
     if (spec.type === "xyz" || spec.type === "pc-mosaic" || spec.type === "titiler-cmr") return []; // timestep not resolved yet
     throw new Error(`${layer.source}: unsupported source type ${spec.type}`);

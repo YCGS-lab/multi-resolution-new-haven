@@ -55,7 +55,9 @@ Keys are strings that sort in time order: `"2023"`, `"2026-07"`,
 ## Which timesteps have data in view
 
 `availability(catalog, product, bbox)` lists the timesteps over the area in
-view (rounded out a little, so small pans reuse the last answer; cached).
+view (rounded out a little, so small pans reuse the last answer; cached;
+for views larger than 2°, only their central 2° box, so searches stay fast
+when zoomed out over a region).
 `Steps` is a sorted set with the questions the UI asks (latest, previous /
 next with data, days with data in a month, timesteps of a day);
 `HourlySteps` answers the same for "every hour" without listing 650 000

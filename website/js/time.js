@@ -261,7 +261,7 @@ const CACHE_MAX = 200;
 export function availability(catalog, product, bbox) {
   const time = product.time;
   const a = time.availability;
-  const box = roundBox(bbox);
+  const box = roundBox(capBox(bbox));
   let key;
   if (a.type === "list" || a.type === "hourly") key = `${product.id}|${a.type}`;
   else if (a.type === "planet") key = `planet|${a.prefix}|${credential("planet").slice(-6)}`;
@@ -278,6 +278,20 @@ export function availability(catalog, product, bbox) {
   return cache.get(key);
 }
 // #endregion availability
+
+/**
+ * The box to list timesteps for: the view, or for large views (zoomed out
+ * over a region) its central MAX_AVAIL_DEG, so searches stay fast and the
+ * timesteps describe what is in the middle of the map.
+ */
+const MAX_AVAIL_DEG = 2;
+function capBox([w, s, e, n]) {
+  const cx = (w + e) / 2;
+  const cy = (s + n) / 2;
+  const hx = Math.min(e - w, MAX_AVAIL_DEG) / 2;
+  const hy = Math.min(n - s, MAX_AVAIL_DEG) / 2;
+  return [cx - hx, cy - hy, cx + hx, cy + hy];
+}
 
 function roundBox([w, s, e, n]) {
   const q = Math.max(e - w, n - s) / 8 || 0.01;

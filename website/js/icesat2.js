@@ -136,19 +136,19 @@ export class Icesat2 {
     if (this.deck) return;
     const c = this.catalog;
     this.size = [this.mapEl.clientWidth || 600, this.mapEl.clientHeight || 500];
-    this.viewState = homeViewState(c.extent, ...this.size);
+    this.viewState = homeViewState(c.extent, ...this.size, c.limits);
     this.deck = new Deck({
       parent: this.mapEl,
       views: new MapView({ id: "is2", controller: { ...CONTROLLER, doubleClickZoom: false } }),
       viewState: toDeckViewState(this.viewState, c),
       onViewStateChange: ({ viewState }) => {
-        this.viewState = clampViewState(fromDeckViewState(viewState, c), c.extent, ...this.size);
+        this.viewState = clampViewState(fromDeckViewState(viewState, c), c.limits, ...this.size);
         this.update();
         return toDeckViewState(this.viewState, c);
       },
       onResize: ({ width, height }) => {
         this.size = [width, height];
-        this.viewState = clampViewState(this.viewState, c.extent, width, height);
+        this.viewState = clampViewState(this.viewState, c.limits, width, height);
         this.update();
       },
       getCursor: ({ isHovering, isDragging }) => (isHovering ? "pointer" : isDragging ? "grabbing" : "grab"),
@@ -169,7 +169,7 @@ export class Icesat2 {
     const box = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad];
     const [w, h] = this.size;
     const zoom = Math.log2(Math.min(w / (box[2] - box[0]), h / (box[3] - box[1])));
-    this.viewState = clampViewState({ target: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2, 0], zoom }, c.extent, w, h);
+    this.viewState = clampViewState({ target: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2, 0], zoom }, c.limits, w, h);
   }
 
   basemapLayers() {

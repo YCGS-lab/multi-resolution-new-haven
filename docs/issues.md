@@ -500,5 +500,8 @@ are, so they are defense in depth:
   pre-loading long animations heavy.
 - **NISAR tiles are slow** (5-10 s each through the public titiler-cmr).
 - **Availability is per view box:** timesteps are listed for the whole box
-  in view, so a date can be listed although only a corner of the view has
-  data.
+  in view (its central 2° when larger), so a date can be listed although
+  only a corner of the view has data, or missed when the data is only near
+  the edges of a large view.
+- **ERA5-Land areas are capped at 12°:** zoomed out further, only the
+  center of the view is requested.

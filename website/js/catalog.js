@@ -1,9 +1,10 @@
 // The image catalog (catalog.json, written by scripts/website/build_catalog.py).
 //
 // World coordinates used by the maps' pan / zoom logic, axes and scale bar:
-// EPSG:3857 meters relative to the center of the extent (Greater New Haven),
-// with y up. `origin` is that center in absolute EPSG:3857 meters. deck.gl
-// itself draws in longitude / latitude (MapView); see mapview.js.
+// EPSG:3857 meters relative to the center of the extent (Greater New Haven,
+// the home view; the maps pan anywhere), with y up. `origin` is that center
+// in absolute EPSG:3857 meters. deck.gl itself draws in longitude / latitude
+// (MapView); see mapview.js.
 
 const R = 6378137; // Web Mercator sphere radius (m)
 
@@ -22,6 +23,9 @@ export class Catalog {
     this.origin = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
     this.extent = this.worldBounds(b);
     this.lngLatExtent = [...this.worldToLngLat(this.extent[0], this.extent[1]), ...this.worldToLngLat(this.extent[2], this.extent[3])];
+    // Pan limits: the whole Web Mercator world (the extent above is only the home view).
+    this.lngLatLimits = [-180, -85, 180, 85];
+    this.limits = [...this.lonLatToWorld(-180, -85), ...this.lonLatToWorld(180, 85)];
     this.extentTitle = data.extent.title;
     this.tree = data.tree;
     this.items = new Map(); // id -> product (with .path: ancestor labels, .parent: group)

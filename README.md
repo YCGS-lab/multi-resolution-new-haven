@@ -119,8 +119,10 @@ titiler-cmr is too slow for interactive tiles.
   NISAR an **Advanced** end date: the images in the window are mosaicked (latest, median or
   average pixel). By default an image shows its latest timestep with data in view.
 - **Viewer**: pick an image from a grouped, searchable menu (`[` / `]` step through an image's
-  group). Pan and zoom are limited to the Greater New Haven extent; native pixels stay sharp
-  blocks when zoomed in. **Compare** adds image B over A, revealed by a swipe divider, by
+  group). The maps open on Greater New Haven but pan across the contiguous US (and beyond);
+  each dataset says where it has data and from which zoom it is drawn, and the map shows
+  "Dataset unavailable here", "Zoom in to view this dataset" or "Timestep not available here"
+  instead of failing. Native pixels stay sharp blocks when zoomed in. **Compare** adds image B over A, revealed by a swipe divider, by
   fading (opacity), or inside a lens that follows the cursor (spy); B starts as A one timestep
   earlier, for comparisons through time.
 - **Grid**: any number of images with synchronized pan and zoom (one WebGL canvas, one
