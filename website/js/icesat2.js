@@ -2,7 +2,8 @@
 // it), and the selected beam's ATL03 photons with their ATL08 classes as a
 // cross-section (right; elevation against distance along track). An arrow on
 // the map and a dashed line in the profile mark the same point along track:
-// drag either one and the other follows.
+// drag either one and the other follows. The map's basemap is picked from a
+// drop-down (BASEMAPS: catalog products, at a fixed timestep for timed ones).
 //
 // Data: website/image-data/icesat2-profiles.json (scripts/icesat2/create-cog.py,
 // from the files download.py saved; nothing is fetched from ICESat-2 services).
@@ -18,10 +19,20 @@ import {
   productLayers,
   toDeckViewState,
 } from "./mapview.js";
+import { slippyZoom } from "./slot.js";
+import { interval } from "./time.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 const hexRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const NEAR_M = 15; // half-width of the along-track window for the readout
+
+// Basemap choices (the first is the default); `t`: the timestep of a timed product.
+const BASEMAPS = [
+  { id: "usgs-topo", label: "USGS National Map topo", product: "streetmap/usgs-topo" },
+  { id: "osm", label: "OpenStreetMap", product: "streetmap/osm" },
+  { id: "ct-lidar-2023", label: "CT lidar 2023 surface elevation", product: "ct-lidar/surface", t: "2023" },
+  { id: "ct-ortho-2023", label: "CT orthoimagery 2023", product: "ct-ortho/truecolor", t: "2023" },
+];
 
 export class Icesat2 {
   constructor(root, catalog) {
@@ -38,6 +49,11 @@ export class Icesat2 {
     this.chrome = new MapChrome(root.querySelector(".is2-map-frame"), catalog, { tickSpacing: [96, 44] });
     this.showCanopy = root.querySelector("#is2-canopy");
     this.showCanopy.addEventListener("change", () => this.update());
+    this.basemaps = BASEMAPS.filter((b) => catalog.get(b.product));
+    this.basemap = this.basemaps[0] ?? null;
+    this.basemapSelect = root.querySelector("#is2-basemap");
+    this.basemapSelect.innerHTML = this.basemaps.map((b) => `<option value="${b.id}">${esc(b.label)}</option>`).join("");
+    this.basemapSelect.addEventListener("change", () => this.setBasemap(this.basemapSelect.value));
     root.querySelector("#is2-zoom-reset").addEventListener("click", () => {
       this.xr = null;
       this.drawProfile();
@@ -47,13 +63,26 @@ export class Icesat2 {
     new ResizeObserver(() => this.active && this.drawProfile()).observe(this.canvas.parentElement);
   }
 
+  /** "<line>@<pos>[@<basemap>]" (the basemap when not the default). */
   get state() {
-    return this.line ? `${this.line.n}@${Math.round(this.pos)}` : null;
+    if (!this.line) return null;
+    const base = this.basemap && this.basemap !== this.basemaps[0] ? `@${this.basemap.id}` : "";
+    return `${this.line.n}@${Math.round(this.pos)}${base}`;
   }
 
   restore(s) {
-    const [n, pos] = s.split("@");
+    const [n, pos, base] = s.split("@");
     this.pending = { n: +n, pos: +pos || null };
+    if (base) this.setBasemap(base);
+  }
+
+  setBasemap(id) {
+    const b = this.basemaps.find((x) => x.id === id);
+    if (!b) return;
+    this.basemap = b;
+    this.basemapSelect.value = b.id;
+    this.update();
+    this.onChange?.();
   }
 
   async setActive(on) {
@@ -172,12 +201,22 @@ export class Icesat2 {
     this.viewState = clampViewState({ target: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2, 0], zoom }, c.limits, w, h);
   }
 
+  /** The basemap, and over it the canopy heights if shown. */
   basemapLayers() {
     const c = this.catalog;
-    const base = c.get("icesat2/canopy_height_allyears") ?? c.get("streetmap/osm");
-    if (!base) return [];
-    const layers = this.showCanopy.checked && base.id.startsWith("icesat2/") ? base.layers : base.layers.slice(0, 1);
-    return productLayers("is2-base", c, { ...base, layers }, null);
+    const out = [];
+    let b = this.basemap;
+    // Below a product's minimum zoom (too many tiles), the default basemap instead.
+    if (b && c.get(b.product).min_zoom > slippyZoom(this.viewState.zoom) + 0.5) b = this.basemaps[0];
+    if (b) {
+      const p = c.get(b.product);
+      const time = b.t ? timeContext(p, b.t) : null;
+      out.push(...productLayers(`is2-base-${b.id}`, c, p, null, undefined, { time }));
+    }
+    const canopy = c.get("icesat2/canopy_height_allyears");
+    // (its first layer is a pale street map, for the canopy-height view of the main viewer)
+    if (canopy && this.showCanopy.checked) out.push(...productLayers("is2-canopy", c, { ...canopy, layers: canopy.layers.slice(1) }, null));
+    return out;
   }
 
   update() {
@@ -527,4 +566,11 @@ function niceTicks(lo, hi, n) {
   const ticks = [];
   for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) ticks.push(v);
   return { ticks, decimals: Math.max(0, -Math.floor(Math.log10(step) + 1e-9)) };
+}
+
+/** The time context (as Slot.ctx) of a timestep of a product, without options or filters. */
+function timeContext(p, t) {
+  const step = p.time.step;
+  const [start, end] = interval(t, null, step);
+  return { t, t2: null, step, start, end, params: {}, options: {}, filters: {}, key: t };
 }

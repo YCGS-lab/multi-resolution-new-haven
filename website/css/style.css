@@ -1772,6 +1772,14 @@ body.grid-active .tc-advanced {
   outline-offset: 2px;
 }
 
+.is2-map-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  font-size: 13px;
+}
+
 .is2-plot {
   position: relative;
   flex: 1;
