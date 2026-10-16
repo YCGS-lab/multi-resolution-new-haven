@@ -308,7 +308,11 @@ The slider jumps between frames; Play steps through them at 0.5-8 frames
 per second, looping or not (space: play / pause, ← →: step). The last fully
 loaded frame stays underneath the current one until it has loaded, so
 frames never flash to gray. Panning after loading still works (new tiles
-load live); the button then offers to reload for the new view.
+load live); the button then offers to reload for the new view. **Cancel**
+stops a slow load (requests in flight are aborted; tiles already loaded stay
+cached). Under the frame count, a rough estimate of the cache the frames
+need: tiles times their rendered size (512 × 512 RGBA, 1 MB, kept in memory),
+with a warning when that is more than the tile cache holds (1500 tiles).
 
 ## ICESat-2 tab
 

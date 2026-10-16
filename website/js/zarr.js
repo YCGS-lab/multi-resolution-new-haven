@@ -221,9 +221,9 @@ function range(values, lo, hi) {
  * Map hourKey -> {ni, nj, west, north, di, dj, values (north -> south rows,
  * NaN = no data)} or null. Hours are read in runs of consecutive time
  * indices, one zarrita read per run. `onProgress(done, total)` counts the
- * store's chunk requests.
+ * store's chunk requests; `signal` stops between runs (runs already read are kept).
  */
-export async function zarrGrids(spec, area, hourKeys, { onProgress } = {}) {
+export async function zarrGrids(spec, area, hourKeys, { onProgress, signal } = {}) {
   const ds = await openDataset(spec);
   const { z, arr, order, lat, lon, time } = ds;
   const todo = [...new Set(hourKeys)].filter((h) => cachedGrid(spec, area, h) === undefined);
@@ -261,6 +261,7 @@ export async function zarrGrids(spec, area, hourKeys, { onProgress } = {}) {
     const timer = onProgress && setInterval(() => onProgress(Math.min(total, fetches - start), total), 250);
     try {
       for (const r of runs) {
+        signal?.throwIfAborted();
         const first = r.items[0].i;
         const last = r.items.at(-1).i;
         const sel = [];

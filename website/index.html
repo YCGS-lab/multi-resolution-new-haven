@@ -140,8 +140,9 @@
             </select>
           </label>
           <span class="anim-filters"></span>
-          <span class="anim-count"></span>
+          <span class="anim-count-wrap"><span class="anim-count"></span><span class="anim-size"></span></span>
           <button type="button" class="btn primary" id="anim-load" title="Fetch every frame for the area in view ahead of time">Load imagery</button>
+          <button type="button" class="btn" id="anim-cancel" title="Stop loading (frames already loaded are kept)" hidden>Cancel</button>
           <div class="anim-progress" hidden>
             <div class="bar"></div>
             <span class="anim-progress-text"></span>

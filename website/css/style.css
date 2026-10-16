@@ -1564,9 +1564,24 @@ body.grid-active .tc-advanced {
   border-radius: 2px;
 }
 
+.anim-count-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
 .anim-count {
   font-size: 13px;
   color: var(--muted);
+}
+
+.anim-size {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.anim-size.warn {
+  color: #a35a00;
 }
 
 .anim-progress {

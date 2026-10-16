@@ -597,7 +597,7 @@ async function tilerTile(catalog, product, layer, ctx, { x, y, z }, box, signal)
 // --------------------------------------------------------------------------
 
 // #region tile-cache
-const TILE_CACHE_MAX = 1500; // rendered tiles (512 x 512 RGBA, 1 MB each at most)
+export const TILE_CACHE_MAX = 1500; // rendered tiles (512 x 512 RGBA, 1 MB each at most)
 const tileCache = new Map(); // key -> Promise<ImageData | ImageBitmap | null>
 
 /** The cached tile, or render(signal) once (failed and aborted renders are not kept). */
@@ -730,12 +730,34 @@ export function prefetchTiles(catalog, product, ctx, bounds, zoom, { signal } = 
   for (const layer of product.layers) {
     const tr = tileRenderer(catalog, product, layer, ctx);
     if (!tr) continue;
-    const off = tr.tileSize === TILE_SIZE ? ZOOM_OFFSET : 0;
-    const z = Math.max(0, Math.min(tr.maxZoom, Math.round(zoom + Math.log2(512 / tr.tileSize)) + off));
+    const z = prefetchZoom(tr, zoom);
     for (const [x, y] of tileRange(bounds, z))
       jobs.push(() => cachedTile(`${tr.key}|${z}/${x}/${y}`, (sig) => tr.render({ x, y, z }, sig), signal).catch(() => null));
   }
   return jobs;
+}
+
+/**
+ * What prefetchTiles would keep in the tile cache: {tiles, bytes}, bytes being
+ * the rendered RGBA tiles (an upper bound: tiles without data are not kept).
+ */
+export function prefetchEstimate(catalog, product, ctx, bounds, zoom) {
+  let tiles = 0;
+  let bytes = 0;
+  for (const layer of product.layers) {
+    const tr = tileRenderer(catalog, product, layer, ctx);
+    if (!tr) continue;
+    const n = tileRange(bounds, prefetchZoom(tr, zoom)).length;
+    tiles += n;
+    bytes += n * tr.tileSize ** 2 * 4;
+  }
+  return { tiles, bytes };
+}
+
+/** The tile zoom a TileLayer picks for a tile renderer at deck.gl zoom `zoom`. */
+function prefetchZoom(tr, zoom) {
+  const off = tr.tileSize === TILE_SIZE ? ZOOM_OFFSET : 0;
+  return Math.max(0, Math.min(tr.maxZoom, Math.round(zoom + Math.log2(512 / tr.tileSize)) + off));
 }
 
 /** Slippy tile indices covering a lon / lat box at zoom z. */

@@ -2,7 +2,8 @@
 // date; "Load imagery" fetches and renders every frame's tiles for the area in
 // view ahead of time (into the tile cache of tiles.js, with a progress bar);
 // then a slider jumps between frames, and Play steps through them at a chosen
-// speed, optionally looping. Frames are the timesteps with data in view
+// speed, optionally looping. Cancel stops a slow load (what has loaded stays
+// cached); under the frame count, an estimate of the cache the frames need. Frames are the timesteps with data in view
 // between the two dates (after the filters, e.g. max cloud cover); for hourly
 // data, every N hours (read from a Zarr store's map-chunked layout).
 
@@ -26,7 +27,7 @@ import {
 } from "./mapview.js";
 import { Picker } from "./picker.js";
 import { Slot, slippyZoom } from "./slot.js";
-import { prefetchTiles } from "./tiles.js";
+import { TILE_CACHE_MAX, prefetchEstimate, prefetchTiles } from "./tiles.js";
 import { dayOf, keyLabel, keyStart } from "./time.js";
 import { hourKey, zarrArea, zarrGrids } from "./zarr.js";
 
@@ -50,6 +51,8 @@ export class Animation {
     this.to = null;
     this.loaded = null; // {key of what was loaded}
     this.loadJob = 0;
+    this.abort = null; // AbortController of the load in progress
+    this.cancels = 0; // loads cancelled (tiles aborted then are fetched again for the map)
     this.mapEl = root.querySelector("#anim-map");
     this.chrome = new MapChrome(root.querySelector(".anim-frame"), catalog);
     this.loading = new LoadingState(root.querySelector("#anim-map .map-message"));
@@ -65,6 +68,8 @@ export class Animation {
       everyLabel: $(".anim-every"),
       filters: $(".anim-filters"),
       load: $("#anim-load"),
+      cancel: $("#anim-cancel"),
+      size: $(".anim-size"),
       bar: $(".anim-progress .bar"),
       progress: $(".anim-progress"),
       progressText: $(".anim-progress-text"),
@@ -82,6 +87,7 @@ export class Animation {
     this.el.to.addEventListener("change", () => this.setRange(this.from, this.el.to.value));
     this.el.every.addEventListener("change", () => this.computeFrames());
     this.el.load.addEventListener("click", () => this.load());
+    this.el.cancel.addEventListener("click", () => this.cancel());
     this.el.slider.addEventListener("input", () => this.show(+this.el.slider.value));
     this.el.play.addEventListener("click", () => this.togglePlay());
     this.el.prev.addEventListener("click", () => this.stepFrame(-1));
@@ -244,6 +250,8 @@ export class Animation {
     const p = this.slot.product;
     if (!p || !this.frames.length || !this.bounds) return;
     this.pause();
+    this.abort?.abort();
+    const abort = (this.abort = new AbortController());
     const job = ++this.loadJob;
     const key = this.loadKey();
     const progress = (done, total, text) => {
@@ -254,7 +262,8 @@ export class Animation {
       this.el.progressText.textContent = text ?? `${done} / ${total} tiles (${Math.round(100 * f)}%)`;
     };
     this.busy = true;
-    this.el.load.disabled = true;
+    this.el.progress.classList.remove("error");
+    this.renderControls();
     try {
       const grid = p.layers.map((l) => this.catalog.sources[l.source]).find((s) => s.type === "zarr");
       if (grid) {
@@ -262,11 +271,12 @@ export class Animation {
         progress(0, 1, "Reading the Zarr store…");
         await zarrGrids(grid, zarrArea(grid, this.bounds), this.frames.map(hourKey), {
           onProgress: (done, total) => progress(done, total, `${done} / ${total} chunks`),
+          signal: abort.signal,
         });
         progress(1, 1, `${this.frames.length} frames loaded`);
       } else {
         const zoom = toDeckViewState(this.viewState, this.catalog).zoom;
-        const jobs = this.frames.flatMap((t) => prefetchTiles(this.catalog, p, this.slot.ctx(t, null), this.bounds, zoom));
+        const jobs = this.frames.flatMap((t) => prefetchTiles(this.catalog, p, this.slot.ctx(t, null), this.bounds, zoom, { signal: abort.signal }));
         let done = 0;
         progress(0, jobs.length);
         let next = 0;
@@ -281,15 +291,62 @@ export class Animation {
       }
       if (job === this.loadJob) this.loaded = key;
     } catch (err) {
-      progress(0, 1, `Loading failed: ${err.message}`);
-      this.el.progress.classList.add("error");
+      if (job === this.loadJob) {
+        progress(0, 1, `Loading failed: ${err.message}`);
+        this.el.progress.classList.add("error");
+      }
     } finally {
-      if (job === this.loadJob) this.busy = false;
+      if (job === this.loadJob) {
+        this.busy = false;
+        this.abort = null;
+      }
       this.renderControls();
       this.update();
     }
   }
+
+  /** Stop loading: requests in flight are aborted; tiles already loaded stay cached. */
+  cancel() {
+    if (!this.busy) return;
+    this.abort?.abort();
+    this.abort = null;
+    this.loadJob++;
+    this.busy = false;
+    this.cancels++;
+    const done = this.el.progressText.textContent.match(/^(\d+) \/ (\d+)/);
+    this.el.progressText.textContent = done ? `Cancelled after ${done[1]} / ${done[2]}` : "Cancelled";
+    this.el.progress.classList.add("error");
+    this.renderControls();
+    this.update();
+  }
   // #endregion anim-load
+
+  /** Size of the cache the frames need (rough), as text, and whether it is more than the cache holds. */
+  sizeEstimate() {
+    const p = this.slot.product;
+    if (!p?.time || !this.frames.length || !this.bounds) return { text: "", warn: false };
+    const key = this.loadKey();
+    if (this.estimate?.key === key) return this.estimate;
+    let text;
+    let warn = false;
+    if (p.layers.some((l) => this.catalog.sources[l.source].type === "zarr")) {
+      text = "Read from the Zarr store: its chunks are cached in memory (up to 400 MB)";
+    } else {
+      const zoom = toDeckViewState(this.viewState, this.catalog).zoom;
+      let tiles = 0;
+      let bytes = 0;
+      for (const t of this.frames) {
+        const e = prefetchEstimate(this.catalog, p, this.slot.ctx(t, null), this.bounds, zoom);
+        tiles += e.tiles;
+        bytes += e.bytes;
+      }
+      warn = tiles > TILE_CACHE_MAX;
+      text = `≈ ${tiles.toLocaleString()} tiles, up to ~${fmtBytes(bytes)} of cache (in memory)`;
+      if (warn) text += `: more than the cache holds (${TILE_CACHE_MAX.toLocaleString()} tiles), so early frames will be fetched again; zoom in or pick fewer frames`;
+    }
+    this.estimate = { key, text, warn };
+    return this.estimate;
+  }
 
   // #region anim-play
   togglePlay() {
@@ -368,6 +425,11 @@ export class Animation {
         ? "Finding imagery…"
         : `${n} frame${n === 1 ? "" : "s"}${this.truncated ? ` (the last ${MAX_FRAMES})` : ""}`;
     el.load.disabled = !n || this.busy;
+    el.load.hidden = !!this.busy;
+    el.cancel.hidden = !this.busy;
+    const size = this.slot.loadingSteps ? { text: "", warn: false } : this.sizeEstimate();
+    el.size.textContent = size.text;
+    el.size.classList.toggle("warn", size.warn);
     const stale = this.loaded && this.loaded !== this.loadKey();
     el.load.textContent = this.loaded && !stale ? "Reload imagery" : "Load imagery";
     el.load.classList.toggle("primary", !this.loaded || stale);
@@ -402,9 +464,9 @@ export class Animation {
       const extra = (k) => ({ time: this.slot.ctx(k, null), view: this.bounds, onReady: () => this.update() });
       // The last fully drawn frame stays underneath until the current one has loaded (no flashes).
       const prev = this.shown;
-      if (prev && prev !== t) layers.push(...productLayers("anim-prev", c, p, null, undefined, extra(prev)));
+      if (prev && prev !== t) layers.push(...productLayers(`anim-prev${this.cancels || ""}`, c, p, null, undefined, extra(prev)));
       if (t) {
-        const cur = productLayers("anim-cur", c, p, this.loading, undefined, extra(t));
+        const cur = productLayers(`anim-cur${this.cancels || ""}`, c, p, this.loading, undefined, extra(t));
         layers.push(...cur.map((l) => (l.clone ? l.clone({ onViewportLoad: () => this.frameLoaded(t) }) : l)));
       } else if (!p.time) layers.push(...productLayers("anim-cur", c, p, this.loading));
     }
@@ -432,4 +494,8 @@ export class Animation {
       this.update();
     }
   }
+}
+
+function fmtBytes(b) {
+  return b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(b / 1e6))} MB`;
 }
