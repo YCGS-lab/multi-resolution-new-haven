@@ -29,8 +29,8 @@ provider "aws" {
 
 locals {
   # Service and Environment are required on every resource by the FinOps tagging policy.
-  tags = {
+  tags = merge(var.extra_tags, {
     Service     = var.name
     Environment = var.environment
-  }
+  })
 }

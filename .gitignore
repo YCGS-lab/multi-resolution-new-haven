@@ -195,3 +195,6 @@ node_modules/
 # VitePress output (docs/)
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+
+# AWS test runs (scripts/aws-tests): per-run OpenTofu state, kept until the run is destroyed
+/.aws-tests/

@@ -10,6 +10,7 @@ this does a windowed read of just the padded view intersect from the COG
 (a few hundred KB of transfer) and saves it as data/landsat/<L1 id>_B8_newhaven.tif.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -33,12 +34,19 @@ def main():
     sc = scene_mod.load()
     # region requester-pays-window
     creds = config.credentials()
-    aws = AWSSession(
-        aws_access_key_id=creds["aws_access_key_id"],
-        aws_secret_access_key=creds["aws_secret_access_key"],
-        region_name="us-west-2",
-        requester_pays=True,
-    )
+    if creds.get("aws_access_key_id"):
+        # Static keys from _credentials.toml. GDAL would also read a session
+        # token from the environment (e.g. an SSO login), which does not belong
+        # to these keys and makes S3 reject the request.
+        os.environ.pop("AWS_SESSION_TOKEN", None)
+        aws = AWSSession(
+            aws_access_key_id=creds["aws_access_key_id"],
+            aws_secret_access_key=creds["aws_secret_access_key"],
+            region_name="us-west-2",
+            requester_pays=True,
+        )
+    else:  # the default AWS credential chain (environment, profile, SSO)
+        aws = AWSSession(region_name="us-west-2", requester_pays=True)
     out = pan_path(sc)
     with rasterio.Env(aws, AWS_REQUEST_PAYER="requester", GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR"):
         with rasterio.open(sc["l1_pan_s3"]) as ds:

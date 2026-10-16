@@ -43,3 +43,9 @@ variable "attach_domain" {
     error_message = "attach_domain needs domain_name."
   }
 }
+
+variable "extra_tags" {
+  description = "Tags added to every resource, besides Service and Environment (e.g. to mark test deployments)."
+  type        = map(string)
+  default     = {}
+}
