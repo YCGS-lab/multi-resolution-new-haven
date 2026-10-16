@@ -22,10 +22,26 @@ delete_after() { date -u -v+1d +%Y-%m-%d 2>/dev/null || date -u -d '+1 day' +%Y-
 # region credentials
 # Fresh role credentials from aws-sso when it is in use (AWS_SSO_PROFILE set by
 # `aws-sso exec`/`eval`); otherwise whatever the environment already provides.
+# aws-sso hands out its cached role credentials (valid up to 1 h) while they
+# last, so ask for new ones when fewer than 45 min are left: one tofu apply or
+# destroy runs on one set of credentials.
 refresh_creds() {
   if [[ -n "${AWS_SSO_PROFILE:-}" ]] && command -v aws-sso >/dev/null; then
     eval "$(aws-sso eval --no-region -p "$AWS_SSO_PROFILE")"
+    if (($(cred_minutes_left) < 45)); then
+      eval "$(aws-sso eval --no-region --refresh -p "$AWS_SSO_PROFILE")"
+    fi
   fi
+}
+
+# Minutes left on the current role credentials (aws-sso sets
+# AWS_SSO_SESSION_EXPIRATION), or a large number when unknown.
+cred_minutes_left() {
+  python3 -c "
+import datetime as dt, sys
+v = sys.argv[1]
+print(int((dt.datetime.fromisoformat(v) - dt.datetime.now(dt.UTC)).total_seconds() // 60) if v else 100000)
+" "${AWS_SSO_SESSION_EXPIRATION:-}"
 }
 
 # Minutes left on the SSO login (aws-sso), or a large number when unknown.
@@ -45,12 +61,17 @@ sso_minutes_left() {
 # be destroyed leaves resources behind).
 require_minutes() {
   local need="$1" left
-  left="$(sso_minutes_left)"
-  [[ -n "$left" ]] || left=0
-  ((left >= need)) || die "AWS SSO login expires in ${left} min; this test needs ${need} min. Run 'aws-sso login' first."
   refresh_creds
   aws sts get-caller-identity --query Arn --output text >/dev/null || die "no working AWS credentials"
-  log "AWS: $(aws sts get-caller-identity --query Arn --output text) (${left} min left on the SSO login)"
+  left="$(sso_minutes_left)"
+  [[ -n "$left" ]] || left=0
+  # Either the role credentials outlast the whole run, or the SSO login does
+  # (and the destroy gets fresh credentials).
+  if (($(cred_minutes_left) < need)); then
+    ((left >= need)) || die "AWS SSO login expires in ${left} min; this test needs ${need} min. Run 'aws-sso logout && aws-sso login' first."
+    (($(cred_minutes_left) >= 45)) || die "could not get role credentials valid for 45 min"
+  fi
+  log "AWS: $(aws sts get-caller-identity --query Arn --output text) (${left} min left on the SSO login, $(cred_minutes_left) on the role credentials)"
 }
 # endregion credentials
 

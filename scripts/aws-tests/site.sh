@@ -12,7 +12,7 @@ source "$(dirname "$0")/lib.sh"
 keep=0
 [[ "${1:-}" == "--keep" ]] && keep=1
 
-require_minutes 60
+require_minutes 30
 run_id="$(new_run_id)"
 run_dir="$RUNS_DIR/site-$run_id"
 example="$REPO/terraform/aws/examples/test"
@@ -66,7 +66,14 @@ printf '[%s-deploy-user]\naws_access_key_id = %s\naws_secret_access_key = %s\n' 
     sleep 5
   done
   cd "$REPO"
-  eval "$(out deploy_commands)"
+  # The role's policy can take a minute to apply after it is created.
+  cmds="$(out deploy_commands)"
+  for i in $(seq 1 12); do
+    bash -euo pipefail -c "$cmds" && exit 0
+    echo "deploy failed (attempt $i); retrying in 15 s (IAM propagation)"
+    sleep 15
+  done
+  exit 1
 )
 unset AWS_CONFIG_FILE AWS_SHARED_CREDENTIALS_FILE
 # endregion deploy-as-user
