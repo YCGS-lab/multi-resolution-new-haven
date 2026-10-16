@@ -197,6 +197,15 @@ to it, and API Gateway invokes `live`. A manual rollback is pointing `live`
 at an older version; the next apply moves it back.
 :::
 
+::: danger Workaround: wait for the published version
+A published SnapStart version stays `Pending` for a few minutes while its
+snapshot is taken, and invoking it fails until then (API Gateway answers
+500 at once). OpenTofu does not wait for it, so `terraform_data.version_active`
+runs `aws lambda wait published-version-active` and the alias takes the
+version from its output. Found by the AWS test deployment
+(`scripts/aws-tests/tiler.sh`), where every request failed right after apply.
+:::
+
 ### Version pruning {#version-pruning}
 
 ::: code-group

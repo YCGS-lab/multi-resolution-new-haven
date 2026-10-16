@@ -62,9 +62,20 @@ it keeps titiler-cmr's Earthdata credentials and its cache. Then:
 titiler-cmr's xarray reader opens the granule's asset `"0"`, and it keys
 assets by file name *without extension*. A SMAP L4 granule lists both
 `<name>.h5` and a `<name>.qa` quality report, so the `.qa` file replaced the
-`.h5`: the reader opened the quality report instead of the data. `data_first` keeps only the
-HDF5 / NetCDF links among a granule's related URLs (when there are any)
-before the reader picks its asset.
+`.h5`: the reader opened the quality report instead of the data. `data_first` drops the
+download links to non-data files (when the granule has HDF5 / NetCDF ones)
+before the reader picks its asset, and keeps every other related URL: the
+DAAC's S3 credentials endpoint is one of them, and without it titiler-cmr
+reads S3 unauthenticated (in Lambda, a failed request to the instance
+metadata service).
+
+LAADS granules (Black Marble) list no S3 credentials endpoint at all, so
+`data_first` adds `https://<host>/s3credentials`, `<host>` being that of
+the granule's HTTPS download link (found by the AWS test deployment).
+:::
+
+::: code-group
+<<< @/../tiler/tests/test_readers.py#data-first [tests/test_readers.py#data-first]
 :::
 
 ### Small variables read once

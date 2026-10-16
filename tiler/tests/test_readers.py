@@ -131,3 +131,59 @@ def test_latlon_variables_become_a_geographic_grid():
 
 
 # endregion latlon-grid
+
+
+# region data-first
+def test_data_first_keeps_data_files_and_the_credentials_endpoint():
+    from titiler.cmr.models import Granule
+
+    from ycgs_titiler.readers import data_first
+
+    base = "nsidc-cumulus-prod-protected/SMAP/SPL4SMGP/008/2026/07/30/SMAP_L4_SM_gph_20260730T163000_Vv8011_001"
+    urls = [
+        ("GET DATA", f"https://data.nsidc.earthdatacloud.nasa.gov/{base}.h5"),
+        ("GET DATA", f"https://data.nsidc.earthdatacloud.nasa.gov/{base}.qa"),
+        ("GET DATA VIA DIRECT ACCESS", f"s3://{base}.h5"),
+        ("GET DATA VIA DIRECT ACCESS", f"s3://{base}.qa"),
+        ("VIEW RELATED INFORMATION", "https://data.nsidc.earthdatacloud.nasa.gov/s3credentials"),
+    ]
+    g = Granule.model_validate(
+        {
+            "meta": {
+                "concept-id": "G1-NSIDC_CPRD",
+                "native-id": "SMAP_L4_SM_gph_20260730T163000_Vv8011_001.h5",
+                "collection-concept-id": "C3480440870-NSIDC_CPRD",
+            },
+            "umm": {
+                "GranuleUR": "SMAP_L4_SM_gph_20260730T163000_Vv8011_001.h5",
+                "RelatedUrls": [{"Type": t, "URL": u} for t, u in urls],
+            },
+        }
+    )
+    kept = data_first(g)
+    assert [ru.url for ru in kept.related_urls] == [urls[0][1], urls[2][1], urls[4][1]]
+    assert kept.s3_credentials_endpoint == "https://data.nsidc.earthdatacloud.nasa.gov/s3credentials"
+    assert kept.get_assets()["0"].direct_href == f"s3://{base}.h5"
+
+
+def test_data_first_adds_a_missing_credentials_endpoint():
+    from titiler.cmr.models import Granule
+
+    from ycgs_titiler.readers import data_first
+
+    f = "VNP46A4/VNP46A4.A2025001.h10v04.002.2026076173827.h5"
+    g = Granule.model_validate(
+        {
+            "meta": {"concept-id": "G2-LAADS", "native-id": "LAADS:1", "collection-concept-id": "C3860065683-LAADS"},
+            "umm": {
+                "RelatedUrls": [
+                    {"Type": "GET DATA", "URL": f"https://data.laadsdaac.earthdatacloud.nasa.gov/prod-lads/{f}"},
+                    {"Type": "GET DATA VIA DIRECT ACCESS", "URL": f"s3://prod-lads/{f}"},
+                ]
+            },
+        }
+    )
+    assert data_first(g).s3_credentials_endpoint == "https://data.laadsdaac.earthdatacloud.nasa.gov/s3credentials"
+
+
+# endregion data-first

@@ -62,6 +62,9 @@ sso_minutes_left() {
 require_minutes() {
   local need="$1" left
   refresh_creds
+  if (($(cred_minutes_left) < need)) && [[ -n "${AWS_SSO_PROFILE:-}" ]]; then
+    eval "$(aws-sso eval --no-region --refresh -p "$AWS_SSO_PROFILE")"
+  fi
   aws sts get-caller-identity --query Arn --output text >/dev/null || die "no working AWS credentials"
   left="$(sso_minutes_left)"
   [[ -n "$left" ]] || left=0

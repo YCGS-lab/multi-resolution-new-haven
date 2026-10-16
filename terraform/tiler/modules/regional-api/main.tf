@@ -133,7 +133,30 @@ resource "aws_lambda_function" "this" {
 resource "aws_lambda_alias" "live" {
   name             = "live"
   function_name    = aws_lambda_function.this.function_name
-  function_version = aws_lambda_function.this.version
+  function_version = terraform_data.version_active.output
+}
+
+# A published SnapStart version stays Pending for minutes while its snapshot
+# is taken, and invoking it fails until then: wait before the alias moves.
+resource "terraform_data" "version_active" {
+  input            = aws_lambda_function.this.version
+  triggers_replace = [aws_lambda_function.this.version]
+
+  provisioner "local-exec" {
+    interpreter = ["bash", "-c"]
+    environment = {
+      FN      = aws_lambda_function.this.function_name
+      REGION  = data.aws_region.current.region
+      VERSION = aws_lambda_function.this.version
+    }
+    command = <<-EOT
+      set -euo pipefail
+      for i in 1 2 3 4; do # the CLI waiter gives up after 5 min
+        aws lambda wait published-version-active --region "$REGION" --function-name "$FN" --qualifier "$VERSION" && exit 0
+      done
+      exit 1
+    EOT
+  }
 }
 # endregion alias
 

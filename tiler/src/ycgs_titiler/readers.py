@@ -323,15 +323,31 @@ def open_dataset_with_root_coords(src_path: str, group: str | None = None, **kwa
     return ds
 
 
+DOWNLOAD_URL_TYPES = ("GET DATA", "GET DATA VIA DIRECT ACCESS")
+
+
 def data_first(granule):
-    """The granule with only its data files (HDF5 / NetCDF) among its related URLs,
-    when it has any.
+    """The granule without the download links to its non-data files (when it has
+    HDF5 / NetCDF data files), and with an S3 credentials endpoint.
 
     titiler-cmr's xarray reader opens asset "0" and keys assets by file name
-    without extension, so SMAP L4's `<name>.qa` replaces `<name>.h5`.
+    without extension, so SMAP L4's `<name>.qa` replaced `<name>.h5`. Other
+    related URLs stay: the S3 credentials endpoint is one of them.
     """
-    data = [ru for ru in granule.related_urls if ru.url.lower().endswith(NETCDF_SUFFIXES)]
-    return granule.model_copy(update={"related_urls": data}) if data else granule
+    urls = list(granule.related_urls)
+    downloads = [ru for ru in urls if ru.type in DOWNLOAD_URL_TYPES]
+    if any(ru.url.lower().endswith(NETCDF_SUFFIXES) for ru in downloads):
+        urls = [ru for ru in urls if ru.type not in DOWNLOAD_URL_TYPES or ru.url.lower().endswith(NETCDF_SUFFIXES)]
+    # LAADS granules (Black Marble) do not list their DAAC's S3 credentials
+    # endpoint; it is /s3credentials on the host of the HTTPS download links.
+    if not any("/s3credentials" in ru.url for ru in urls):
+        https = next((ru for ru in downloads if ru.type == "GET DATA" and ru.url.startswith("https://")), None)
+        if https is not None:
+            host = urllib.parse.urlparse(https.url).netloc
+            urls.append(
+                https.model_copy(update={"type": "VIEW RELATED INFORMATION", "url": f"https://{host}/s3credentials"})
+            )
+    return granule.model_copy(update={"related_urls": urls})
 
 
 @attr.s

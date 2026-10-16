@@ -18,7 +18,7 @@ keep=0
 
 docker buildx version >/dev/null 2>&1 || die "docker with buildx is needed (and running) to build the Lambda image"
 command -v aws >/dev/null || die "the AWS CLI is needed (image push, version pruning)"
-require_minutes 90
+require_minutes 45
 
 # region secrets
 eval "$(python3 - <<'EOF'
@@ -83,5 +83,15 @@ while read -r api; do apis+=("$api"); done < <(run_tofu "$example" "$run_dir" ou
 log "smoke test against $url"
 "$REPO/scripts/aws-tests/tiler-smoke.sh" "$url" "${apis[@]}" | tee "$run_dir/smoke.txt"
 status=${PIPESTATUS[0]}
-((status == 0)) || die "smoke test failed"
+if ((status != 0)); then
+  log "smoke test failed: recent logs (also in ${run_dir#$REPO/}/logs.txt)"
+  for d in nasa:us-west-2 noaa:us-east-1 ecmwf:$(run_tofu "$example" "$run_dir" output -json deployments | python3 -c "import json,sys; print(json.load(sys.stdin)['ecmwf']['region'])"); do
+    for g in "/aws/lambda/ycgs-test-tiler-$run_id-${d%%:*}" "/aws/apigateway/ycgs-test-tiler-$run_id-${d%%:*}"; do
+      echo "--- $g (${d#*:})"
+      aws logs filter-log-events --region "${d#*:}" --log-group-name "$g" --start-time $((($(date +%s) - 3600) * 1000)) \
+        --query 'events[-20:].message' --output text 2>&1 | tr '\t' '\n' | cut -c1-600
+    done
+  done | tee "$run_dir/logs.txt"
+  die "smoke test failed"
+fi
 log "all checks passed"
