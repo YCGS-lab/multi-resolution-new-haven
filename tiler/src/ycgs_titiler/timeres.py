@@ -12,6 +12,7 @@ import obstore
 import obstore.store
 from cachetools import TTLCache
 
+from . import lookups
 from .presets import Catalog, Dataset, DimensionTime, GranuleTime, ScanTime, StaticTime, TemplateTime
 
 UTC = dt.UTC
@@ -84,12 +85,22 @@ def list_granules(ds: Dataset, aoi, start: dt.datetime, end: dt.datetime, limit:
         "page_size": limit,
         "sort_key": "start_date",
     }
+    # Windows still being ingested change from one request to the next; cache settled ones only.
+    if end.timestamp() < dt.datetime.now(UTC).timestamp() - lookups.SETTLED_AFTER_S:
+        return lookups.cached("cmr-times", params, lookups.TTL_SETTLED_S)
+    return _search_granules(params)
+
+
+def _search_granules(params: dict) -> list[dict]:
     r = httpx.get(CMR_GRANULES, params=params, timeout=20)
     r.raise_for_status()
     return [
         {"datetime": e["time_start"], "end": e.get("time_end"), "granule_ur": e.get("title")}
         for e in r.json()["feed"]["entry"]
     ]
+
+
+lookups.register("cmr-times", _search_granules)
 
 
 # endregion granule-time
@@ -137,7 +148,9 @@ def _bucket_store(bucket: str):
 
 @lru_cache(maxsize=512)
 def _list_complete_hour(bucket: str, prefix: str) -> tuple[str, ...]:
-    return _list(bucket, prefix)
+    # A complete hour's scans don't change: kept in the lookup cache across execution environments.
+    query = {"bucket": bucket, "prefix": prefix}
+    return tuple(lookups.cached("goes-hour", query, lookups.TTL_SETTLED_S))
 
 
 def _list(bucket: str, prefix: str) -> tuple[str, ...]:
@@ -145,6 +158,9 @@ def _list(bucket: str, prefix: str) -> tuple[str, ...]:
     for batch in obstore.list(_bucket_store(bucket), prefix=prefix):
         out.extend(o["path"] for o in batch)
     return tuple(out)
+
+
+lookups.register("goes-hour", lambda q: list(_list(q["bucket"], q["prefix"])))
 
 
 def _hour_keys(spec: ScanTime, hour: dt.datetime) -> list[tuple[dt.datetime, str]]:

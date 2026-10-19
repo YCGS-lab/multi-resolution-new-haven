@@ -163,3 +163,18 @@ def test_data_end():
 
 
 # endregion granules
+
+
+# region goes
+def test_complete_goes_hours_are_listed_once_across_environments(store, monkeypatch):
+    listed = []
+    monkeypatch.setattr(timeres, "_list", lambda b, p: listed.append(p) or ("a", "b"))
+    timeres.clear_caches()
+    assert timeres._list_complete_hour("noaa-goes19", "ABI-L2-LSTC/2026/154/18/") == ("a", "b")
+    timeres.clear_caches()  # a new execution environment
+    assert timeres._list_complete_hour("noaa-goes19", "ABI-L2-LSTC/2026/154/18/") == ("a", "b")
+    assert listed == ["ABI-L2-LSTC/2026/154/18/"]
+    timeres.clear_caches()
+
+
+# endregion goes
