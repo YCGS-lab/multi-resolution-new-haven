@@ -51,3 +51,8 @@ output "deploy_secret_access_key" {
   value     = module.site.deploy_secret_access_key
   sensitive = true
 }
+
+output "tiler_guard" {
+  description = "Cost guard: alert topic, kill switch function (us-east-1) and budget."
+  value       = module.tiler.guard
+}

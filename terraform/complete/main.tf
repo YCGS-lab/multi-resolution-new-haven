@@ -77,6 +77,13 @@ module "tiler" {
   image_platform         = var.tiler_image_platform
   origin_shield          = var.tiler_origin_shield
 
+  # Cost guard: watches and, if it trips, disables the website's distribution too.
+  guard                        = var.guard
+  alert_emails                 = var.alert_emails
+  guard_extra_distribution_ids = [module.site.distribution_id]
+  guard_budget_usd             = var.guard_budget_usd
+  guard_budget_filters         = var.guard_budget_filters
+
   secrets_version      = var.secrets_version
   secret_recovery_days = var.secret_recovery_days
   earthdata_username   = var.earthdata_username

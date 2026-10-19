@@ -34,3 +34,12 @@ output "cors_origins" {
   description = "Origins allowed in CORS."
   value       = var.cors_origins
 }
+
+output "guard" {
+  description = "Cost guard: alert topic, kill switch function (us-east-1) and budget"
+  value = var.guard ? {
+    alert_topic   = aws_sns_topic.alerts[0].arn
+    kill_function = aws_lambda_function.kill[0].function_name
+    budget        = try(aws_budgets_budget.guard[0].name, null)
+  } : null
+}

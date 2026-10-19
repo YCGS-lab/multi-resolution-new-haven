@@ -117,3 +117,27 @@ variable "cds_api_key" {
   ephemeral   = true
   sensitive   = true
 }
+
+variable "guard" {
+  description = "Cost guard on the website and tiler: CloudFront traffic alarms, a kill switch and a budget backstop (tiler module, guard.tf)."
+  type        = bool
+  default     = true
+}
+
+variable "alert_emails" {
+  description = "Addresses for cost-guard warnings, kill reports and budget alerts (each confirms an SNS subscription by email)."
+  type        = list(string)
+  default     = []
+}
+
+variable "guard_budget_usd" {
+  description = "Monthly budget backstop (USD): email at 80% spent and forecast 100%, kill at 100% spent; null: no budget."
+  type        = number
+  default     = 50
+}
+
+variable "guard_budget_filters" {
+  description = "Budget cost filters (see the tiler module); default: the services the app uses, account-wide."
+  type        = map(list(string))
+  default     = { Service = ["Amazon CloudFront", "AWS Lambda", "Amazon API Gateway", "Amazon DynamoDB"] }
+}

@@ -2,6 +2,18 @@
 # and checks the routing and per-region settings derived from datasets.yaml.
 
 mock_provider "aws" {
+  mock_data "aws_region" {
+    defaults = { region = "us-east-1" }
+  }
+  mock_data "aws_caller_identity" {
+    defaults = { account_id = "123456789012" }
+  }
+  mock_resource "aws_sns_topic" {
+    defaults = { arn = "arn:aws:sns:us-east-1:123456789012:mock" }
+  }
+  mock_resource "aws_cloudwatch_metric_alarm" {
+    defaults = { arn = "arn:aws:cloudwatch:us-east-1:123456789012:alarm:mock" }
+  }
   mock_resource "aws_cloudwatch_log_group" {
     defaults = { arn = "arn:aws:logs:us-east-1:123456789012:log-group:mock" }
   }
@@ -173,6 +185,39 @@ run "plan" {
     error_message = "Origin Shield should be in (or nearest to) each origin's region"
   }
   # endregion origin-shield-assert
+
+  # region guard-assert
+  assert {
+    condition     = module.nasa.reserved_concurrency == 60 && module.noaa.reserved_concurrency == 60 && module.ecmwf.reserved_concurrency == 30
+    error_message = "Default reserved concurrency should cap the tiler at ~$17/h"
+  }
+
+  assert {
+    condition = (
+      abs(aws_cloudwatch_metric_alarm.kill[0].threshold - 50e9 / 12) < 1
+      && aws_cloudwatch_metric_alarm.kill[0].evaluation_periods == 3
+      && abs(aws_cloudwatch_metric_alarm.warn["warn-bytes"].threshold - 5e9 / 12) < 1
+      && abs(aws_cloudwatch_metric_alarm.warn["warn-requests"].threshold - 50000 / 12) < 1
+    )
+    error_message = "Guard thresholds: kill at 50 GB/h for 15 min, warn at 5 GB/h or 50,000 requests/h (per 5-minute period)"
+  }
+
+  assert {
+    condition     = aws_budgets_budget.guard[0].limit_amount == "50" && length(aws_budgets_budget.guard[0].notification) == 1
+    error_message = "Budget backstop: $50, and without alert emails only the kill notification"
+  }
+  # endregion guard-assert
+}
+
+run "guard_off" {
+  command = plan
+  variables {
+    guard = false
+  }
+  assert {
+    condition     = length(aws_lambda_function.kill) == 0 && length(aws_budgets_budget.guard) == 0
+    error_message = "guard = false should create no guard resources"
+  }
 }
 
 run "origin_shield_off" {

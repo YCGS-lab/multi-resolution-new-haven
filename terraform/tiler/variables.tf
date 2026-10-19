@@ -97,3 +97,59 @@ variable "origin_shield" {
   description = "CloudFront Origin Shield in each regional deployment's region (~$0.0075-0.009 per 10,000 requests that reach it)"
   default     = true
 }
+
+# region guard-variables
+variable "guard" {
+  type        = bool
+  description = "Cost guard: CloudFront traffic alarms, a kill switch and a budget backstop (guard.tf). Needs the default provider in us-east-1"
+  default     = true
+}
+
+variable "alert_emails" {
+  type        = list(string)
+  description = "Addresses for cost-guard warnings, kill reports and budget alerts (each confirms an SNS subscription by email)"
+  default     = []
+}
+
+variable "guard_extra_distribution_ids" {
+  type        = list(string)
+  description = "Other CloudFront distributions to watch and disable with the tiler's (e.g. the website's)"
+  default     = []
+}
+
+variable "guard_warn_bytes_per_hour" {
+  type        = number
+  description = "Warning: bytes downloaded per hour from the guarded distributions (5 GB ~ $0.43/h)"
+  default     = 5e9
+}
+
+variable "guard_warn_requests_per_hour" {
+  type        = number
+  description = "Warning: requests per hour to the guarded distributions"
+  default     = 50000
+}
+
+variable "guard_kill_bytes_per_hour" {
+  type        = number
+  description = "Kill: bytes downloaded per hour (50 GB ~ $4.25/h), sustained for guard_kill_minutes"
+  default     = 50e9
+}
+
+variable "guard_kill_minutes" {
+  type        = number
+  description = "Kill: how long the download rate must stay above guard_kill_bytes_per_hour (multiple of 5)"
+  default     = 15
+}
+
+variable "guard_budget_usd" {
+  type        = number
+  description = "Monthly budget backstop (USD): email at 80% spent and forecast 100%, kill at 100% spent; null: no budget"
+  default     = 50
+}
+
+variable "guard_budget_filters" {
+  type        = map(list(string))
+  description = "Budget cost filters (dimension -> values). Default: the services the tiler and website use, account-wide; with the Service tag activated for cost allocation, e.g. { TagKeyValue = [\"user:Service$<name>\"] }"
+  default     = { Service = ["Amazon CloudFront", "AWS Lambda", "Amazon API Gateway", "Amazon DynamoDB"] }
+}
+# endregion guard-variables

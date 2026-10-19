@@ -90,6 +90,7 @@ export default withMermaid(
             { text: "Infrastructure (OpenTofu)", link: "/tiler/infrastructure" },
             { text: "CloudFront", link: "/tiler/cloudfront" },
             { text: "Lookup cache", link: "/tiler/lookup-cache" },
+            { text: "Cost guard", link: "/tiler/guard" },
             { text: "Evaluation: tile cache", link: "/tiler/tile-cache-evaluation" },
             { text: "Evaluation: Icechunk store", link: "/tiler/icechunk-evaluation" },
             { text: "Running and testing", link: "/tiler/operations" },

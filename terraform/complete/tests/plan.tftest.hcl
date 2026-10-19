@@ -2,6 +2,18 @@
 # providers and checks how they are wired together.
 
 mock_provider "aws" {
+  mock_data "aws_region" {
+    defaults = { region = "us-east-1" }
+  }
+  mock_data "aws_caller_identity" {
+    defaults = { account_id = "123456789012" }
+  }
+  mock_resource "aws_sns_topic" {
+    defaults = { arn = "arn:aws:sns:us-east-1:123456789012:mock" }
+  }
+  mock_resource "aws_cloudwatch_metric_alarm" {
+    defaults = { arn = "arn:aws:cloudwatch:us-east-1:123456789012:alarm:mock" }
+  }
   mock_resource "aws_cloudwatch_log_group" {
     defaults = { arn = "arn:aws:logs:us-east-1:123456789012:log-group:mock" }
   }
@@ -168,4 +180,9 @@ run "wiring" {
     error_message = "Tiler resources are named <name>-tiler-..."
   }
   # endregion wiring-asserts
+
+  assert {
+    condition     = output.tiler_guard != null
+    error_message = "The cost guard should be on by default"
+  }
 }

@@ -199,3 +199,6 @@ docs/.vitepress/cache/
 
 # AWS test runs (scripts/aws-tests): per-run OpenTofu state, kept until the run is destroyed
 /.aws-tests/
+
+# Lambda zips built by OpenTofu (terraform/tiler guard)
+terraform/**/.build/
