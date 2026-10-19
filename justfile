@@ -25,6 +25,11 @@ deploy:
 serve port="8000":
   PORT={{port}} caddy run --config scripts/website/Caddyfile --adapter caddyfile
 
+# Example: just prefill-lookups --table <nasa lookup_table> --datasets hls-l30 --start 2024-01-01 (--help for options)
+# Pre-fill the tiler's lookup cache with New Haven's CMR granule searches (docs/tiler/lookup-cache.md)
+prefill-lookups *args:
+  cd tiler && AWS_REGION="${AWS_REGION:-us-west-2}" uv run python -m ycgs_titiler.prefill {{args}}
+
 # Rebuild just the ICESat-2 data for the website
 is2:
   uv run scripts/icesat2/download.py

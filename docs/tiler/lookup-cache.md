@@ -1,4 +1,4 @@
-# Lookup cache (`lookups.py`, `granules.py`, `prune.py`)
+# Lookup cache (`lookups.py`, `granules.py`, `prune.py`, `prefill.py`)
 
 Some requests wait on a lookup before they can read any pixels: which
 granules cover this tile (a CMR search), or which GOES scan is nearest to
@@ -164,6 +164,47 @@ minutes of HTTP calls a week, well within one Lambda invocation, and the
 tiler image already has the code; EventBridge Scheduler invokes it for
 free.
 :::
+
+## Pre-filling (`prefill.py`)
+
+The cache only helps once a date and area has been looked at: the first
+view of a date still waits on CMR (the 504 and 17 s HLS tiles above), and
+an area nobody has looked at fails while CMR is down. `ycgs_titiler.prefill`
+stores those searches ahead of time for the catalog's `aoi` (Greater New
+Haven):
+
+1. For each CMR dataset, list the granule times over the area, month by
+   month (one CMR call per month; a failed month is skipped and counted as
+   `listing_error`: run again later).
+2. Turn each time into the `datetime` values clients send: the step's start
+   (the API, the website's "instant" form) and the website's "interval"
+   form (`start/end-1s` of the step; a minute for SMAP). For day and year
+   steps both forms give the same search, so the same entry.
+3. Resolve each as a tile request would (`router.resolve`, titiler-cmr's
+   `GranuleSearch` and coverage tolerance), and run the parent-tile search
+   for each parent tile over the area: the zoom-8 tiles by default (every
+   request from zoom 8 up), `--zooms 4-8` to add the lower zooms' own
+   entries.
+
+Entries already stored and unexpired are skipped (`--force` recomputes
+them), and times not settled yet are skipped (their entries would expire
+within the hour). The prune job then keeps the entries correct like any
+other. A test (`test_prefill_keys_match_tile_requests`) sends tile requests
+for every CMR dataset and render through the app and checks that each
+stored key is one the pre-fill computes.
+
+```sh
+# the nasa deployment's table (us-west-2): tofu output deployments -> nasa.lookup_table
+just prefill-lookups --table <table> --dry-run                     # times and entry counts only
+just prefill-lookups --table <table>                               # every CMR dataset, the last year
+just prefill-lookups --table <table> --datasets hls-l30 --start 2021-01-01
+```
+
+The default window is the year before the settled cutoff (7 days ago). At
+4 concurrent searches (`--workers`) and CMR's ~2-4 s median, a year of
+HLS (a few hundred days) takes minutes; a dataset with several granule
+times a day (SMAP) has thousands of entries a year. DynamoDB writes cost
+~$0.003 per 1,000 entries.
 
 ## Code
 
