@@ -89,6 +89,7 @@ export default withMermaid(
             { text: "Lambda handler and image", link: "/tiler/lambda" },
             { text: "Infrastructure (OpenTofu)", link: "/tiler/infrastructure" },
             { text: "CloudFront", link: "/tiler/cloudfront" },
+            { text: "Lookup cache", link: "/tiler/lookup-cache" },
             { text: "Running and testing", link: "/tiler/operations" },
             { text: "Tiler glossary", link: "/tiler/glossary" },
           ],
