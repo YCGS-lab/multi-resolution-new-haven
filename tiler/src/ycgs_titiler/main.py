@@ -182,10 +182,15 @@ def cmr_app() -> FastAPI:
     from titiler.core.dependencies import ExpressionParams
     from titiler.xarray.dependencies import DatasetParams as XarrayDatasetParams
 
+    from .granules import CachedCMRBackend
     from .readers import GroupedXarrayGranuleReader
 
+    # Granule searches per parent tile, through the lookup cache (granules.py).
+    cmr.xarray.backend = CachedCMRBackend
+    cmr.rasterio.backend = CachedCMRBackend
     if not getattr(cmr.app.state, "ycgs_grouped", False):
         grouped = CMRTilerFactory(
+            backend=CachedCMRBackend,
             router_prefix="/xarray-grouped",
             dataset_reader=GroupedXarrayGranuleReader,
             reader_dependency=interpolated_xarray_ds_params,
