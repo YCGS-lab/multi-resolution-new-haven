@@ -16,6 +16,8 @@ output "deployments" {
       function_name    = m.function_name
       live_version     = m.live_version
       image            = "${local.repositories[k]}:${local.image_tag}"
+      lookup_table     = m.lookup_table
+      prune_function   = m.prune_function_name
     }
   }
 }
