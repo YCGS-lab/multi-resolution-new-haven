@@ -7,7 +7,7 @@ from morecantile import Tile
 from rio_tiler.constants import WEB_MERCATOR_TMS
 from titiler.cmr.models import Granule, GranuleSearch
 
-from ycgs_titiler import granules, lookups, timeres
+from ycgs_titiler import granules, lookups, prune, timeres
 
 
 @pytest.fixture
@@ -178,3 +178,32 @@ def test_complete_goes_hours_are_listed_once_across_environments(store, monkeypa
 
 
 # endregion goes
+
+
+# region prune
+def test_prune(store, monkeypatch):
+    now = time.time()
+    results = {"same": 1, "changed": 1, "fails": 1}
+    lookups.register("test", lambda q: results[q["id"]])
+
+    def boom(q):
+        raise TimeoutError
+
+    lookups.register("test-error", boom)
+    for qid in results:
+        lookups.put(store, "test", {"id": qid}, 1, lookups.TTL_SETTLED_S, now)
+    lookups.put(store, "test-error", {"id": "x"}, 1, lookups.TTL_SETTLED_S, now)
+    lookups.put(store, "test", {"id": "recent"}, 1, lookups.TTL_RECENT_S, now)
+    lookups.put(store, "test", {"id": "old"}, 1, 60, now - 120)
+    lookups.put(store, "gone", {"id": "y"}, 1, lookups.TTL_SETTLED_S, now)
+    results["changed"] = 2
+    counts = prune.prune(store, now)
+    assert counts == {"valid": 2, "changed": 1, "error": 1, "recent": 1, "expired": 1, "unknown_kind": 1}
+    remaining = sorted(i["query"] for i in store.items.values())
+    assert remaining == ['{"id":"fails"}', '{"id":"recent"}', '{"id":"same"}', '{"id":"x"}']
+    # past the deadline, settled entries are left for next week
+    assert prune.prune(store, now, deadline=0.0) == {"deferred": 3, "recent": 1}
+    del lookups.KINDS["test"], lookups.KINDS["test-error"]
+
+
+# endregion prune
