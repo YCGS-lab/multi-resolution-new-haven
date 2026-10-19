@@ -91,6 +91,7 @@ export default withMermaid(
             { text: "CloudFront", link: "/tiler/cloudfront" },
             { text: "Lookup cache", link: "/tiler/lookup-cache" },
             { text: "Evaluation: tile cache", link: "/tiler/tile-cache-evaluation" },
+            { text: "Evaluation: Icechunk store", link: "/tiler/icechunk-evaluation" },
             { text: "Running and testing", link: "/tiler/operations" },
             { text: "Tiler glossary", link: "/tiler/glossary" },
           ],
