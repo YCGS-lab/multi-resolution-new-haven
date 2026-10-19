@@ -172,6 +172,56 @@ EXAMPLES = {
 # endregion examples
 
 
+# region links
+# "More info" (the dataset's or mission's home page) and "Data access" (where
+# the product shown can be downloaded; not necessarily where the website reads
+# it from) on each product's source line. Keys are datasets, or
+# "<dataset>/<product>" for one product; a pre-built variant ("<dataset>-prebuilt")
+# shares its live dataset's links. Update by hand.
+EARTHDATA_SEARCH = "https://search.earthdata.nasa.gov/search/granules?p={}&sb[0]=-73.05%2C41.25%2C-72.79%2C41.36"
+LINKS = {
+    # USGS EarthExplorer has no stable link to one dataset: pick Landsat > Landsat Collection 2 Level-2 (Level-1 for pan)
+    "landsat": dict(info="https://www.usgs.gov/landsat-missions", data="https://earthexplorer.usgs.gov/"),
+    "landsat-pan": dict(info="https://www.usgs.gov/landsat-missions/landsat-8", data="https://earthexplorer.usgs.gov/"),
+    "naip": dict(
+        info="https://www.usgs.gov/centers/eros/science/usgs-eros-archive-aerial-photography-national-agriculture-imagery-program-naip",
+        data="https://earthexplorer.usgs.gov/",
+    ),
+    "planet": dict(info="https://www.planet.com/products/mosaics/", data="https://insights.planet.com/data/mosaics/"),
+    "ct-ortho": dict(info="https://maps.cteco.uconn.edu/data/imagery/", data="https://maps.cteco.uconn.edu/download/"),
+    "ct-lidar": dict(info="https://maps.cteco.uconn.edu/data/lidar/", data="https://maps.cteco.uconn.edu/download/"),
+    "3dep": dict(info="https://www.usgs.gov/3d-elevation-program", data="https://apps.nationalmap.gov/downloader/"),
+    # Earthdata Search: the collection, with Greater New Haven drawn as the search box
+    "aster-dem": dict(info="https://www.earthdata.nasa.gov/data/catalog/lpcloud-astgtm-003", data=EARTHDATA_SEARCH.format("C1711961296-LPCLOUD")),
+    "viirs-lst": dict(info="https://www.earthdata.nasa.gov/data/catalog/lpcloud-vnp21a1d-002", data=EARTHDATA_SEARCH.format("C2545314555-LPCLOUD")),
+    # the pre-built image is the VNP21 swath, not the daily grid
+    "viirs-lst-prebuilt": dict(info="https://www.earthdata.nasa.gov/data/catalog/lpcloud-vnp21-002", data=EARTHDATA_SEARCH.format("C2545314550-LPCLOUD")),
+    "goes-lst": dict(info="https://www.star.nesdis.noaa.gov/goesr/product_land_lst.php", data="https://noaa-goes19.s3.amazonaws.com/index.html#ABI-L2-LSTC/"),
+    "era5-land": dict(info="https://www.ecmwf.int/en/era5-land", data="https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land?tab=download"),
+    "prism": dict(info="https://prism.oregonstate.edu/", data="https://data.prism.oregonstate.edu/time_series/us/an/800m/tmean/monthly/2026/"),
+    "icesat2": dict(info="https://icesat-2.gsfc.nasa.gov/", data="https://nsidc.org/data/atl08/versions/7"),
+    "ct-impervious-2023": dict(
+        info="https://maps.cteco.uconn.edu/data/flight2023/impervious/",
+        data="https://geodata.ct.gov/datasets/ctmaps::impervious-surface-land-connecticut-2023",
+    ),
+    "nisar-gcov": dict(info="https://science.nasa.gov/mission/nisar/", data=EARTHDATA_SEARCH.format("C2854338529-ASF")),
+    "smap": dict(info="https://smap.jpl.nasa.gov/", data="https://nsidc.org/data/spl4smgp/versions/8"),
+    "chirps": dict(info="https://www.chc.ucsb.edu/data/chirps3", data="https://data.chc.ucsb.edu/products/CHIRPS/v3.0/daily/final/sat/"),
+    "viirs-nightlights": dict(
+        info="https://www.earthdata.nasa.gov/data/projects/black-marble",
+        data="https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/products/VNP46A4/",
+    ),
+    "streetmap/osm": dict(info="https://www.openstreetmap.org/about", data="https://planet.openstreetmap.org/"),
+    # Esri's data can't be downloaded: both links are the map's item page
+    "streetmap/esri": dict(
+        info="https://www.arcgis.com/home/item.html?id=3b93337983e9436f8db950e38a8629af",
+        data="https://www.arcgis.com/home/item.html?id=3b93337983e9436f8db950e38a8629af",
+    ),
+    "streetmap/usgs-topo": dict(info="https://www.usgs.gov/programs/national-geospatial-program/national-map", data="https://apps.nationalmap.gov/downloader/"),
+}
+# endregion links
+
+
 # region load-and-resolve
 def load_specs() -> tuple[dict, dict]:
     """Sources {"<dataset>/<name>": source} and products {"<dataset>/<product>": product}.
@@ -194,8 +244,18 @@ def load_specs() -> tuple[dict, dict]:
                 p["coverage"] = cog_coverage([sources[l["source"]] for l in p["layers"]])
             if p.get("time") and ds in EXAMPLES:
                 p["time"] = {**p["time"], "example": example(f"{ds}/{name}", p["time"], EXAMPLES[ds])}
+            if links := links_for(ds, name):
+                p["links"] = links
             products[f"{ds}/{name}"] = p
     return sources, products
+
+
+def links_for(dataset: str, product: str) -> dict | None:
+    """A product's LINKS entry: its own, its dataset's, or its live dataset's (pre-built variants)."""
+    for k in (f"{dataset}/{product}", dataset, dataset.removesuffix("-prebuilt")):
+        if k in LINKS:
+            return LINKS[k]
+    return None
 
 
 KEY_FORMS = {"year": r"\d{4}", "month": r"\d{4}-\d\d", "day": r"\d{4}-\d\d-\d\d", "hour": r"\d{4}-\d\d-\d\dT\d\d:00Z", "time": r"\d{4}-\d\d-\d\dT\d\d:\d\dZ"}
@@ -272,6 +332,9 @@ def main():
         f"wrote {out.relative_to(config.REPO)}: {len(products)} products from {len(sources)} sources "
         f"({', '.join(f'{n} {k}' for k, n in sorted(kinds.items()))})"
     )
+    no_links = sorted(pid for pid in products if not links_for(*pid.split("/", 1)))
+    if no_links:
+        print(f"  no LINKS entry: {', '.join(no_links)}")
     missing = sorted({f"{n['dataset']}/{n['product']}" for n in _items(TREE)} - set(products))
     if missing:
         print(f"  not built yet (run the dataset's create-cog.py / website-layers.py): {', '.join(missing)}")
