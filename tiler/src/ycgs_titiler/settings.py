@@ -13,8 +13,11 @@ class Settings(BaseSettings):
     # rejected (unset: no check, e.g. local runs).
     origin_verify: str | None = None
     cors_origins: str = "*"
-    # Cache-Control for preset responses whose time is fixed by the URL, and for
-    # "latest" requests (no datetime).
+    # Cache-Control for preset responses whose time is fixed by the URL and whose
+    # data is settled (a year in CloudFront, s-maxage; a day in browsers, which
+    # can't be purged), whose time is fixed but recent, and for "latest"
+    # requests (no datetime).
+    cachecontrol_settled: str = "public, max-age=86400, s-maxage=31536000"
     cachecontrol_pinned: str = "public, max-age=86400"
     cachecontrol_latest: str = "public, max-age=60"
     # Comma-separated Secrets Manager ARNs whose JSON key/values become env vars at cold start.

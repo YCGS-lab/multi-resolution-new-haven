@@ -40,6 +40,7 @@ datasets:
     time: {kind: granule, align: day, default: "2026-07-17"}
     minzoom: 6
     maxzoom: 16
+    settled_after_days: null  # provisional: granules may be reprocessed
     renders:
       balanced:
         title: Balanced dual-pol RGB (HH, HV, HH/HV)
@@ -149,6 +150,7 @@ datasets:
     bounds: [-152.0, 14.0, -50.0, 57.0]  # CONUS sector (approximate)
     minzoom: 3
     maxzoom: 11
+    settled_after_days: 1  # a scan's file doesn't change once written
     renders:
       truecolor:
         title: True color (red, synthetic green, blue)
@@ -197,6 +199,7 @@ datasets:
     time: {kind: dimension, dim: time, method: nearest, default: "2026-07-20T17:00:00"}
     minzoom: 0
     maxzoom: 10
+    settled_after_days: 90  # recent ERA5-Land values are occasionally revised
     renders:
       celsius:
         title: 2 m temperature (deg C)
@@ -274,6 +277,7 @@ datasets:
     bounds: [-152.0, 14.0, -50.0, 57.0]
     minzoom: 3
     maxzoom: 11
+    settled_after_days: 1
     renders:
       celsius:
         title: Land surface temperature (deg C)
@@ -301,6 +305,7 @@ datasets:
     bounds: [-180.0, -60.0, 180.0, 60.0]
     minzoom: 0
     maxzoom: 10
+    settled_after_days: 1  # the "final" product; a day's file doesn't change once published
     renders:
       precip:
         title: Precipitation (mm/day)

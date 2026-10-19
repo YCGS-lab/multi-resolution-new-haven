@@ -123,6 +123,10 @@ class Dataset(_Model):
     bounds: tuple[float, float, float, float] = (-180.0, -85.0511287798066, 180.0, 85.0511287798066)
     minzoom: int = 0
     maxzoom: int = 14
+    # Days after a time's data ends before it is settled (no longer being
+    # ingested or revised): its tiles are then kept a year in CloudFront
+    # (YCGS_CACHECONTROL_SETTLED). None: never (provisional data).
+    settled_after_days: float | None = 7
     renders: dict[str, Render]
 
     @property

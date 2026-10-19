@@ -57,7 +57,12 @@ difference renders.
 
 The dataset model adds `zooms` (parameters chosen by zoom level), the
 backend `prefix`, and `time_for(render)`: the dataset's time spec with the
-render's overrides applied.
+render's overrides applied. `settled_after_days` (default 7) is how long
+after a time's data ends it stops changing; tiles for settled times are
+kept a year in CloudFront ([caching](./requests#caching)). It is `null`
+for NISAR (provisional granules may be reprocessed), 90 for ERA5-Land
+(recent values are occasionally revised), and 1 for GOES scans and CHIRPS
+final files, which don't change once written.
 
 The catalog is loaded once per process (`@cache`). `main.py` loads it at
 import, so a broken `datasets.yaml` fails the image build (the Dockerfile's

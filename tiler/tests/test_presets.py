@@ -3,7 +3,7 @@ from urllib.parse import parse_qs, urlencode
 import pytest
 
 from ycgs_titiler import presets, timeres
-from ycgs_titiler.router import PresetError, request_zoom, resolve
+from ycgs_titiler.router import PresetError, is_settled, request_zoom, resolve
 
 CAT = presets.load()
 GOES_KEYS = (
@@ -260,3 +260,29 @@ def test_parse_year_and_month():
 
 
 # endregion new-time-kinds
+
+
+# region settled
+def test_settled_times_by_dataset():
+    tile = "tiles/WebMercatorQuad/10/304/382.png"
+    # long past: settled; NISAR is provisional, never settled
+    assert resolve(CAT, "hls-l30", "truecolor", tile, query(datetime="2024-08-27")).settled
+    assert resolve(CAT, "aster-gdem", "elevation", tile, {}).settled
+    assert resolve(CAT, "chirps-daily", "precip", tile, query(datetime="2026-07-29")).settled
+    nisar = resolve(CAT, "nisar-gcov", "hh", tile, query(datetime="2026-07-17"))
+    assert nisar.pinned and not nisar.settled
+    # a GOES scan, settled a day after it was taken
+    assert resolve(CAT, "goes19-abi", "truecolor", tile, query(datetime="2026-06-03T18:00:00Z")).settled
+
+
+def test_settled_rule():
+    now = timeres.parse_datetime("2026-10-19T12:00:00Z")
+    hls, era5, nisar = (CAT.datasets[k] for k in ("hls-l30", "era5-land-t2m", "nisar-gcov"))
+    assert is_settled(hls, timeres.parse_datetime("2026-10-11"), False, now)
+    assert not is_settled(hls, timeres.parse_datetime("2026-10-13"), False, now)
+    assert not is_settled(era5, timeres.parse_datetime("2026-08-01"), False, now)  # within 90 days
+    assert not is_settled(hls, None, False, now)  # unknown end (granule_ur only)
+    assert not is_settled(nisar, None, True, now)
+
+
+# endregion settled

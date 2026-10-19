@@ -54,7 +54,8 @@ CloudFront.
   `Origin` is added only when CORS is restricted, because CORS headers then
   differ per origin.
 - **TTLs.** Minimum 0 and maximum a year, so the origin's `Cache-Control`
-  decides: 1 day for fixed times, 60 s for "latest"
+  decides: a year for settled fixed times (`s-maxage`, which CloudFront
+  uses over `max-age`), 1 day for recent fixed times, 60 s for "latest"
   ([caching](./requests#caching)). The 1-hour default applies only when the
   origin sends none.
 - **Compression.** gzip / brotli in the key lets CloudFront store

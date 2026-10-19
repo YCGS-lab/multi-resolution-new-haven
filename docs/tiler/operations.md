@@ -131,3 +131,28 @@ aws lambda update-alias --function-name <name>-nasa --name live --function-versi
 
 The next apply moves the alias back to the version OpenTofu manages, so
 revert the code too.
+
+### Purge cached tiles {#purge}
+
+Tiles for settled times stay in CloudFront for a year
+([caching](./requests#caching)). If an upstream dataset was reprocessed or
+corrected, purge it in this order, so CloudFront doesn't refill from a
+stale granule list:
+
+1. **Lookup cache** (CMR and GOES datasets): run the prune job of the
+   dataset's deployment. It recomputes every settled entry and deletes the
+   ones whose result changed ([lookup cache](./lookup-cache#invalidation-and-the-prune-job)).
+2. **CloudFront**: invalidate the dataset's path, which drops every time
+   and render of it at the edges and in Origin Shield:
+
+   ```sh
+   aws cloudfront create-invalidation --distribution-id <tiler distribution> --paths "/datasets/<id>/*"
+   ```
+
+   Invalidation matches the path; the time is in the query string, so the
+   unit is a whole dataset. A wildcard path counts as one of the 1,000 free
+   invalidation paths a month.
+3. **Browsers** keep tiles a day (`max-age`), or until a reload.
+
+The deployment stacks in `ycgs-aws-infra` wrap steps 1 and 2 as
+`just purge <id>`.

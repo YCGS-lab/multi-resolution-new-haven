@@ -48,8 +48,18 @@ def test_preset_tile_cache_and_time_headers(client):
     r = client.get("/datasets/t2m/celsius/tiles/WebMercatorQuad/9/150/190.png?datetime=2026-07-20T05:00")
     assert r.status_code == 200, r.text
     assert r.headers["content-type"] == "image/png"
-    assert r.headers["cache-control"] == "public, max-age=86400"
+    # settled (more than 7 days ago): a year in CloudFront, a day in browsers
+    assert r.headers["cache-control"] == "public, max-age=86400, s-maxage=31536000"
     assert r.headers["x-ycgs-datetime"] == "2026-07-20T05:00"
+
+
+def test_recent_fixed_times_are_cached_a_day(client, monkeypatch):
+    from ycgs_titiler import router
+
+    monkeypatch.setattr(router, "is_settled", lambda ds, end, static: False)
+    r = client.get("/datasets/t2m/celsius/tiles/WebMercatorQuad/9/150/190.png?datetime=2026-07-20T05:00")
+    assert r.status_code == 200, r.text
+    assert r.headers["cache-control"] == "public, max-age=86400"
 
 
 def test_preset_errors_are_not_cached(client):

@@ -16,7 +16,7 @@ flowchart TD
   g & d & s & t & n --> allow["add allowed client parameters<br/>(reject anything else)"]
   allow --> rewrite["rewrite path + query in place<br/>/cmr/xarray/..., /cmr/rasterio/..., /xarray/..., /cog/..."]
   rewrite --> titiler["titiler endpoint renders the tile"]
-  titiler --> cc["Cache-Control: 1 day pinned,<br/>60 s latest, no-store on errors"]
+  titiler --> cc["Cache-Control: 1 year in CloudFront if settled,<br/>1 day pinned, 60 s latest, no-store on errors"]
 ```
 
 ## Endpoints
@@ -134,10 +134,15 @@ It replaces `path`, `raw_path` and `query_string` in a copy of the scope,
 and wraps `send` to set headers on the response.
 
 ::: warning Design decision: Cache-Control set by the preset layer
-- **Pinned and successful:** `public, max-age=86400`
-  (`YCGS_CACHECONTROL_PINNED`). Data for a fixed time do not change; one
-  day rather than a year limits how long a reprocessed granule (NISAR is
-  provisional) stays stale.
+- **Settled** (pinned, and the data ended more than the dataset's
+  `settled_after_days` ago, or static): `public, max-age=86400,
+  s-maxage=31536000` (`YCGS_CACHECONTROL_SETTLED`). CloudFront keeps the
+  tile a year (`s-maxage`), so it is rendered once rather than once a day;
+  browsers keep it a day (`max-age`), because a CloudFront purge
+  ([operations](./operations#purge)) can't reach them.
+- **Pinned, not settled** (a recent time, still being ingested, or NISAR,
+  which is provisional): `public, max-age=86400`
+  (`YCGS_CACHECONTROL_PINNED`).
 - **"Latest"** (a scan without `datetime`): `public, max-age=60`; a new GOES
   scan arrives every 5 minutes.
 - **Errors:** `no-store`, so a cold-start timeout is not cached.

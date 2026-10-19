@@ -10,6 +10,7 @@ FastAPI router.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import math
 import os
@@ -79,6 +80,7 @@ class Resolved:
     pinned: bool  # the response depends only on the URL (cacheable for long)
     time: str | None = None
     extra_headers: dict[str, str] = field(default_factory=dict)
+    settled: bool = False  # pinned, and the data for that time no longer changes (cacheable for a year)
 
 
 def lookup(cat: Catalog, ds_id: str, render_name: str | None = None) -> tuple[Dataset, Render | None]:
@@ -135,15 +137,21 @@ def resolve(cat: Catalog, ds_id: str, render_name: str, rest: str, query: dict[s
     dt1 = (query.get("datetime") or [None])[0]
     dt2 = (query.get("datetime2") or [None])[0]
     pinned, resolved_time, headers = True, None, {}
+    # When the requested data ends (None: unknown); static data is always settled.
+    end: dt.datetime | None = None
+    static = False
     try:
         if isinstance(spec, GranuleTime):
             value = dt1 or spec.default
             if value and (dt1 or "granule_ur" not in query):
-                params.update(timeres.granule_params(spec, value))
+                granule = timeres.granule_params(spec, value)
+                params.update(granule)
                 resolved_time = value
+                end = timeres.parse_datetime(granule["temporal"].split("/")[-1])
         elif isinstance(spec, TemplateTime):
             url, resolved_time = timeres.template_params(spec, dt1 or spec.default)
             params.update(url)
+            end = timeres.step_range(timeres.parse_datetime(resolved_time), spec.step)[1]
         elif isinstance(spec, DimensionTime):
             values = [dt1 or spec.default]
             if render.two_times:
@@ -152,14 +160,19 @@ def resolve(cat: Catalog, ds_id: str, render_name: str, rest: str, query: dict[s
                 values.append(dt2)
             params.update(timeres.dimension_params(spec, values))
             resolved_time = values[0]
+            end = max(timeres.parse_datetime(v) for v in values)
         elif isinstance(spec, ScanTime):
             value = dt1 or spec.default
             scan, resolved_time = timeres.scan_params(spec, value)
             params.update(scan)
             pinned = value is not None
             headers["x-ycgs-source"] = scan["url"]
+            end = timeres.parse_datetime(resolved_time)
+        else:
+            static = True
     except timeres.TimeError as e:
         raise PresetError(400 if dt1 or dt2 else 404, str(e)) from e
+    settled = pinned and is_settled(ds, end, static)
 
     allowed = PASSTHROUGH | (PASSTHROUGH_CMR if ds.backend in CMR_BACKENDS else set())
     if render_name == "raw":
@@ -174,7 +187,17 @@ def resolve(cat: Catalog, ds_id: str, render_name: str, rest: str, query: dict[s
 
     if resolved_time:
         headers["x-ycgs-datetime"] = resolved_time
-    return Resolved(f"{ds.prefix}/{rest}", _flatten(params), pinned, resolved_time, headers)
+    return Resolved(f"{ds.prefix}/{rest}", _flatten(params), pinned, resolved_time, headers, settled=settled)
+
+
+def is_settled(ds: Dataset, end: dt.datetime | None, static: bool, now: dt.datetime | None = None) -> bool:
+    """Whether data ending at `end` is past the dataset's settling time."""
+    if ds.settled_after_days is None:
+        return False
+    if static:
+        return True
+    now = now or dt.datetime.now(dt.UTC)
+    return end is not None and end < now - dt.timedelta(days=ds.settled_after_days)
 
 
 # endregion resolve
@@ -209,7 +232,12 @@ class PresetMiddleware:
         new_scope["path"] = target.path
         new_scope["raw_path"] = target.path.encode()
         new_scope["query_string"] = urlencode(target.params).encode()
-        cachecontrol = settings.cachecontrol_pinned if target.pinned else settings.cachecontrol_latest
+        if target.settled:
+            cachecontrol = settings.cachecontrol_settled
+        elif target.pinned:
+            cachecontrol = settings.cachecontrol_pinned
+        else:
+            cachecontrol = settings.cachecontrol_latest
 
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
