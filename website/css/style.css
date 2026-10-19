@@ -627,6 +627,32 @@ main {
   margin-top: 2px;
 }
 
+/* Time and links on one line; the links start at a fixed offset (pushed right only by a long time label). */
+.title-meta {
+  display: grid;
+  grid-template-columns: minmax(11.5em, max-content) auto;
+  column-gap: 16px;
+  align-items: baseline;
+  font-size: 14px;
+  color: var(--gray-700);
+  margin-top: 2px;
+}
+
+.title-links {
+  display: flex;
+  gap: 16px;
+  white-space: nowrap;
+}
+
+.title-links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.title-links a:hover {
+  text-decoration: underline;
+}
+
 .subtitle.compact {
   white-space: nowrap;
   overflow: hidden;
@@ -862,16 +888,8 @@ main {
   align-self: flex-end;
 }
 
-.source-links {
-  white-space: nowrap;
-}
-
-.source-links::before {
-  content: " · ";
-}
-
-.source-links:first-child::before {
-  content: none;
+.source-detail {
+  white-space: pre-line;
 }
 
 /* ---------- grid ---------- */

@@ -353,15 +353,32 @@ export class MapChrome {
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
-/** Title, subtitle (with the selected time) and native-resolution line of a product. */
+const LINK_LABELS = { info: "More info", data: "Data access" };
+
+/** The product's "More info" and "Data access" links (new tab). */
+function linksHTML(links) {
+  const a = Object.entries(LINK_LABELS)
+    .filter(([k]) => links?.[k])
+    .map(([k, label]) => `<a href="${esc(links[k])}" target="_blank" rel="noopener">${label}</a>`);
+  return a.length ? `<span class="title-links">${a.join("")}</span>` : "";
+}
+
+/**
+ * Title, then the selected time and the product's links on one line (the links
+ * at a fixed offset), and the native-resolution line. Compact (grid slots): the
+ * time and subtitle on one line, no links. Otherwise the subtitle goes with the
+ * source, in keyHTML.
+ */
 export function titleHTML(p, { tag = "", compact = false, time = "", t = null } = {}) {
-  const sub = [time, p.subtitle].filter(Boolean).join(compact ? " · " : "\n");
   const native = (t && p.native_by_time?.[t]) || p.native;
-  const subHTML = sub
-    ? compact
-      ? `<div class="subtitle compact" title="${esc(sub)}">${esc(sub.split("\n")[0])}</div>`
-      : `<div class="subtitle">${esc(sub)}</div>`
-    : "";
+  let subHTML = "";
+  if (compact) {
+    const sub = [time, p.subtitle].filter(Boolean).join(" · ");
+    if (sub) subHTML = `<div class="subtitle compact" title="${esc(sub)}">${esc(sub.split("\n")[0])}</div>`;
+  } else {
+    const links = linksHTML(p.links);
+    if (time || links) subHTML = `<div class="title-meta"><span class="title-time">${esc(time)}</span>${links}</div>`;
+  }
   return `
     <div class="title-row">${tag}<h2 class="title">${esc(p.title || p.menu_title)}</h2></div>
     ${subHTML}
@@ -424,26 +441,15 @@ function legendHTML(lg) {
 }
 
 // #region key-html
-const LINK_LABELS = { info: "More info", data: "Data access" };
-
-/** The product's "More info" and "Data access" links (new tab). */
-function linksHTML(links) {
-  const a = Object.entries(LINK_LABELS)
-    .filter(([k]) => links?.[k])
-    .map(([k, label]) => `<a href="${esc(links[k])}" target="_blank" rel="noopener">${label}</a>`);
-  return a.length ? `<span class="source-links">${a.join(" · ")}</span>` : "";
-}
-
-/** Colorbar or legend, plus the source line (credits and links). */
+/** Colorbar or legend, plus the source block: the product's description (bands, units) and credits. */
 export function keyHTML(p, catalog, { tag = "", source = true } = {}) {
   const parts = [];
   const cb = catalog.colorbar(p);
   if (cb) parts.push(colorbarHTML(cb));
   if (p.legend) parts.push(legendHTML(p.legend));
   const credits = [p.source, ...catalog.attributions(p)].filter(Boolean).join(". ");
-  const links = linksHTML(p.links);
-  if (source && (credits || links))
-    parts.push(`<div class="source">${credits ? `Source: ${esc(credits)}` : ""}${links}</div>`);
+  const lines = [p.subtitle && `<div class="source-detail">${esc(p.subtitle)}</div>`, credits && `<div>Source: ${esc(credits)}</div>`];
+  if (source && (p.subtitle || credits)) parts.push(`<div class="source">${lines.filter(Boolean).join("")}</div>`);
   return parts.length ? `${tag}<div class="key-body">${parts.join("")}</div>` : "";
 }
 // #endregion key-html
