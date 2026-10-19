@@ -58,6 +58,22 @@ def test_preset_errors_are_not_cached(client):
     assert r.headers["cache-control"] == "no-store"
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/datasets/nope/x/tiles/WebMercatorQuad/1/0/0.png",  # unknown dataset
+        "/datasets/t2m/celsius/tiles/WebMercatorQuad/9/150/190.png?foo=1",  # parameter not allowed
+        "/datasets/t2m/diff/tiles/WebMercatorQuad/9/150/190.png",  # no datetime2
+    ],
+)
+def test_preset_errors_have_cors_headers(client, path):
+    """PresetMiddleware's own errors pass through CORSMiddleware, so browsers can read them."""
+    r = client.get(path, headers={"origin": "https://example.org"})
+    assert r.status_code in (400, 404)
+    assert r.headers["access-control-allow-origin"] == "*"
+    assert r.headers["cache-control"] == "no-store"
+
+
 def test_preset_point_value(client):
     r = client.get("/datasets/t2m/diff/point/-73.0,41.3?datetime=2026-07-20T06:00&datetime2=2026-07-20T09:00")
     assert r.status_code == 200, r.text

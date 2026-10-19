@@ -71,12 +71,17 @@ first. It serves the CHIRPS preset.
 :::
 
 Starlette runs middleware in reverse order of addition, so a request passes
-`EdgeMiddleware`, then `PresetMiddleware`, CORS, titiler's
+`EdgeMiddleware`, then CORS, `PresetMiddleware`, titiler's
 `CacheControlMiddleware`, and the router. The CloudFront check comes first,
-so nothing else runs for rejected requests. The preset rewrite comes before
-routing, and outside `CacheControlMiddleware`, so its Cache-Control replaces
-the generic 1-hour value for preset responses. CORS (`*` by default, `GET`
-only) and the cache-control middleware are titiler's standard setup.
+so nothing else runs for rejected requests. CORS comes before the preset
+rewrite, so the errors `PresetMiddleware` sends itself (unknown dataset or
+render, a parameter that isn't allowed, a missing `datetime2`, no scan near
+the time) carry CORS headers and a browser can read their JSON `detail`.
+CORS doesn't depend on the path, so the rewrite doesn't affect it. The
+preset rewrite comes before routing, and outside `CacheControlMiddleware`,
+so its Cache-Control replaces the generic 1-hour value for preset
+responses. CORS (`*` by default, `GET` only) and the cache-control
+middleware are titiler's standard setup.
 
 ## EdgeMiddleware
 

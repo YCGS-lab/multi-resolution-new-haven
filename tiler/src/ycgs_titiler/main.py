@@ -150,12 +150,14 @@ def create_app() -> FastAPI:
     # endregion create-app
 
     # region middleware-order
-    # Last added = outermost.
+    # Last added = outermost: Edge -> CORS -> Preset -> CacheControl -> routes.
+    # Preset sits inside CORS so its own error responses get CORS headers too,
+    # and outside CacheControl so its Cache-Control wins.
     app.add_middleware(CacheControlMiddleware, cachecontrol="public, max-age=3600", exclude_path={r"/healthz"})
+    app.add_middleware(PresetMiddleware)
     app.add_middleware(
         CORSMiddleware, allow_origins=[o.strip() for o in settings.cors_origins.split(",")], allow_methods=["GET"]
     )
-    app.add_middleware(PresetMiddleware)
     app.add_middleware(EdgeMiddleware, secret=settings.origin_verify)
     # endregion middleware-order
     return app
