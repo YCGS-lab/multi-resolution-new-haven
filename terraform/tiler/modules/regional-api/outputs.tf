@@ -28,3 +28,8 @@ output "prune_function_name" {
   description = "Lookup cache prune job (null without the cache)"
   value       = var.lookup_cache ? aws_lambda_function.prune[0].function_name : null
 }
+
+output "reserved_concurrency" {
+  description = "Cap on concurrent executions (-1: unreserved)"
+  value       = aws_lambda_function.this.reserved_concurrent_executions
+}

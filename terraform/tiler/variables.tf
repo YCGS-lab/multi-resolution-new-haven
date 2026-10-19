@@ -22,8 +22,8 @@ variable "lambda_memory" {
 
 variable "reserved_concurrency" {
   type        = map(number)
-  description = "Optional cap on concurrent executions per deployment (cost guard); unset = unreserved"
-  default     = {}
+  description = "Cap on concurrent executions per deployment (cost guard); a deployment left out is unreserved. Each instance costs memory x $0.0000133 per GB-s, so the default caps the tiler at ~$17/h with every instance busy (nasa ~$8.5, noaa ~$5.8, ecmwf ~$2.9)"
+  default     = { nasa = 60, noaa = 60, ecmwf = 30 }
 }
 
 variable "throttling_rate_limit" {

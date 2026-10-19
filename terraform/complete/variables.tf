@@ -53,9 +53,9 @@ variable "tiler_lambda_memory" {
 }
 
 variable "tiler_reserved_concurrency" {
-  description = "Optional cap on concurrent tiler executions per deployment (cost guard)."
+  description = "Cap on concurrent tiler executions per deployment (cost guard): the default caps the tiler at ~$17/h with every instance busy (see the tiler module)."
   type        = map(number)
-  default     = {}
+  default     = { nasa = 60, noaa = 60, ecmwf = 30 }
 }
 
 variable "tiler_throttling_rate_limit" {
