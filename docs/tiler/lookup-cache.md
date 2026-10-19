@@ -118,6 +118,22 @@ Parquet and S3 Tables would make sense for *analysing* the lookups (which
 granules users look at), not for answering them; DynamoDB can export to
 S3 if that is wanted later.
 
+## Measured after deployment (dev, 2026-10-19)
+
+256 px PNG tiles over New Haven, each a CloudFront miss, in order:
+
+| Request | Before (no lookup cache) | With it |
+|---|---|---|
+| HLS, first tile of a date (parent search) | 2.3-22.6 s, one 504 | 504 (CMR timed out after titiler-cmr's 20 s), then 17.4 s (two CMR pages) |
+| HLS, other tiles and renders in the same parent | 7.8 s | 0.92 s, 0.82 s |
+| NISAR, first tile of a date | 6.8 s | 4.7 s |
+| NISAR, other tiles and renders | | 1.5 s, 3.2 s |
+
+The logs show no CMR query for the later tiles: "reading Tile" follows
+"opening data" by 12 ms. The prune job's first run recomputed both
+entries and found them valid; a GOES request stored its three hour
+listings in the NOAA table.
+
 ## Invalidation and the prune job
 
 Entries expire after:
