@@ -862,6 +862,18 @@ main {
   align-self: flex-end;
 }
 
+.source-links {
+  white-space: nowrap;
+}
+
+.source-links::before {
+  content: " · ";
+}
+
+.source-links:first-child::before {
+  content: none;
+}
+
 /* ---------- grid ---------- */
 
 #grid {

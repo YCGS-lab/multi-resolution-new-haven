@@ -109,5 +109,8 @@ runs on every frame.
 
 The colorbar is a CSS gradient of the render spec's 256 colors. It has
 under/over boxes for `extend`, and ticks on a linear or log scale; the
-legend comes from the product's entries. Text from the catalog is escaped
-before it goes into `innerHTML`.
+legend comes from the product's entries. The source line gives the
+product's credits, then its "More info" and "Data access" links (`links`
+in the catalog, from `LINKS` in `scripts/website/build_catalog.py`), which
+open in a new tab. Text from the catalog is escaped before it goes into
+`innerHTML`.

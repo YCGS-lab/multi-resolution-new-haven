@@ -424,14 +424,26 @@ function legendHTML(lg) {
 }
 
 // #region key-html
-/** Colorbar or legend, plus the source line. */
+const LINK_LABELS = { info: "More info", data: "Data access" };
+
+/** The product's "More info" and "Data access" links (new tab). */
+function linksHTML(links) {
+  const a = Object.entries(LINK_LABELS)
+    .filter(([k]) => links?.[k])
+    .map(([k, label]) => `<a href="${esc(links[k])}" target="_blank" rel="noopener">${label}</a>`);
+  return a.length ? `<span class="source-links">${a.join(" · ")}</span>` : "";
+}
+
+/** Colorbar or legend, plus the source line (credits and links). */
 export function keyHTML(p, catalog, { tag = "", source = true } = {}) {
   const parts = [];
   const cb = catalog.colorbar(p);
   if (cb) parts.push(colorbarHTML(cb));
   if (p.legend) parts.push(legendHTML(p.legend));
   const credits = [p.source, ...catalog.attributions(p)].filter(Boolean).join(". ");
-  if (source && credits) parts.push(`<div class="source">Source: ${esc(credits)}</div>`);
+  const links = linksHTML(p.links);
+  if (source && (credits || links))
+    parts.push(`<div class="source">${credits ? `Source: ${esc(credits)}` : ""}${links}</div>`);
   return parts.length ? `${tag}<div class="key-body">${parts.join("")}</div>` : "";
 }
 // #endregion key-html
