@@ -75,6 +75,7 @@ module "tiler" {
   throttling_rate_limit  = var.tiler_throttling_rate_limit
   throttling_burst_limit = var.tiler_throttling_burst_limit
   image_platform         = var.tiler_image_platform
+  origin_shield          = var.tiler_origin_shield
 
   secrets_version      = var.secrets_version
   secret_recovery_days = var.secret_recovery_days

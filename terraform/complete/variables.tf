@@ -70,6 +70,12 @@ variable "tiler_throttling_burst_limit" {
   default     = 200
 }
 
+variable "tiler_origin_shield" {
+  description = "CloudFront Origin Shield in front of each tiler region."
+  type        = bool
+  default     = true
+}
+
 variable "tiler_image_platform" {
   description = "Docker platform of the tiler's Lambda image (linux/arm64 or linux/amd64)."
   type        = string

@@ -13,6 +13,16 @@ locals {
     ecmwf = module.ecmwf.api_domain
   }
 
+  # Origin Shield in each origin's region, or the nearest one that has it
+  # (not every region does: us-west-1 and eu-south-1 don't).
+  shield_region_for = { "us-west-1" = "us-west-2", "eu-south-1" = "eu-central-1" }
+  origin_regions = {
+    nasa  = module.nasa.region
+    noaa  = module.noaa.region
+    ecmwf = module.ecmwf.region
+  }
+  shield_regions = { for k, r in local.origin_regions : k => lookup(local.shield_region_for, r, r) }
+
   routes = concat(
     [{ path = "/cmr/*", origin = "nasa" }],
     [for id, ds in local.catalog.datasets : { path = "/datasets/${id}/*", origin = ds.deployment }],
@@ -110,6 +120,16 @@ resource "aws_cloudfront_distribution" "this" {
       custom_header {
         name  = "X-Origin-Verify"
         value = random_password.origin_verify.result
+      }
+
+      # One shared cache in front of the origin: edge locations fill from it
+      # rather than each asking the tiler to render the tile again.
+      dynamic "origin_shield" {
+        for_each = var.origin_shield ? [1] : []
+        content {
+          enabled              = true
+          origin_shield_region = local.shield_regions[origin.key]
+        }
       }
     }
   }

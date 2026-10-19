@@ -91,3 +91,9 @@ variable "cds_api_key" {
   sensitive   = true
 }
 # endregion secret-vars
+
+variable "origin_shield" {
+  type        = bool
+  description = "CloudFront Origin Shield in each regional deployment's region (~$0.0075-0.009 per 10,000 requests that reach it)"
+  default     = true
+}

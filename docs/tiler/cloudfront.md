@@ -75,6 +75,19 @@ Each origin is reached over HTTPS only, with a 30 s read timeout (the
 Lambda and API Gateway limit), and gets the `X-Origin-Verify` header,
 which CloudFront overwrites if a viewer sends one.
 
+**Origin Shield** (`origin_shield`, on by default) adds one shared cache
+layer in front of each origin, in its region (or the nearest region that
+has Origin Shield: `us-west-1` uses `us-west-2`, `eu-south-1` uses
+`eu-central-1`). Without it every regional edge cache that misses asks
+the tiler, so a tile is rendered once per region its viewers are in; with
+it they all fill from the shield's copy. It costs ~$0.0075 (US) to
+~$0.009 (EU) per 10,000 requests that reach it, and a CloudFront
+invalidation clears it like the rest of the cache.
+
+::: code-group
+<<< @/../terraform/tiler/tests/plan.tftest.hcl#origin-shield-assert [tests/plan.tftest.hcl#origin-shield-assert]
+:::
+
 ## Behaviors and errors
 
 ::: code-group

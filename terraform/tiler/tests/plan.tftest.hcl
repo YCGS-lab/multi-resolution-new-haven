@@ -30,6 +30,9 @@ mock_provider "aws" {
 mock_provider "aws" {
   alias = "nasa"
 
+  mock_data "aws_region" {
+    defaults = { region = "us-west-2" }
+  }
   mock_resource "aws_cloudwatch_log_group" {
     defaults = { arn = "arn:aws:logs:us-east-1:123456789012:log-group:mock" }
   }
@@ -58,6 +61,9 @@ mock_provider "aws" {
 mock_provider "aws" {
   alias = "noaa"
 
+  mock_data "aws_region" {
+    defaults = { region = "us-east-1" }
+  }
   mock_resource "aws_cloudwatch_log_group" {
     defaults = { arn = "arn:aws:logs:us-east-1:123456789012:log-group:mock" }
   }
@@ -86,6 +92,9 @@ mock_provider "aws" {
 mock_provider "aws" {
   alias = "ecmwf"
 
+  mock_data "aws_region" {
+    defaults = { region = "eu-south-1" }
+  }
   mock_resource "aws_cloudwatch_log_group" {
     defaults = { arn = "arn:aws:logs:us-east-1:123456789012:log-group:mock" }
   }
@@ -150,6 +159,30 @@ run "plan" {
   assert {
     condition     = module.nasa.function_name == "ycgs-titiler-nasa" && module.ecmwf.function_name == "ycgs-titiler-ecmwf"
     error_message = "Unexpected function names"
+  }
+
+  # region origin-shield-assert
+  assert {
+    condition = {
+      for o in aws_cloudfront_distribution.this.origin : o.origin_id => o.origin_shield[0].origin_shield_region
+      } == {
+      nasa  = "us-west-2"
+      noaa  = "us-east-1"
+      ecmwf = "eu-central-1" # eu-south-1 has no Origin Shield
+    }
+    error_message = "Origin Shield should be in (or nearest to) each origin's region"
+  }
+  # endregion origin-shield-assert
+}
+
+run "origin_shield_off" {
+  command = plan
+  variables {
+    origin_shield = false
+  }
+  assert {
+    condition     = alltrue([for o in aws_cloudfront_distribution.this.origin : length(o.origin_shield) == 0])
+    error_message = "origin_shield = false should leave the origins without Origin Shield"
   }
 }
 
