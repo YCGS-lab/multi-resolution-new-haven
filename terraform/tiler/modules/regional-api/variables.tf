@@ -76,3 +76,15 @@ variable "log_retention_days" {
   type    = number
   default = 14
 }
+
+variable "lookup_cache" {
+  type        = bool
+  description = "Persistent cache of slow lookups (CMR granule searches, GOES listings): a DynamoDB table and a weekly prune job"
+  default     = false
+}
+
+variable "lookup_prune_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression of the lookup cache's prune job (UTC)"
+  default     = "cron(0 7 ? * MON *)"
+}

@@ -18,3 +18,13 @@ output "live_version" {
 output "region" {
   value = data.aws_region.current.region
 }
+
+output "lookup_table" {
+  description = "DynamoDB table of the lookup cache (null without it)"
+  value       = var.lookup_cache ? aws_dynamodb_table.lookups[0].name : null
+}
+
+output "prune_function_name" {
+  description = "Lookup cache prune job (null without the cache)"
+  value       = var.lookup_cache ? aws_lambda_function.prune[0].function_name : null
+}

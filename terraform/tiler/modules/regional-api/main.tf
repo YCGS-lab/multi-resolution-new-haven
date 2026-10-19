@@ -46,6 +46,15 @@ data "aws_iam_policy_document" "lambda" {
       resources = var.secret_arns
     }
   }
+
+  dynamic "statement" {
+    for_each = var.lookup_cache ? [1] : []
+    content {
+      sid       = "LookupCache"
+      actions   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+      resources = [aws_dynamodb_table.lookups[0].arn]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "lambda" {
@@ -102,7 +111,8 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = merge(local.gdal_env, var.environment, {
-      YCGS_SECRET_ARNS = join(",", var.secret_arns)
+      YCGS_SECRET_ARNS  = join(",", var.secret_arns)
+      YCGS_LOOKUP_TABLE = var.lookup_cache ? aws_dynamodb_table.lookups[0].name : ""
     })
   }
 
@@ -254,3 +264,151 @@ resource "aws_lambda_permission" "api" {
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
 # endregion permission
+
+# region lookup-cache
+# --------------------------------------------------------------------------
+# Lookup cache (ycgs_titiler.lookups): CMR granule searches and GOES listings,
+# shared by every execution environment; pruned weekly by the same image.
+
+resource "aws_dynamodb_table" "lookups" {
+  #checkov:skip=CKV_AWS_28:A cache: every item can be recomputed, so no point-in-time recovery
+  #checkov:skip=CKV_AWS_119:Public catalog metadata; AWS-owned encryption is sufficient
+  count        = var.lookup_cache ? 1 : 0
+  name         = "${var.name}-lookups"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+
+  attribute {
+    name = "pk"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expires"
+    enabled        = true
+  }
+}
+
+resource "aws_iam_role" "prune" {
+  count              = var.lookup_cache ? 1 : 0
+  name               = "${var.name}-prune-${data.aws_region.current.region}"
+  assume_role_policy = data.aws_iam_policy_document.assume.json
+}
+
+data "aws_iam_policy_document" "prune" {
+  count = var.lookup_cache ? 1 : 0
+  statement {
+    sid       = "Logs"
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["${aws_cloudwatch_log_group.prune[0].arn}:*"]
+  }
+  statement {
+    sid       = "LookupCache"
+    actions   = ["dynamodb:Scan", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+    resources = [aws_dynamodb_table.lookups[0].arn]
+  }
+}
+
+resource "aws_iam_role_policy" "prune" {
+  count  = var.lookup_cache ? 1 : 0
+  name   = "prune"
+  role   = aws_iam_role.prune[0].id
+  policy = data.aws_iam_policy_document.prune[0].json
+}
+
+resource "aws_cloudwatch_log_group" "prune" {
+  #checkov:skip=CKV_AWS_158:AWS-managed encryption is sufficient for job logs
+  #checkov:skip=CKV_AWS_338:Short retention (log_retention_days) keeps costs down
+  count             = var.lookup_cache ? 1 : 0
+  name              = "/aws/lambda/${var.name}-prune"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_lambda_function" "prune" {
+  #checkov:skip=CKV_AWS_117:Reads public endpoints (CMR, NOAA Open Data) over the internet; a VPC would only add a NAT gateway
+  #checkov:skip=CKV_AWS_116:Scheduled job; the next week's run retries
+  #checkov:skip=CKV_AWS_272:Images are built and pushed by this stack; no code signing
+  #checkov:skip=CKV_AWS_173:Environment holds no credentials
+  #checkov:skip=CKV_AWS_115:Runs once a week; no concurrency limit needed
+  count         = var.lookup_cache ? 1 : 0
+  function_name = "${var.name}-prune"
+  role          = aws_iam_role.prune[0].arn
+  package_type  = "Image"
+  image_uri     = var.image_uri
+  architectures = [var.architecture]
+  memory_size   = 1024
+  timeout       = 900
+
+  image_config {
+    command = ["ycgs_titiler.prune.handler"]
+  }
+
+  environment {
+    variables = merge(local.gdal_env, var.environment, {
+      YCGS_LOOKUP_TABLE = aws_dynamodb_table.lookups[0].name
+    })
+  }
+
+  logging_config {
+    log_format            = "JSON"
+    log_group             = aws_cloudwatch_log_group.prune[0].name
+    application_log_level = "INFO"
+    system_log_level      = "WARN"
+  }
+
+  tracing_config {
+    mode = "PassThrough"
+  }
+
+  depends_on = [aws_iam_role_policy.prune]
+}
+
+data "aws_iam_policy_document" "scheduler_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["scheduler.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "scheduler" {
+  count              = var.lookup_cache ? 1 : 0
+  name               = "${var.name}-prune-schedule-${data.aws_region.current.region}"
+  assume_role_policy = data.aws_iam_policy_document.scheduler_assume.json
+}
+
+resource "aws_iam_role_policy" "scheduler" {
+  count = var.lookup_cache ? 1 : 0
+  name  = "invoke-prune"
+  role  = aws_iam_role.scheduler[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = aws_lambda_function.prune[0].arn
+    }]
+  })
+}
+
+resource "aws_scheduler_schedule" "prune" {
+  count                        = var.lookup_cache ? 1 : 0
+  name                         = "${var.name}-prune"
+  schedule_expression          = var.lookup_prune_schedule
+  schedule_expression_timezone = "UTC"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_function.prune[0].arn
+    role_arn = aws_iam_role.scheduler[0].arn
+    retry_policy {
+      maximum_retry_attempts = 0 # the job isn't urgent: next week's run catches up
+    }
+  }
+}
+# endregion lookup-cache

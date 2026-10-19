@@ -100,6 +100,7 @@ module "nasa" {
   image_uri              = "${local.repositories.nasa}:${terraform_data.image["nasa"].output}"
   architecture           = local.architecture
   memory_size            = var.lambda_memory["nasa"]
+  lookup_cache           = true # CMR granule searches
   reserved_concurrency   = lookup(var.reserved_concurrency, "nasa", null)
   throttling_rate_limit  = var.throttling_rate_limit
   throttling_burst_limit = var.throttling_burst_limit
@@ -122,6 +123,7 @@ module "noaa" {
   image_uri              = "${local.repositories.noaa}:${terraform_data.image["noaa"].output}"
   architecture           = local.architecture
   memory_size            = var.lambda_memory["noaa"]
+  lookup_cache           = true # GOES scan listings
   reserved_concurrency   = lookup(var.reserved_concurrency, "noaa", null)
   throttling_rate_limit  = var.throttling_rate_limit
   throttling_burst_limit = var.throttling_burst_limit
