@@ -124,6 +124,9 @@ export default withMermaid(
     },
     // A fixed system font: mermaid sizes boxes with the font it measures, and
     // the theme's web font loading later would overflow them.
+    // mermaid imports fastdom (CommonJS only) by default export; withMermaid
+    // pre-bundles only its own fixed list of CommonJS dependencies.
+    vite: { optimizeDeps: { include: ["fastdom", "fastdom/extensions/fastdom-promised.js"] } },
     mermaid: { fontFamily: "Arial, Helvetica, sans-serif", flowchart: { padding: 12 } },
   }),
 );
