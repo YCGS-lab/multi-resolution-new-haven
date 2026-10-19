@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5 (2026-10-19)
+
+- Tiler lookup cache (DynamoDB, per region): CMR granule searches once per zoom-8 parent
+  tile, GOES hour listings and settled `/times` windows are stored and shared across
+  execution environments; a weekly prune job revalidates them. `just prefill-lookups`
+  fills it with New Haven's CMR searches ahead of time.
+- Tiler caching and cost: settled fixed-time tiles kept a year in CloudFront, Origin Shield
+  in front of each regional tiler, reserved concurrency by default, and a cost guard
+  (CloudFront alarms, kill switch, budget backstop).
+- Tiler: CORS headers on preset error responses.
+- Website and catalog: "More info" and "Data access" links for every dataset, next to the
+  time under the title.
+- Docs: lookup cache page (measured CMR latency, benefit, cost, storage options) and
+  evaluations of a rendered-tile cache and a hybrid Icechunk store; `.node-version` and a
+  docs rendering fix.
+
 ## 0.4 (2026-10-16)
 
 - `terraform/complete`: the website and the tiler deployed together, wired to each other.
