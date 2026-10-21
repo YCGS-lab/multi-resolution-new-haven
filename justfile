@@ -19,7 +19,7 @@ docs:
   cd docs && npm ci && npm run dev
 
 deploy:
-  eval "$(aws s3 cp s3://ycgs-use1-terraform/ycgs/newhaven-multires-bucket - | jq -r '.outputs.deploy_commands.value')"
+  eval "$(aws s3 cp s3://ycgs-use1-terraform/ycgs/newhaven-satellite-viewer - | jq -r '.outputs.deploy_commands.value')"
 
 # Serve website/ at http://localhost:8000/ (Caddy: range requests, no caching; localhost only)
 serve port="8000":

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 (2026-10-21)
+
+- Tiler module: the prune scheduler's IAM role name fits AWS's 64-character limit for
+  longer deployment names (`<name>-sched-<region>`; it failed for
+  `multi-resolution-new-haven-prod`).
+- `just deploy` reads the current Prod state (`ycgs/newhaven-satellite-viewer`), whose
+  deploy commands leave the OpenTofu-managed `env.json` alone.
+
 ## 0.5 (2026-10-19)
 
 - Tiler lookup cache (DynamoDB, per region): CMR granule searches once per zoom-8 parent

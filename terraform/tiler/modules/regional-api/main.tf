@@ -375,7 +375,7 @@ data "aws_iam_policy_document" "scheduler_assume" {
 
 resource "aws_iam_role" "scheduler" {
   count              = var.lookup_cache ? 1 : 0
-  name               = "${var.name}-prune-schedule-${data.aws_region.current.region}"
+  name               = "${var.name}-sched-${data.aws_region.current.region}" # IAM role names: at most 64 chars
   assume_role_policy = data.aws_iam_policy_document.scheduler_assume.json
 }
 
