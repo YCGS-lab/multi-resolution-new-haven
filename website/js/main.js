@@ -4,13 +4,13 @@ import { onCogOpened } from "./cog.js";
 import { initCredentialsDialog, loadEnv, onCredentialsChange } from "./env.js";
 import { Grid } from "./grid.js";
 import { Icesat2 } from "./icesat2.js";
+import { Place, SearchBox, TOOLS, ToolsMenu } from "./location.js";
 import { isOpen } from "./picker.js";
 import { decodeSel, encodeSel } from "./slot.js";
 import { calendarOpen } from "./timecontrol.js";
 import { Viewer } from "./viewer.js";
 
-const settings = { labels: true };
-const TABS = ["viewer", "grid", "animation", "icesat2"];
+const TABS = ["viewer", "grid", "animation", "icesat2"]; // the last are location-specific tools (location.js TOOLS)
 
 // Selections in the URL hash: "<dataset>/<product>[@<time>[..<end>]][;option=value...]"
 // (see slot.js; an "@<view>" suffix from older links is ignored).
@@ -34,11 +34,16 @@ async function main() {
     );
   }
 
-  const viewer = new Viewer(document.getElementById("viewer"), catalog, settings);
-  const grid = new Grid(document.getElementById("grid"), catalog, settings);
-  const animation = new Animation(document.getElementById("animation"), catalog, settings);
+  // The selected place, from the URL (before the maps, which start there).
+  const params = new URLSearchParams(location.hash.slice(1));
+  const place = new Place(catalog);
+  place.current = place.decode(params.get("loc"));
+
+  const viewer = new Viewer(document.getElementById("viewer"), catalog, place);
+  const grid = new Grid(document.getElementById("grid"), catalog, place);
+  const animation = new Animation(document.getElementById("animation"), catalog, place);
   const icesat2 = new Icesat2(document.getElementById("icesat2"), catalog);
-  window.app = { catalog, viewer, grid, animation, icesat2 }; // for debugging from the console
+  window.app = { catalog, place, viewer, grid, animation, icesat2 }; // for debugging from the console
   // #region cog-opened
   // COG layers join the maps once their headers are read.
   onCogOpened(() => {
@@ -57,9 +62,6 @@ async function main() {
 
   // #region url-restore
   // ----- restore state from the URL -----------------------------------
-  const params = new URLSearchParams(location.hash.slice(1));
-  if (params.get("labels") === "0") settings.labels = false;
-  document.getElementById("labels-toggle").checked = settings.labels;
   const a = decodeSel(catalog, params.get("a"));
   if (!a.id) Object.assign(a, decodeSel(catalog, defaultImage(catalog)));
   viewer.setSel("a", a);
@@ -87,6 +89,7 @@ async function main() {
   const showTab = (name) => {
     tab = name;
     tabs.forEach((t) => t.setAttribute("aria-selected", t.dataset.tab === name));
+    tools.render();
     for (const t of TABS) document.getElementById(t).hidden = name !== t;
     document.body.classList.toggle("grid-active", name === "grid");
     grid.setActive(name === "grid");
@@ -97,23 +100,31 @@ async function main() {
   };
   tabs.forEach((t) => t.addEventListener("click", () => showTab(t.dataset.tab)));
 
-  // ----- labels toggle ------------------------------------------------------
-  const setLabels = (on) => {
-    settings.labels = on;
-    document.getElementById("labels-toggle").checked = on;
-    viewer.update();
-    grid.update();
-    animation.update();
+  // ----- place search and location-specific tools -----------------------------
+  const isTool = (name) => TOOLS.some((t) => t.id === name);
+  const tools = new ToolsMenu(document.getElementById("tools-menu"), place, {
+    open: (id) => showTab(id),
+    active: () => (isTool(tab) ? tab : null),
+  });
+  // Suggestions are biased towards the center of the map in view.
+  const centerOf = (b) => b && [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+  new SearchBox(document.getElementById("place-search"), place, {
+    near: () => centerOf(tab === "grid" ? grid.bounds : tab === "animation" ? animation.bounds : viewer.bounds),
+  });
+  // A new place: every map goes there; a tool not made for it closes.
+  place.onChange(() => {
+    viewer.reset();
+    grid.reset();
+    animation.reset();
+    if (isTool(tab) && !tools.toolsFor(place.current).some((t) => t.id === tab)) showTab("viewer");
     saveState();
-  };
-  document.getElementById("labels-toggle").addEventListener("change", (e) => setLabels(e.target.checked));
+  });
 
   // #region keyboard
   // ----- keyboard shortcuts -------------------------------------------------
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || isOpen() || calendarOpen() || e.target.closest("input, select, textarea, dialog")) return;
-    if (e.key === "l" || e.key === "L") setLabels(!settings.labels);
-    else if (tab === "viewer" && e.key === "[") viewer.step("a", -1);
+    if (tab === "viewer" && e.key === "[") viewer.step("a", -1);
     else if (tab === "viewer" && e.key === "]") viewer.step("a", 1);
     else if (tab === "viewer" && e.key === ",") viewer.stepTime("a", -1);
     else if (tab === "viewer" && e.key === ".") viewer.stepTime("a", 1);
@@ -150,7 +161,7 @@ async function main() {
       if (an.to) p.set("to", an.to);
     }
     if (icesat2.state) p.set("beam", icesat2.state);
-    if (!settings.labels) p.set("labels", "0");
+    if (place.current?.id !== "new-haven") p.set("loc", place.encode());
     const hash = p.toString();
     if (hash !== lastHash) {
       lastHash = hash;

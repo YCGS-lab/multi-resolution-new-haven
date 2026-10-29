@@ -16,9 +16,9 @@ import {
   backgroundLayer,
   clampViewState,
   fromDeckViewState,
-  homeViewState,
   keyHTML,
-  landmarkLayers,
+  placeLayers,
+  placeViewState,
   productLayers,
   showNotices,
   titleHTML,
@@ -37,10 +37,10 @@ const CONCURRENCY = 6;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
 export class Animation {
-  constructor(root, catalog, settings) {
+  constructor(root, catalog, place) {
     this.root = root;
     this.catalog = catalog;
-    this.settings = settings;
+    this.place = place; // the selected place (location.js)
     this.active = false;
     this.frames = []; // timestep keys
     this.index = 0;
@@ -58,7 +58,7 @@ export class Animation {
     this.loading = new LoadingState(root.querySelector("#anim-map .map-message"));
     this.noticeEl = root.querySelector("#anim-map .map-notice");
     this.slot = new Slot(catalog, { onChange: () => this.slotChanged() });
-    this.picker = new Picker(root.querySelector("#anim-picker"), catalog, { onSelect: (id) => this.select(id) });
+    this.picker = new Picker(root.querySelector("#anim-picker"), catalog, { onSelect: (id) => this.select(id), view: () => this.bounds });
 
     const $ = (s) => root.querySelector(s);
     this.el = {
@@ -98,7 +98,7 @@ export class Animation {
     root.querySelector("#anim-zoom-out").addEventListener("click", () => this.zoomBy(-1));
 
     this.size = [800, 450];
-    this.viewState = homeViewState(catalog.extent, ...this.size, catalog.limits);
+    this.viewState = placeViewState(catalog, place.current, ...this.size);
   }
 
   /** The Deck is made when the tab is first shown (its map needs a size). */
@@ -106,7 +106,7 @@ export class Animation {
     if (this.deck) return;
     const c = this.catalog;
     this.size = [this.mapEl.clientWidth || 800, this.mapEl.clientHeight || 450];
-    this.viewState = homeViewState(c.extent, ...this.size, c.limits);
+    this.viewState = placeViewState(c, this.place.current, ...this.size);
     this.deck = new Deck({
       parent: this.mapEl,
       views: new MapView({ id: "anim", controller: CONTROLLER }),
@@ -395,8 +395,9 @@ export class Animation {
     this.update();
   }
 
+  /** Back to the selected place (or Greater New Haven). */
   reset() {
-    this.viewState = homeViewState(this.catalog.extent, ...this.size, this.catalog.limits);
+    this.viewState = placeViewState(this.catalog, this.place.current, ...this.size);
     this.update();
   }
 
@@ -470,9 +471,9 @@ export class Animation {
         layers.push(...cur.map((l) => (l.clone ? l.clone({ onViewportLoad: () => this.frameLoaded(t) }) : l)));
       } else if (!p.time) layers.push(...productLayers("anim-cur", c, p, this.loading));
     }
-    if (this.settings.labels) layers.push(...landmarkLayers("anim-landmarks", c, p?.landmark_color, this.viewState.zoom));
+    layers.push(...placeLayers("anim", this.place.current));
     this.deck.setProps({ viewState: toDeckViewState(this.viewState, c), layers });
-    this.chrome.update(this.viewState, w, h, this.settings.labels);
+    this.chrome.update(this.viewState, w, h);
     showNotices(
       this.noticeEl,
       [{ tag: "", status: status ?? (p?.time && this.slot.steps && !this.frames.length ? { kind: "empty", message: "No frames: no imagery in view between these dates." } : null) }],

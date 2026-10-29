@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>New Haven at many resolutions | Yale Center for Geospatial Solutions</title>
+    <title>Raven | Yale Center for Geospatial Solutions</title>
+    <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
     <!-- Yale typefaces (YaleNew, Mallory), as on yale.edu sites -->
     <link rel="stylesheet" href="https://yale-webfonts.yalespace.org/fonts.min.css" />
     <!-- #region head-scripts -->
@@ -19,21 +20,20 @@
         </a>
       </div>
       <div class="header-main">
-        <h1>New Haven at many resolutions</h1>
+        <h1><img class="app-icon" src="img/raven.svg" alt="" />Raven</h1>
         <nav class="tabs" role="tablist">
           <button role="tab" data-tab="viewer" aria-selected="true">Viewer</button>
           <button role="tab" data-tab="grid" aria-selected="false">Grid</button>
           <button role="tab" data-tab="animation" aria-selected="false">Animation</button>
-          <button role="tab" data-tab="icesat2" aria-selected="false">ICESat-2</button>
         </nav>
         <div class="header-options">
+          <!-- Place search: the selected location (location.js) -->
+          <div class="place-search" id="place-search"></div>
+          <!-- Tools tied to a location (e.g. ICESat-2 profiles for Greater New Haven) -->
+          <div class="tools-menu" id="tools-menu"></div>
           <button type="button" class="pill cred-button" id="credentials-button" title="Enter API keys for locked datasets">
             <span aria-hidden="true">🔑</span> Credentials
           </button>
-          <label class="toggle pill" title="Landmarks and scale bar (L)">
-            <input type="checkbox" id="labels-toggle" checked />
-            <span>Labels</span>
-          </label>
         </div>
       </div>
     </header>
@@ -59,6 +59,7 @@
             <button class="icon-btn" id="prev-b" title="Previous image in this group">&#9664;</button>
             <button class="icon-btn" id="next-b" title="Next image in this group">&#9654;</button>
             <button class="btn subtle" id="b-same-as-a" title="Compare through time: B = A's image at its previous date">A, earlier</button>
+            <button class="icon-btn" id="swap-ab" title="Swap A and B">&#8646;</button>
             <div class="segmented" id="compare-mode" role="radiogroup" aria-label="Comparison mode">
               <button data-mode="swipe" aria-pressed="true" title="Drag the divider to reveal B">Swipe</button>
               <button data-mode="opacity" aria-pressed="false" title="Fade between A and B">Opacity</button>
@@ -82,7 +83,7 @@
             <div class="map-buttons">
               <button id="viewer-zoom-in" title="Zoom in">+</button>
               <button id="viewer-zoom-out" title="Zoom out">−</button>
-              <button id="viewer-reset" title="Full extent (0)">⤢</button>
+              <button id="viewer-reset" title="Back to the selected place (0)">⤢</button>
             </div>
           </div>
           <div class="axis-corner"></div>
@@ -114,7 +115,7 @@
             >Rearrange mode: drag an image onto another slot to swap them. Pan and zoom are paused.</span
           >
           <span class="spacer"></span>
-          <button class="btn" id="grid-reset" title="Zoom out to the full extent">Reset view</button>
+          <button class="btn" id="grid-reset" title="Back to the selected place (0)">Reset view</button>
         </div>
         <div class="grid-slots"></div>
         <div class="grid-actions">
@@ -158,7 +159,7 @@
             <div class="map-buttons">
               <button id="anim-zoom-in" title="Zoom in">+</button>
               <button id="anim-zoom-out" title="Zoom out">−</button>
-              <button id="anim-reset" title="Full extent">⤢</button>
+              <button id="anim-reset" title="Back to the selected place">⤢</button>
             </div>
           </div>
           <div class="axis-corner"></div>

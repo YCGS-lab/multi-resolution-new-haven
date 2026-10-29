@@ -1,5 +1,5 @@
 // Pieces shared by the viewer and the grid: deck.gl layers for a product and
-// the landmarks, pan/zoom limits, loading state, and the HTML around a map
+// the selected place's marker, pan/zoom limits, loading state, and the HTML around a map
 // (axes, scale bar, title block, colorbar / legend).
 //
 // View states here are in world coordinates (see catalog.js): {target: [x, y],
@@ -8,7 +8,7 @@
 // 512 * 2^zoom pixels around the world; toDeckViewState / fromDeckViewState
 // convert.
 
-import { ClipExtension, MaskExtension, ScatterplotLayer, SolidPolygonLayer, TextLayer } from "../vendor/deck-gl-raster.js";
+import { ClipExtension, MaskExtension, ScatterplotLayer, SolidPolygonLayer } from "../vendor/deck-gl-raster.js";
 import { productLayers as tileLayers } from "./tiles.js";
 
 // Deepest zoom: 2^6 = 64 screen pixels per Web Mercator meter, i.e. ~5 px per
@@ -45,9 +45,35 @@ export function fitZoom(extent, w, h) {
   return Math.log2(Math.min(w / (extent[2] - extent[0]), h / (extent[3] - extent[1])));
 }
 
-/** Initial view state: the whole extent (Greater New Haven), within the pan limits. */
+/** View state that fits a world extent (e.g. the selected place), within the pan limits. */
 export function homeViewState(extent, w, h, limits = extent) {
   return clampViewState({ target: [(extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2, 0], zoom: fitZoom(extent, w, h) }, limits, w, h);
+}
+
+// A place found as a point only (or with a tiny box, e.g. an address) is shown
+// at least this far around it (m, half-width): about a few blocks.
+const PLACE_MIN_HALF = 400;
+
+/**
+ * World extent of the selected place (location.js): its lon / lat box, or a
+ * few blocks around its point; the catalog's extent (Greater New Haven) when
+ * no place is selected.
+ */
+export function placeExtent(catalog, place) {
+  if (!place) return catalog.extent;
+  let [l, b, r, t] = place.bbox
+    ? [...catalog.lonLatToWorld(place.bbox[0], place.bbox[1]), ...catalog.lonLatToWorld(place.bbox[2], place.bbox[3])]
+    : [...catalog.lonLatToWorld(...place.point), ...catalog.lonLatToWorld(...place.point)];
+  const [cx, cy] = [(l + r) / 2, (b + t) / 2];
+  const half = PLACE_MIN_HALF / catalog.groundScale(cy); // world (Web Mercator) meters
+  if (r - l < 2 * half) [l, r] = [cx - half, cx + half];
+  if (t - b < 2 * half) [b, t] = [cy - half, cy + half];
+  return [l, b, r, t];
+}
+
+/** View state that shows the selected place (see placeExtent). */
+export function placeViewState(catalog, place, w, h) {
+  return homeViewState(placeExtent(catalog, place), w, h, catalog.limits);
 }
 
 /**
@@ -72,12 +98,6 @@ export function unproject(vs, w, h, px, py) {
   return [vs.target[0] + (px - w / 2) / s, vs.target[1] - (py - h / 2) / s];
 }
 // #endregion clamp-view-state
-
-export function hexToRgba(hex) {
-  const h = hex.replace("#", "");
-  const n = (i) => parseInt(h.slice(i, i + 2), 16);
-  return [n(0), n(2), n(4), h.length >= 8 ? n(6) : 255];
-}
 
 const rect = (b) => [
   [b[0], b[1]],
@@ -213,50 +233,26 @@ export function showNotices(el, notices, onCredentials) {
 }
 // #endregion map-notice
 
-// #region landmark-layers
-// Landmarks are New Haven's: hidden when zoomed out further than this
-// (slippy-map zoom), where they would pile up.
-const LANDMARK_MIN_SLIPPY_ZOOM = 9;
-const SLIPPY_OFFSET = Math.log2((2 * Math.PI * 6378137) / 256);
-
-/** Landmark markers and names, as in render.add_landmarks (none when zoomed out: pass the world zoom). */
-export function landmarkLayers(id, catalog, color = "#ffffff", worldZoom = Infinity) {
-  if (worldZoom + SLIPPY_OFFSET < LANDMARK_MIN_SLIPPY_ZOOM) return [];
-  const rgba = hexToRgba(color);
+// #region place-marker
+/** A marker at the selected place's point (a searched address or place; none for a starred area). */
+export function placeLayers(id, place) {
+  if (!place?.point) return [];
   return [
     new ScatterplotLayer({
-      id: `${id}-points`,
-      data: catalog.landmarks,
-      getPosition: (d) => d.position,
-      getRadius: 5,
+      id: `${id}-place`,
+      data: [place],
+      getPosition: (d) => d.point,
+      getRadius: 6,
       radiusUnits: "pixels",
-      getFillColor: rgba,
+      getFillColor: [255, 255, 255, 255],
       stroked: true,
-      getLineColor: [0, 0, 0, 255],
-      getLineWidth: 1.5,
+      getLineColor: [0, 53, 107, 255],
+      getLineWidth: 2.5,
       lineWidthUnits: "pixels",
-      updateTriggers: { getFillColor: color },
-    }),
-    new TextLayer({
-      id: `${id}-names`,
-      data: catalog.landmarks,
-      getPosition: (d) => d.position,
-      getText: (d) => d.name,
-      getSize: 14,
-      getColor: rgba,
-      getTextAnchor: (d) => (d.label_left ? "end" : "start"),
-      getAlignmentBaseline: "bottom",
-      getPixelOffset: (d) => (d.label_left ? [-7, -4] : [7, -4]),
-      fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-      fontWeight: 700,
-      fontSettings: { sdf: true, fontSize: 64, buffer: 8 },
-      outlineWidth: 3,
-      outlineColor: [0, 0, 0, 255],
-      updateTriggers: { getColor: color },
     }),
   ];
 }
-// #endregion landmark-layers
+// #endregion place-marker
 
 // --------------------------------------------------------------------------
 // Axes and scale bar
@@ -295,11 +291,11 @@ export class MapChrome {
     this.key = "";
   }
 
-  update(vs, w, h, showLabels) {
+  update(vs, w, h) {
     const c = this.catalog;
     const s = 2 ** vs.zoom;
     const [tx, ty] = vs.target;
-    const key = [tx, ty, vs.zoom, w, h, showLabels].join();
+    const key = [tx, ty, vs.zoom, w, h].join();
     if (key === this.key) return;
     this.key = key;
 
@@ -325,23 +321,20 @@ export class MapChrome {
         .join("");
     }
     if (this.scalebar) {
-      this.scalebar.hidden = !showLabels;
-      if (showLabels) {
-        const mPerPx = c.groundScale(ty) / s; // ground meters per screen pixel
-        const len = niceLength((w / 5) * mPerPx);
-        const [value, unit] = len >= 1000 ? [len / 1000, "km"] : [len, "m"];
-        const barLength = (len / mPerPx).toFixed(1);
-        this.scalebar.innerHTML = `
-          <div class="scale" style="width:${barLength}px">
-            <div class="ticks">
-              <span>0</span>
-              <span>${value}</span>
-            </div>
-            <div class="bar"></div>
+      const mPerPx = c.groundScale(ty) / s; // ground meters per screen pixel
+      const len = niceLength((w / 5) * mPerPx);
+      const [value, unit] = len >= 1000 ? [len / 1000, "km"] : [len, "m"];
+      const barLength = (len / mPerPx).toFixed(1);
+      this.scalebar.innerHTML = `
+        <div class="scale" style="width:${barLength}px">
+          <div class="ticks">
+            <span>0</span>
+            <span>${value}</span>
           </div>
-          <span class="unit">${unit}</span>
-        `.trim();
-      }
+          <div class="bar"></div>
+        </div>
+        <span class="unit">${unit}</span>
+      `.trim();
     }
   }
 }

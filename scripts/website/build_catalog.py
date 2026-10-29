@@ -22,8 +22,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import config, render, web
-from common.views import CRS, load_landmarks
+from common import config, web
+from common.views import CRS
 
 
 def item(dataset: str, product: str, label: str, title: str | None = None) -> dict:
@@ -40,17 +40,21 @@ def group(label: str, *children) -> dict:
 # the full title shown above the map comes from the product spec.
 TREE = [
     group(
+        "Street maps",
+        item("streetmap", "osm", "OpenStreetMap"),
+        item("streetmap", "esri", "Esri World Street Map"),
+        item("streetmap", "usgs-topo", "USGS National Map topo"),
+    ),
+    group(
         "Optical imagery",
         group(
             "True color",
-            item("ct-ortho", "truecolor", "CT orthoimagery, 1934-2023 (7.6 cm-1 m)", "Connecticut orthoimagery, true color"),
             item("naip", "truecolor", "NAIP (0.3-1 m)", "NAIP, true color"),
             item("planet", "truecolor", "Planet monthly basemap (4.8 m)", "Planet monthly basemap, true color"),
             item("landsat", "truecolor", "Landsat 8-9 (30 m)", "Landsat 8-9 true color"),
         ),
         group(
             "Color infrared",
-            item("ct-ortho", "cir", "CT orthoimagery, 2012-2023 (7.6-30 cm)", "Connecticut orthoimagery, color infrared"),
             item("naip", "cir", "NAIP (0.3-1 m)", "NAIP, color infrared"),
             item("landsat", "cir", "Landsat 8-9 (30 m)", "Landsat 8-9 color infrared"),
         ),
@@ -58,7 +62,6 @@ TREE = [
             "Landsat 8-9",
             item("landsat", "veg", "False color: vegetation", "Landsat 8-9 false color (vegetation)"),
             item("landsat", "urban", "False color: urban", "Landsat 8-9 false color (urban)"),
-            item("landsat-pan", "pan", "Panchromatic, 2024-08-27 (15 m)", "Landsat 8 panchromatic (OLI band 8)"),
         ),
     ),
     group(
@@ -67,45 +70,14 @@ TREE = [
             "Land surface temperature",
             item("landsat", "lst", "Landsat 8-9 (100 m)", "Landsat 8-9 land surface temperature"),
             item("viirs-lst", "lst", "VIIRS, daily (1 km)", "VIIRS land surface temperature (daily, 1 km)"),
-            item("viirs-lst-prebuilt", "lst", "VIIRS, 2026-06-03 (750 m swath, pre-built)", "VIIRS land surface temperature (750 m)"),
             item("goes-lst", "lst", "GOES-19 ABI, hourly (2 km)", "GOES-19 ABI land surface temperature (2 km)"),
-            item("goes-lst-prebuilt", "lst", "GOES-19 ABI, 2026-06-03 (2 km, pre-built)", "GOES-19 ABI land surface temperature (2 km)"),
         ),
-        group(
-            "Air temperature",
-            item("era5-land", "t2m", "ERA5-Land 2 m, hourly (0.1°)", "ERA5-Land 2 m air temperature"),
-            item("prism", "tmean", "PRISM July 2026 mean (800 m)", "PRISM mean air temperature"),
-        ),
+        item("era5-land", "t2m", "Air temperature: ERA5-Land 2 m, hourly (0.1°)", "ERA5-Land 2 m air temperature"),
     ),
     group(
         "Elevation",
-        group(
-            "Bare-earth elevation",
-            item("ct-lidar", "elevation", "CT lidar 2016, 2023 (0.6 m)", "Connecticut lidar elevation (bare earth)"),
-            item("3dep", "elevation", "USGS 3DEP (~1 m)", "USGS 3DEP elevation"),
-            item("aster-dem", "elevation", "ASTER GDEM v3 (30 m)", "ASTER GDEM v3 elevation"),
-        ),
-        group(
-            "Hillshade",
-            item("ct-lidar", "hillshade", "CT lidar 2016, 2023 (0.6 m)", "Connecticut lidar hillshade (bare earth)"),
-            item("3dep", "hillshade", "USGS 3DEP (~1 m)", "USGS 3DEP hillshade"),
-            item("aster-dem", "hillshade", "ASTER GDEM v3 (30 m)", "ASTER GDEM v3 hillshade"),
-        ),
-        item("ct-lidar", "surface", "Surface elevation: CT lidar 2023 (0.9 m)", "Connecticut 2023 lidar surface elevation"),
-    ),
-    group(
-        "Vegetation and land cover",
-        group(
-            "ICESat-2 canopy height",
-            item("icesat2", "canopy_height", "May-Sep 2025-2026", "ICESat-2 ATL08 canopy height"),
-            item("icesat2", "canopy_height_allyears", "Growing seasons 2019-2026", "ICESat-2 ATL08 canopy height"),
-            item("icesat2", "tracks", "Photon profile sample lines", "ICESat-2 photon profile sample lines"),
-        ),
-        group(
-            "CT impervious surface 2023",
-            item("ct-impervious-2023", "classes", "Classes", "Connecticut 2023 impervious surface classes"),
-            item("ct-impervious-2023", "impervious", "Impervious / not", "Connecticut 2023 impervious surface"),
-        ),
+        item("3dep", "elevation", "Bare-earth elevation: USGS 3DEP (~1 m)", "USGS 3DEP elevation"),
+        item("3dep", "hillshade", "Hillshade: USGS 3DEP (~1 m)", "USGS 3DEP hillshade"),
     ),
     group(
         "Radar: NISAR L-band SAR (slow: ~5-10 s per tile)",
@@ -124,27 +96,50 @@ TREE = [
     ),
     group(
         "Water",
-        group(
-            "SMAP root-zone soil moisture (9 km)",
-            item("smap", "sm_rootzone", "3-hourly", "SMAP L4 root-zone soil moisture (0-100 cm)"),
-            item("smap-prebuilt", "sm_rootzone", "2026-07-30 (pre-built)", "SMAP L4 root-zone soil moisture (0-100 cm)"),
-        ),
-        group(
-            "CHIRPS precipitation (0.05°)",
-            item("chirps", "precip", "Daily", "CHIRPS v3 daily precipitation"),
-            item("chirps-prebuilt", "precip", "2026-07-29 (pre-built)", "CHIRPS v3 daily precipitation"),
-        ),
+        item("smap", "sm_rootzone", "SMAP root-zone soil moisture, 3-hourly (9 km)", "SMAP L4 root-zone soil moisture (0-100 cm)"),
+        item("chirps", "precip", "CHIRPS precipitation, daily (0.05°)", "CHIRPS v3 daily precipitation"),
     ),
     group(
         "Night lights",
         item("viirs-nightlights", "radiance", "VIIRS Black Marble, annual (500 m)", "VIIRS Black Marble night lights"),
-        item("viirs-nightlights-prebuilt", "radiance", "VIIRS Black Marble 2025 (500 m, pre-built)", "VIIRS Black Marble night lights"),
     ),
+    # Datasets for one area only: statewide services, and images pre-built for Greater New Haven.
     group(
-        "Street maps",
-        item("streetmap", "osm", "OpenStreetMap"),
-        item("streetmap", "esri", "Esri World Street Map"),
-        item("streetmap", "usgs-topo", "USGS National Map topo"),
+        "Location-specific",
+        group(
+            "Connecticut",
+            group(
+                "Orthoimagery",
+                item("ct-ortho", "truecolor", "True color, 1934-2023 (7.6 cm-1 m)", "Connecticut orthoimagery, true color"),
+                item("ct-ortho", "cir", "Color infrared, 2012-2023 (7.6-30 cm)", "Connecticut orthoimagery, color infrared"),
+            ),
+            group(
+                "Lidar",
+                item("ct-lidar", "elevation", "Bare-earth elevation, 2016, 2023 (0.6 m)", "Connecticut lidar elevation (bare earth)"),
+                item("ct-lidar", "hillshade", "Hillshade, 2016, 2023 (0.6 m)", "Connecticut lidar hillshade (bare earth)"),
+                item("ct-lidar", "surface", "Surface elevation, 2023 (0.9 m)", "Connecticut 2023 lidar surface elevation"),
+            ),
+            group(
+                "Impervious surface 2023 (pre-built, Greater New Haven)",
+                item("ct-impervious-2023", "classes", "Classes", "Connecticut 2023 impervious surface classes"),
+                item("ct-impervious-2023", "impervious", "Impervious / not", "Connecticut 2023 impervious surface"),
+            ),
+            group(
+                "Greater New Haven (pre-built)",
+                item("landsat-pan", "pan", "Landsat 8 panchromatic, 2024-08-27 (15 m, pre-built, Greater New Haven)", "Landsat 8 panchromatic (OLI band 8)"),
+                item("viirs-lst-prebuilt", "lst", "VIIRS LST, 2026-06-03 (750 m swath, pre-built, Greater New Haven)", "VIIRS land surface temperature (750 m)"),
+                item("goes-lst-prebuilt", "lst", "GOES-19 ABI LST, 2026-06-03 (2 km, pre-built, Greater New Haven)", "GOES-19 ABI land surface temperature (2 km)"),
+                item("prism", "tmean", "PRISM air temperature, July 2026 mean (800 m, pre-built, Greater New Haven)", "PRISM mean air temperature"),
+                item("aster-dem", "elevation", "ASTER GDEM v3 elevation (30 m, pre-built, Greater New Haven)", "ASTER GDEM v3 elevation"),
+                item("aster-dem", "hillshade", "ASTER GDEM v3 hillshade (30 m, pre-built, Greater New Haven)", "ASTER GDEM v3 hillshade"),
+                item("icesat2", "canopy_height", "ICESat-2 canopy height, May-Sep 2025-2026 (pre-built, Greater New Haven)", "ICESat-2 ATL08 canopy height"),
+                item("icesat2", "canopy_height_allyears", "ICESat-2 canopy height, growing seasons 2019-2026 (pre-built, Greater New Haven)", "ICESat-2 ATL08 canopy height"),
+                item("icesat2", "tracks", "ICESat-2 photon profile sample lines (pre-built, Greater New Haven)", "ICESat-2 photon profile sample lines"),
+                item("smap-prebuilt", "sm_rootzone", "SMAP root-zone soil moisture, 2026-07-30 (9 km, pre-built, Greater New Haven)", "SMAP L4 root-zone soil moisture (0-100 cm)"),
+                item("chirps-prebuilt", "precip", "CHIRPS precipitation, 2026-07-29 (0.05°, pre-built, Greater New Haven)", "CHIRPS v3 daily precipitation"),
+                item("viirs-nightlights-prebuilt", "radiance", "VIIRS Black Marble 2025 (500 m, pre-built, Greater New Haven)", "VIIRS Black Marble night lights"),
+            ),
+        ),
     ),
 ]
 # endregion tree
@@ -316,9 +311,6 @@ def main():
     catalog = dict(
         crs=CRS,
         extent=dict(title=v.title, bounds=list(v.bounds)),
-        landmarks=[
-            dict(name=l["name"], lon=l["lon"], lat=l["lat"], label_left=l["name"] in render._LABEL_LEFT) for l in load_landmarks()
-        ],
         sources=sources,
         tree=tree,
     )

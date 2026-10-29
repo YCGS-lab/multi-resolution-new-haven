@@ -2,14 +2,17 @@
 // tree of groups -> products. Products that need an API key the user has not
 // entered (lock) or the cloud deployment (cloud) are grayed out, with the
 // reason as a tooltip; picking a locked one opens the credentials dialog.
+// Products with no data in the map's view (coverage) are dimmed too, as a
+// hint only: they can still be picked.
 
 import { openCredentials, requirement } from "./env.js";
+import { coverageMiss } from "./slot.js";
 
 const popup = () => document.getElementById("picker-popup");
 const collapsed = new Set(); // group paths collapsed by the user (shared by all pickers)
 let active = null; // the picker whose popup is open
 
-const REQ_ICON = { credential: "🔒", cloud: "☁" };
+const REQ_ICON = { credential: "🔒", cloud: "☁", outside: "⌖" };
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 
@@ -17,10 +20,12 @@ export class Picker {
   /**
    * host: element to render the button into.
    * onSelect(id) is called when the user picks an image.
+   * view() is the map's lon / lat box [w, s, e, n] (products without data there are dimmed).
    */
-  constructor(host, catalog, { onSelect, placeholder = "Select an image", compact = false } = {}) {
+  constructor(host, catalog, { onSelect, view, placeholder = "Select an image", compact = false } = {}) {
     this.catalog = catalog;
     this.onSelect = onSelect;
+    this.view = view;
     this.placeholder = placeholder;
     this.sel = null;
     this.button = document.createElement("button");
@@ -103,38 +108,47 @@ export class Picker {
       return words.every((w) => hay.includes(w));
     };
     const cur = this.catalog.get(this.sel);
+    const view = this.view?.();
     const html = [];
+    // Returns NONE (nothing shown), SHOWN, or OUT (shown, but no data in view).
+    const NONE = 0,
+      SHOWN = 1,
+      OUT = 2;
     const walk = (node, depth, path) => {
       if (node.layers) {
-        if (!matches(node)) return false;
+        if (!matches(node)) return NONE;
         const isCur = cur === node;
         const req = requirement(node);
-        const icon = req.ok ? "" : `<span class="req-icon ${req.kind}" aria-hidden="true">${REQ_ICON[req.kind]}</span>`;
+        const out = coverageMiss(node, view);
+        const kind = !req.ok ? req.kind : out ? "outside" : null;
+        const icon = kind ? `<span class="req-icon ${kind}" aria-hidden="true">${REQ_ICON[kind]}</span>` : "";
+        const tip = !req.ok ? req.message : out ? `No data in view: covers ${node.coverage.name}` : node.title || node.menu_title;
         html.push(`
-          <div class="pk-item${isCur ? " current" : ""}${req.ok ? "" : ` unavailable ${req.kind}`}" style="--depth:${depth}">
+          <div class="pk-item${isCur ? " current" : ""}${req.ok ? "" : ` unavailable ${req.kind}`}${out ? " outside" : ""}" style="--depth:${depth}">
             <button type="button" class="pk-pick" data-id="${esc(node.id)}" role="option" aria-selected="${isCur}"
               ${req.ok ? "" : `aria-disabled="true" data-req="${req.kind}" data-cred="${esc(req.credential ?? "")}"`}
-              title="${esc(req.ok ? node.title || node.menu_title : req.message)}">${icon}${esc(node.label)}</button>
+              title="${esc(tip)}">${icon}${esc(node.label)}</button>
           </div>`);
-        return true;
+        return out ? OUT : SHOWN;
       }
       const key = [...path, node.label].join("/");
       const start = html.length;
       html.push(""); // placeholder for the group header
       const isCollapsed = !words.length && collapsed.has(key);
-      let any = false;
       const childStart = html.length;
-      for (const c of node.children) any = walk(c, depth + 1, [...path, node.label]) || any;
-      if (!any) {
+      const shown = node.children.map((c) => walk(c, depth + 1, [...path, node.label])).filter((r) => r !== NONE);
+      if (!shown.length) {
         html.length = start;
-        return false;
+        return NONE;
       }
+      const out = shown.every((r) => r === OUT);
       if (isCollapsed) html.length = childStart;
       html[start] = `
-        <button type="button" class="pk-group" style="--depth:${depth}" data-key="${esc(key)}" aria-expanded="${!isCollapsed}">
+        <button type="button" class="pk-group${out ? " outside" : ""}" style="--depth:${depth}" data-key="${esc(key)}" aria-expanded="${!isCollapsed}"
+          ${out ? `title="No data in view"` : ""}>
           <span class="pk-caret">${isCollapsed ? "▸" : "▾"}</span>${esc(node.label)}
         </button>`;
-      return true;
+      return out ? OUT : SHOWN;
     };
     for (const n of this.catalog.tree) walk(n, 0, []);
     const tree = popup().querySelector(".pk-tree");

@@ -11,10 +11,10 @@ import {
   backgroundLayer,
   clampViewState,
   fromDeckViewState,
-  homeViewState,
   keyHTML,
-  landmarkLayers,
   overlayProps,
+  placeLayers,
+  placeViewState,
   productLayers,
   showNotices,
   titleHTML,
@@ -30,10 +30,10 @@ import { TimeControl } from "./timecontrol.js";
 const SPY_RADIUS = 130; // px
 
 export class Viewer {
-  constructor(root, catalog, settings) {
+  constructor(root, catalog, place) {
     this.root = root;
     this.catalog = catalog;
-    this.settings = settings; // shared { labels }
+    this.place = place; // the selected place (location.js), shared by the maps
     this.mapEl = root.querySelector("#viewer-map");
     this.chrome = new MapChrome(root.querySelector(".viewer-frame"), catalog);
     this.handle = root.querySelector(".swipe-handle");
@@ -55,8 +55,8 @@ export class Viewer {
     this.spy = null; // lens center in px, or null when the cursor is off the map
 
     this.pickers = {
-      a: new Picker(root.querySelector("#picker-a"), catalog, { onSelect: (s) => this.select("a", s) }),
-      b: new Picker(root.querySelector("#picker-b"), catalog, { onSelect: (s) => this.select("b", s) }),
+      a: new Picker(root.querySelector("#picker-a"), catalog, { onSelect: (s) => this.select("a", s), view: () => this.bounds }),
+      b: new Picker(root.querySelector("#picker-b"), catalog, { onSelect: (s) => this.select("b", s), view: () => this.bounds }),
     };
     for (const k of ["a", "b"]) {
       root.querySelector(`#prev-${k}`).addEventListener("click", () => this.step(k, -1));
@@ -64,6 +64,7 @@ export class Viewer {
     }
     root.querySelector("#compare-toggle").addEventListener("change", (e) => this.setCompare(e.target.checked));
     root.querySelector("#b-same-as-a").addEventListener("click", () => this.compareThroughTime());
+    root.querySelector("#swap-ab").addEventListener("click", () => this.swap());
     root.querySelectorAll("#compare-mode button").forEach((b) => b.addEventListener("click", () => this.setMode(b.dataset.mode)));
     root.querySelector("#opacity-slider").addEventListener("input", (e) => {
       this.opacity = e.target.value / 100;
@@ -89,7 +90,7 @@ export class Viewer {
 
     // #region viewer-deck
     this.size = [this.mapEl.clientWidth || 800, this.mapEl.clientHeight || 450];
-    this.viewState = homeViewState(catalog.extent, ...this.size, catalog.limits);
+    this.viewState = placeViewState(catalog, place.current, ...this.size);
     this.deck = new Deck({
       parent: this.mapEl,
       views: new MapView({ id: "main", controller: CONTROLLER }),
@@ -168,6 +169,14 @@ export class Viewer {
   }
   // #endregion compare-through-time
 
+  /** Swap A and B (product and time). */
+  swap() {
+    const a = { ...this.slots.a.sel };
+    const b = { ...this.slots.b.sel };
+    this.slots.a.setSel(b);
+    this.slots.b.setSel(a);
+  }
+
   setMode(mode) {
     this.mode = mode;
     this.root.querySelectorAll("#compare-mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
@@ -180,8 +189,9 @@ export class Viewer {
     this.update();
   }
 
+  /** Back to the selected place (or Greater New Haven). */
   reset() {
-    this.viewState = homeViewState(this.catalog.extent, ...this.size, this.catalog.limits);
+    this.viewState = placeViewState(this.catalog, this.place.current, ...this.size);
     this.update();
   }
 
@@ -261,7 +271,7 @@ export class Viewer {
         if (lens) layers.push(lens);
       }
     }
-    if (this.settings.labels) layers.push(...landmarkLayers("landmarks", c, this.slots.a.product?.landmark_color, this.viewState.zoom));
+    layers.push(...placeLayers("place", this.place.current));
     return layers;
   }
   // #endregion compare-layers
@@ -292,7 +302,7 @@ export class Viewer {
       ],
       (name) => openCredentials(name),
     );
-    this.chrome.update(this.viewState, w, h, this.settings.labels);
+    this.chrome.update(this.viewState, w, h);
 
     const swipe = this.compare && this.mode === "swipe";
     this.handle.hidden = !swipe;

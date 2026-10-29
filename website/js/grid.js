@@ -15,9 +15,9 @@ import {
   backgroundLayer,
   clampViewState,
   fromDeckViewState,
-  homeViewState,
   keyHTML,
-  landmarkLayers,
+  placeLayers,
+  placeViewState,
   productLayers,
   showNotices,
   titleHTML,
@@ -32,10 +32,10 @@ import { TimeControl } from "./timecontrol.js";
 let nextUid = 0;
 
 export class Grid {
-  constructor(root, catalog, settings) {
+  constructor(root, catalog, place) {
     this.root = root;
     this.catalog = catalog;
-    this.settings = settings;
+    this.place = place; // the selected place (location.js)
     this.container = root.querySelector(".grid-slots");
     this.deckEl = document.getElementById("grid-deck");
     this.cols = 2;
@@ -147,9 +147,13 @@ export class Grid {
     this.layout();
   }
 
+  /** Back to the selected place (or Greater New Haven); before the grid is first laid out, on its first layout. */
   reset() {
-    if (!this.slotSize) return;
-    this.viewState = homeViewState(this.catalog.extent, ...this.slotSize, this.catalog.limits);
+    if (!this.slotSize) {
+      this.viewState = null;
+      return;
+    }
+    this.viewState = placeViewState(this.catalog, this.place.current, ...this.slotSize);
     this.update();
   }
 
@@ -217,6 +221,7 @@ export class Grid {
       placeholder: "Select an image",
       compact: true,
       onSelect: (sel) => this.select(slot, sel),
+      view: () => this.bounds,
     });
     el.querySelector(".add-image").addEventListener("click", () => slot.picker.open());
     el.querySelector(".clear").addEventListener("click", () => this.select(slot, null));
@@ -292,7 +297,7 @@ export class Grid {
     if (!size[0] || !size[1]) return;
     const c = this.catalog;
     if (!this.viewState) {
-      this.viewState = homeViewState(c.extent, ...size, c.limits);
+      this.viewState = placeViewState(c, this.place.current, ...size);
     } else if (this.slotSize && (size[0] !== this.slotSize[0] || size[1] !== this.slotSize[1])) {
       // Keep the same ground extent visible when slots change size.
       const zoom = this.viewState.zoom + Math.log2(size[0] / this.slotSize[0]);
@@ -319,7 +324,7 @@ export class Grid {
     const [w, h] = this.slotSize;
     const views = [];
     const layers = [];
-    const bounds = viewBounds(this.viewState, c, w, h);
+    const bounds = (this.bounds = viewBounds(this.viewState, c, w, h));
     const zoom = slippyZoom(this.viewState.zoom);
     for (const s of this.slots) {
       if (!s.map) continue;
@@ -345,12 +350,12 @@ export class Grid {
         layers.push(
           ...productLayers(`${s.uid}-image`, c, p, s.loading, undefined, { time: s.ts.ctx(), view: bounds, onReady: () => this.update() }),
         );
-      if (this.settings.labels) layers.push(...landmarkLayers(`${s.uid}-landmarks`, c, p.landmark_color, this.viewState.zoom));
+      layers.push(...placeLayers(s.uid, this.place.current));
     }
     const deckViewState = toDeckViewState(this.viewState, c);
     const viewState = Object.fromEntries(views.map((v) => [v.id, deckViewState]));
     this.deck.setProps({ views, viewState, layers });
-    for (const s of this.slots) if (s.sel && s.chrome) s.chrome.update(this.viewState, w, h, this.settings.labels);
+    for (const s of this.slots) if (s.sel && s.chrome) s.chrome.update(this.viewState, w, h);
   }
   // #endregion grid-render
 }

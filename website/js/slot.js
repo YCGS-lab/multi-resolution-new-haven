@@ -19,6 +19,15 @@ const C = 2 * Math.PI * 6378137;
 /** Slippy-map zoom (256 px tiles) of a world zoom (2^zoom px per Web Mercator meter). */
 export const slippyZoom = (worldZoom) => worldZoom + Math.log2(C / 256);
 
+/** Whether the product's coverage misses a lon / lat box [w, s, e, n] (false if either is unknown). */
+export function coverageMiss(p, bbox) {
+  const cov = p?.coverage;
+  if (!cov || !bbox) return false;
+  const [w, s, e, n] = bbox;
+  const [cw, cs, ce, cn] = cov.bbox;
+  return e < cw || w > ce || n < cs || s > cn;
+}
+
 // #region selection
 export function newSel(catalog, id) {
   const p = catalog.get(id);
@@ -212,12 +221,7 @@ export class Slot {
     if (!p) return null;
     const req = requirement(p);
     if (!req.ok) return { kind: req.kind, credential: req.credential, message: req.message };
-    const cov = p.coverage;
-    if (cov && this.bbox) {
-      const [w, s, e, n] = this.bbox;
-      const [cw, cs, ce, cn] = cov.bbox;
-      if (e < cw || w > ce || n < cs || s > cn) return { kind: "outside", message: `Dataset unavailable here: it covers ${cov.name}.` };
-    }
+    if (coverageMiss(p, this.bbox)) return { kind: "outside", message: `Dataset unavailable here: it covers ${p.coverage.name}.` };
     if (p.min_zoom != null && this.zoom != null && this.zoom < p.min_zoom - 0.5)
       return { kind: "zoom", message: "Zoom in to view this dataset (too much data at this scale)." };
     return null;

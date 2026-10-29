@@ -41,7 +41,6 @@ export class Catalog {
       }
     };
     for (const n of this.tree) walk(n, [], null);
-    this.landmarks = data.landmarks.map((l) => ({ ...l, position: [l.lon, l.lat] }));
   }
 // #endregion catalog-class
 

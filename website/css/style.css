@@ -98,11 +98,19 @@ a {
 
 .app-header h1 {
   align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   font-family: var(--serif);
   font-size: 28px;
   font-weight: 400;
   white-space: nowrap;
+}
+
+.app-icon {
+  width: 34px;
+  height: 34px;
 }
 
 .tabs {
@@ -133,26 +141,165 @@ a {
   margin-left: auto;
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
-.app-header .toggle {
-  color: #fff;
-}
+/* ---------- place search (location.js) ---------- */
 
 /* outlined pill, like the YaleSites "Search this site" control */
-.toggle.pill {
-  padding: 4px 14px 4px 10px;
+.place-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: clamp(180px, 24vw, 320px);
   border: 1.5px solid #fff;
   border-radius: 18px;
-  font-size: 15px;
 }
 
-.toggle.pill:hover {
+.ps-icon {
+  padding: 0 2px 0 12px;
+  font-size: 17px;
+}
+
+.ps-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 4px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 15px;
+  outline: none;
+}
+
+.ps-input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ps-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.place-search:focus-within {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.toggle.pill input {
-  accent-color: var(--blue-light);
+.ps-clear {
+  visibility: hidden;
+  border: 0;
+  background: none;
+  color: #fff;
+  padding: 0 12px 0 4px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.place-search.has-place .ps-clear {
+  visibility: visible;
+}
+
+.ps-list,
+.tools-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 4px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--gray-300);
+  border-radius: 2px;
+  box-shadow: 0 10px 30px rgba(0, 30, 60, 0.22);
+}
+
+.ps-item,
+.tools-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ps-item:hover,
+.ps-item.active,
+.tools-item:hover {
+  background: var(--gray-100);
+}
+
+.ps-mark {
+  width: 14px;
+  color: var(--accent);
+}
+
+.ps-item.starred .ps-mark {
+  color: #c79100;
+}
+
+.ps-note,
+.tools-note {
+  padding: 6px 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- location-specific tools menu ---------- */
+
+.tools-menu {
+  position: relative;
+}
+
+.pill {
+  white-space: nowrap;
+  padding: 4px 14px;
+  border: 1.5px solid #fff;
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.tools-button.active {
+  border-color: var(--blue-light);
+}
+
+.tools-list {
+  left: auto;
+  width: 300px;
+}
+
+.tools-head {
+  padding: 6px 8px 2px;
+  color: var(--yale-blue);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tools-item {
+  justify-content: space-between;
+}
+
+.tools-item.active {
+  background: var(--accent-soft);
+  font-weight: 500;
+}
+
+.tools-where {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 main {
@@ -1137,7 +1284,7 @@ body.grid-active .axis {
 /* ---------- credentials ---------- */
 
 .cred-button {
-  margin-right: 10px;
+  white-space: nowrap;
   padding: 4px 14px 4px 10px;
   border: 1.5px solid #fff;
   border-radius: 18px;
@@ -1255,6 +1402,17 @@ body.grid-active .axis {
 
 .pk-item.unavailable.credential .pk-pick {
   cursor: pointer;
+}
+
+/* no data in the map's view: a hint only (still selectable) */
+.pk-item.outside .pk-pick,
+.pk-group.outside {
+  color: var(--gray-500);
+  opacity: 0.7;
+}
+
+.req-icon.outside {
+  color: var(--gray-500);
 }
 
 /* ---------- time controls ---------- */
