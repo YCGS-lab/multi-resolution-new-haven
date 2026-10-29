@@ -116,7 +116,7 @@ class PlacesApi {
     if (abort.signal.aborted) throw new DOMException("superseded", "AbortError");
     this.last = Date.now();
     const res = await fetch(`${this.base}/${path}?${qs}`, { signal: abort.signal });
-    if (!res.ok) throw new Error(res.status === 429 ? "Too many searches: wait a moment" : `Search failed (${res.status})`);
+    if (!res.ok) throw new Error(res.status === 429 || res.status === 503 ? "Too many searches: wait a moment" : `Search failed (${res.status})`);
     const out = await res.json();
     this.cache.set(key, out);
     return out;
