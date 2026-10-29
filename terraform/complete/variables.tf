@@ -82,6 +82,24 @@ variable "tiler_image_platform" {
   default     = "linux/arm64"
 }
 
+variable "places" {
+  description = "Place search (the website's search box) through Amazon Location Places (../places)."
+  type        = bool
+  default     = true
+}
+
+variable "places_throttling_rate_limit" {
+  description = "Place search requests per second (all users together); bounds the Places bill."
+  type        = number
+  default     = 5
+}
+
+variable "places_throttling_burst_limit" {
+  description = "Place search burst above the rate."
+  type        = number
+  default     = 10
+}
+
 variable "secrets_version" {
   description = "Bump to write new tiler secret values (with the variables below set)."
   type        = number
@@ -139,5 +157,5 @@ variable "guard_budget_usd" {
 variable "guard_budget_filters" {
   description = "Budget cost filters (see the tiler module); default: the services the app uses, account-wide."
   type        = map(list(string))
-  default     = { Service = ["Amazon CloudFront", "AWS Lambda", "Amazon API Gateway", "Amazon DynamoDB"] }
+  default     = { Service = ["Amazon CloudFront", "AWS Lambda", "Amazon API Gateway", "Amazon DynamoDB", "Amazon Location Service"] }
 }

@@ -8,6 +8,11 @@ output "tiler_url" {
   value       = module.tiler.url
 }
 
+output "places_url" {
+  description = "The place search (also in the website's env.json as services.places; null when places = false)."
+  value       = var.places ? module.places[0].url : null
+}
+
 output "env" {
   description = "The website's env.json, as written to its bucket."
   value       = local.site_env

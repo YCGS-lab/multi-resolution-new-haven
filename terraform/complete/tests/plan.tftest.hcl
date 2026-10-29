@@ -185,4 +185,23 @@ run "wiring" {
     condition     = output.tiler_guard != null
     error_message = "The cost guard should be on by default"
   }
+
+  assert {
+    condition     = output.env.services.places == module.places[0].url && output.places_url == module.places[0].url
+    error_message = "The website's env.json must point services.places at the place search"
+  }
+}
+
+run "no_places" {
+  command = plan
+
+  variables {
+    name   = "ycgs-complete"
+    places = false
+  }
+
+  assert {
+    condition     = output.env.services.places == null && length(module.places) == 0
+    error_message = "places = false: no place search, and env.json says so"
+  }
 }

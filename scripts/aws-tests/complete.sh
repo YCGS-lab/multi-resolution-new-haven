@@ -52,6 +52,15 @@ acao() { # Access-Control-Allow-Origin of a tiler request sent with Origin: $1
 check "tiler allows the website's origin" test "$(acao "$origin")" = "$origin"
 check "tiler allows the local site (extra_cors_origins)" test "$(acao http://localhost:8000)" = "http://localhost:8000"
 check "tiler does not allow other origins" test -z "$(acao https://example.org)"
+places="$(out places_url)"
+check "env.json services.places is this place search" test \
+  "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["services"]["places"])' "$env_json")" = "$places"
+places_acao() { # Access-Control-Allow-Origin of a place search sent with Origin: $1
+  curl -s -o /dev/null -D - -H "Origin: $1" "$places/suggest?q=New%20Haven" | tr -d '\r' | grep -i '^access-control-allow-origin:' | cut -d' ' -f2-
+}
+check "place search allows the website's origin" test "$(places_acao "$origin")" = "$origin"
+check "place search does not allow other origins" test -z "$(places_acao https://example.org)"
+check "place search suggests New Haven" bash -c "curl -sf '$places/suggest?q=New%20Haven' | grep -q 'New Haven'"
 # endregion coupling-checks
 
 log "website"

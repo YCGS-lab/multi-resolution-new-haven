@@ -117,6 +117,30 @@ variable "guard_extra_distribution_ids" {
   default     = []
 }
 
+variable "guard_extra_functions" {
+  type        = list(object({ name = string, region = string }))
+  description = "Other Lambda functions the kill switch stops with the tiler's (reserved concurrency 0), e.g. the place search's"
+  default     = []
+}
+
+variable "guard_extra_apis" {
+  type        = list(string)
+  description = "IDs of HTTP APIs in the default provider's region whose request count is watched (warn / kill alarms), e.g. the place search's"
+  default     = []
+}
+
+variable "guard_warn_api_requests_per_hour" {
+  type        = number
+  description = "Warning: requests per hour to guard_extra_apis"
+  default     = 500
+}
+
+variable "guard_kill_api_requests_per_hour" {
+  type        = number
+  description = "Kill: requests per hour to guard_extra_apis, sustained for guard_kill_minutes (2000/h of Places requests at $0.20-0.50 per 1000 ~ $0.40-1/h)"
+  default     = 2000
+}
+
 variable "guard_warn_bytes_per_hour" {
   type        = number
   description = "Warning: bytes downloaded per hour from the guarded distributions (5 GB ~ $0.43/h)"

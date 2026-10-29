@@ -209,6 +209,27 @@ run "plan" {
   # endregion guard-assert
 }
 
+run "guard_extra_apis" {
+  command = plan
+  variables {
+    guard_extra_functions = [{ name = "places", region = "us-east-1" }]
+    guard_extra_apis      = ["api123"]
+  }
+  assert {
+    condition = (
+      length(aws_cloudwatch_metric_alarm.api) == 2
+      && abs(aws_cloudwatch_metric_alarm.api["kill-api"].threshold - 2000 / 12) < 1
+      && aws_cloudwatch_metric_alarm.api["kill-api"].evaluation_periods == 3
+      && length(aws_lambda_permission.kill_api_alarm) == 1
+    )
+    error_message = "Guarded APIs: warn and kill alarms on their request count (kill at 2000/h for 15 min)"
+  }
+  assert {
+    condition     = strcontains(aws_lambda_function.kill[0].environment[0].variables.FUNCTIONS, "\"places\"")
+    error_message = "The kill switch must stop the guarded functions too"
+  }
+}
+
 run "guard_off" {
   command = plan
   variables {

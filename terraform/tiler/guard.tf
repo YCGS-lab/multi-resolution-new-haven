@@ -6,10 +6,12 @@
 #   warning alarms (email): bytes downloaded or requests well above normal
 #   kill alarm: bytes downloaded far above normal, sustained -> kill Lambda
 #   budget (email at 80% / forecast 100%; at 100% -> kill Lambda)
+#   with guard_extra_apis (e.g. the place search, billed per request):
+#   a warning and a kill alarm on their request count
 #
-# The kill Lambda sets the tiler Lambdas' reserved concurrency to 0 and
-# disables the distributions (this one and guard_extra_distribution_ids, e.g.
-# the website's). `tofu apply` restores both. CloudFront metrics exist only in
+# The kill Lambda sets the tiler Lambdas' reserved concurrency (and that of
+# guard_extra_functions) to 0 and disables the distributions (this one and
+# guard_extra_distribution_ids, e.g. the website's). `tofu apply` restores both. CloudFront metrics exist only in
 # us-east-1, so the default provider must be us-east-1.
 
 data "aws_region" "current" {}
@@ -18,10 +20,12 @@ data "aws_caller_identity" "current" {}
 # region guard-locals
 locals {
   guard_distributions = concat([aws_cloudfront_distribution.this.id], var.guard_extra_distribution_ids)
-  guard_functions = [
-    for m in [module.nasa, module.noaa, module.ecmwf] : { name = m.function_name, region = m.region }
-  ]
-  account = data.aws_caller_identity.current.account_id
+  guard_functions = concat(
+    [for m in [module.nasa, module.noaa, module.ecmwf] : { name = m.function_name, region = m.region }],
+    var.guard_extra_functions,
+  )
+  guard_apis = var.guard ? var.guard_extra_apis : []
+  account    = data.aws_caller_identity.current.account_id
   # CloudFront publishes per-distribution metrics every minute; alarms sum
   # them over 5-minute periods, so hourly thresholds become per-period ones.
   guard_period = 300
@@ -186,6 +190,15 @@ resource "aws_lambda_permission" "kill_alarm" {
   source_arn    = aws_cloudwatch_metric_alarm.kill[0].arn
 }
 
+resource "aws_lambda_permission" "kill_api_alarm" {
+  count         = length(local.guard_apis) > 0 ? 1 : 0
+  statement_id  = "KillApiAlarm"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.kill[0].function_name
+  principal     = "lambda.alarms.cloudwatch.amazonaws.com"
+  source_arn    = aws_cloudwatch_metric_alarm.api["kill-api"].arn
+}
+
 resource "aws_lambda_permission" "kill_sns" {
   count         = var.guard ? 1 : 0
   statement_id  = "KillBudget"
@@ -292,6 +305,59 @@ resource "aws_cloudwatch_metric_alarm" "kill" {
         period      = local.guard_period
         stat        = "Sum"
         dimensions  = { DistributionId = metric_query.value, Region = "Global" }
+      }
+    }
+  }
+}
+
+# Requests to guard_extra_apis (HTTP APIs in this region, e.g. the place
+# search, which is billed per request and not behind CloudFront).
+locals {
+  guard_api_alarms = length(local.guard_apis) == 0 ? {} : {
+    warn-api = {
+      threshold   = var.guard_warn_api_requests_per_hour * local.per_period
+      periods     = 1
+      actions     = [aws_sns_topic.alerts[0].arn]
+      description = "Requests to the guarded APIs above ${var.guard_warn_api_requests_per_hour}/h (warning)"
+    }
+    kill-api = {
+      threshold   = var.guard_kill_api_requests_per_hour * local.per_period
+      periods     = ceil(var.guard_kill_minutes * 60 / local.guard_period)
+      actions     = [aws_lambda_function.kill[0].arn, aws_sns_topic.alerts[0].arn]
+      description = "Requests to the guarded APIs above ${var.guard_kill_api_requests_per_hour}/h for ${var.guard_kill_minutes} min: stops the tiler, the guarded functions and the distributions"
+    }
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "api" {
+  for_each            = local.guard_api_alarms
+  alarm_name          = "${var.name}-${each.key}"
+  alarm_description   = each.value.description
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = each.value.periods
+  datapoints_to_alarm = each.value.periods
+  threshold           = each.value.threshold
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = each.value.actions
+  ok_actions          = each.key == "warn-api" ? [aws_sns_topic.alerts[0].arn] : []
+
+  metric_query {
+    id          = "total"
+    expression  = "SUM(METRICS())"
+    label       = "Requests (all guarded APIs)"
+    return_data = true
+  }
+
+  dynamic "metric_query" {
+    for_each = local.guard_apis
+    content {
+      id = "a${metric_query.key}"
+      metric {
+        namespace   = "AWS/ApiGateway"
+        metric_name = "Count"
+        period      = local.guard_period
+        stat        = "Sum"
+        dimensions  = { ApiId = metric_query.value }
       }
     }
   }
