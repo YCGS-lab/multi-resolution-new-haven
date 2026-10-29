@@ -1,15 +1,19 @@
-# New Haven at many resolutions
+# Raven: New Haven at many resolutions
 
-This project shows what New Haven, Connecticut looks like in remote-sensing
+This project (the multi-resolution-new-haven repository; its website is
+called **Raven**) shows what New Haven, Connecticut looks like in remote-sensing
 data at very different spatial resolutions: from 7.6 cm aerial photographs to
 a 9 km soil-moisture model. Seventeen datasets, 39 products, plus three street
 maps for reference, all cover the same area. They come out in two forms:
 
 - **Figures**: PNG maps of two fixed views. All figures of a view are
   pixel-aligned, so they can be compared directly or flipped through.
-- **A website**: an interactive map viewer. You pick an image, pan and zoom
-  down to its native pixels, compare two images (swipe, fade, or a lens),
-  and lay several images side by side in a synchronized grid.
+- **A website** (Raven): an interactive map viewer. You pick an image, pan
+  and zoom down to its native pixels, compare two images (swipe, fade, or a
+  lens), and lay several images side by side in a synchronized grid. A
+  search box goes to any place; most datasets cover the US or the world, and
+  the location-specific ones (Connecticut, pre-built Greater New Haven) are
+  grouped apart.
 
 This page summarizes the whole project. Each section links to a more
 detailed page; those pages link to the code. [How to read these

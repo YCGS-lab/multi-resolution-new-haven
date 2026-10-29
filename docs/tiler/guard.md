@@ -56,6 +56,13 @@ flowchart LR
 | Kill | 50 GB/h (`guard_kill_bytes_per_hour`, ~$4.25/h) for 15 minutes (`guard_kill_minutes`) | kill Lambda, email |
 | Budget | $50/month (`guard_budget_usd`): 80% spent or forecast over | email |
 | Budget | 100% spent | kill Lambda (through SNS), email |
+| Warning, API requests | 500/h (`guard_warn_api_requests_per_hour`) to `guard_extra_apis` in any 5-minute period | email |
+| Kill, API requests | 2,000/h (`guard_kill_api_requests_per_hour`, ~$1/h of Places requests) for 15 minutes | kill Lambda, email |
+
+`guard_extra_apis` and `guard_extra_functions` (in `terraform/complete`, the
+[place search](/website/search#cost)'s HTTP API and Lambda) bring a service
+billed per request, and not behind CloudFront, under the guard: its request
+count is watched, and the kill switch stops its Lambda with the tiler's.
 
 The alarms sum the CloudFront metrics of the tiler's distribution and
 `guard_extra_distribution_ids` (in `terraform/complete`, the website's) in

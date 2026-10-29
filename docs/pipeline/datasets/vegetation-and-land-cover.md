@@ -63,7 +63,7 @@ visible at any zoom and keep their true size when zoomed in. See
 desaturated, lightened OpenStreetMap basemap, read live.
 :::
 
-### Photon profiles for the ICESat-2 tab
+### Photon profiles for the ICESat-2 tool
 
 ::: code-group
 <<< @/../scripts/icesat2/create-cog.py#profiles-json [scripts/icesat2/create-cog.py#profiles-json]
@@ -74,7 +74,7 @@ downloaded files (no new retrievals): each sample line's ground track (a
 vertex every 10 m, with its distance along track) and its photons (distance
 and height in decimeters, ATL08 class as one digit each), plus the plot's
 height range as in the profile figures. The website's
-[ICESat-2 tab](/website/time#icesat-2-tab) draws them.
+[ICESat-2 profiles tool](/website/time#icesat-2-profiles-a-location-tool) draws them.
 
 ## CT impervious surface 2023
 

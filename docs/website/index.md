@@ -37,7 +37,8 @@ deck.gl-raster 0.8.1 in one file); only the main chain is drawn.
 | `viewer.js` | The Viewer tab: one map, optional comparison (swipe, opacity, spy) | [Viewer, compare and grid](./viewer-and-grid) |
 | `grid.js` | The Grid tab: many maps with shared pan/zoom on one WebGL canvas | [Viewer, compare and grid](./viewer-and-grid#one-canvas-for-the-grid) |
 | `picker.js` | The searchable image menu | [Page, picker and URL state](./page#the-image-picker) |
-| `mapview.js` | View-state conversion, zoom limits, compare-mode props, landmarks, axes, scale bar, colorbars, loading messages | [Map views](./map-views) |
+| `location.js` | The selected place, the place search box and the location tools menu | [Place search and location tools](./search) |
+| `mapview.js` | View-state conversion, zoom limits, compare-mode props, the place marker, axes, scale bar, colorbars, loading messages | [Map views](./map-views) |
 | `tiles.js` | Turns a product into deck.gl layers; ArcGIS and XYZ layers | [Image-service layers](./image-services) |
 | `cog.js` | COG layers with deck.gl-raster; render spec → shader | [COG layers](./cog-layers) |
 

@@ -35,7 +35,8 @@ With Compare on, image B is drawn over image A in one of three ways:
 :::
 
 Layer order: gray no-data background, A, then (for swipe and spy) a second
-background clipped like B, then B, then the lens ring and the landmarks.
+background clipped like B, then B, then the lens ring and the place marker.
+The ⇄ button swaps A and B, products and times (`Viewer.swap`).
 B's own background keeps A from showing through B's no-data pixels inside
 the swipe or the lens.
 

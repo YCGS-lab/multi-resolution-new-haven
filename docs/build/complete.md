@@ -1,18 +1,23 @@
 # Website and tiler together
 
 `terraform/complete/` deploys everything the website needs in one
-configuration: the static site ([`terraform/aws`](./deploy)) and the
+configuration: the static site ([`terraform/aws`](./deploy)), the
 [tiler](/tiler/) its cloud-only datasets are read from
-([`terraform/tiler`](/tiler/infrastructure)), wired to each other.
+([`terraform/tiler`](/tiler/infrastructure)) and its
+[place search](/website/search#the-places-api) (`terraform/places`), wired
+to each other.
 
 ```mermaid
 flowchart LR
   subgraph complete["terraform/complete"]
     site["module site<br/>(terraform/aws)"]
     tiler["module tiler<br/>(terraform/tiler)"]
+    places["module places<br/>(terraform/places)"]
   end
   tiler -->|"url → services.tiler"| env["env.json<br/>in the site's bucket"]
-  site -->|"site origin → cors_origins"| tiler
+  places -->|"url → services.places"| env
+  site -->|"site origin → cors_origins"| tiler & places
+  places -->|"API and Lambda → cost guard"| tiler
   site --> env
 ```
 
@@ -30,6 +35,10 @@ flowchart LR
   no-cache`). Its `deploy_commands` then sync `website/` with `--exclude
   env.json`, so a deploy cannot put the repository's `"tiler": null` back.
   Without `env`, nothing changes: `website/env.json` is deployed as is.
+- **The place search** (`places = true` by default) gets the same CORS
+  origins, goes into `env.json` as `services.places`, and is watched and
+  stopped by the tiler's cost guard (`guard_extra_apis`,
+  `guard_extra_functions`); see [Cost](/website/search#cost).
 - **The tiler only serves the website.** Its CORS origins are the website's
   origin plus `extra_cors_origins` (e.g. `http://localhost:8000` to try a
   local copy of the site against it). With a restricted list, the tiler's

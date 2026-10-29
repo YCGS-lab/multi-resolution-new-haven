@@ -4,7 +4,7 @@ import { withMermaid } from "vitepress-plugin-mermaid";
 // Developer documentation, viewed locally (`npm run dev` in docs/).
 export default withMermaid(
   defineConfig({
-    title: "New Haven at many resolutions",
+    title: "Raven (New Haven at many resolutions)",
     description: "How the data pipeline and the map viewer work",
     lang: "en-US",
     cleanUrls: true,
@@ -74,6 +74,7 @@ export default withMermaid(
             { text: "Viewer, compare and grid", link: "/website/viewer-and-grid" },
             { text: "Time, live data, credentials, animation, ICESat-2", link: "/website/time" },
             { text: "Page, picker and URL state", link: "/website/page" },
+            { text: "Place search and location tools", link: "/website/search" },
           ],
         },
         {

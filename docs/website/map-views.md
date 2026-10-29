@@ -1,7 +1,7 @@
 # Map views
 
 `website/js/mapview.js` holds what the Viewer and the Grid share: view-state
-handling, landmark layers, the loading message, and the HTML around a map
+handling, the selected place's marker, the loading message, and the HTML around a map
 (axes, scale bar, title, colorbar or legend).
 
 ## World view state and deck.gl's MapView <Badge type="warning" text="decision" />
@@ -66,7 +66,6 @@ map draws nothing for the product and says why ("Dataset unavailable here",
 "Zoom in to view this dataset"); when the selected timestep has no data in
 view, "Timestep not available here". See
 [Time, live data and credentials](./time#why-an-image-is-not-drawn).
-Landmarks (New Haven's) are hidden below slippy-map zoom 9.
 
 ## Loading state <Badge type="tip" text="standard" />
 
@@ -79,16 +78,21 @@ requests pending, "Loading…" appears; failures are counted and reported. The
 delay avoids a flicker on fast loads. COG, ArcGIS and XYZ layers all report
 through it, and the benchmark uses it to detect when a map has settled.
 
-## Landmarks <Badge type="tip" text="standard" />
+## The selected place <Badge type="tip" text="standard" />
 
 ::: code-group
-<<< @/../website/js/mapview.js#landmark-layers [website/js/mapview.js#landmark-layers]
+<<< @/../website/js/mapview.js#place-marker [website/js/mapview.js#place-marker]
 :::
 
-A `ScatterplotLayer` for the markers and a `TextLayer` for the names, with
-an outline so they read on any background. They match the figures' style.
-The marker color comes from each product (`landmark_color`), e.g. yellow on
-gray hillshades.
+A searched place ([Place search](./search)) gets a white dot with a
+Yale-blue ring on every map; a starred place (an area) gets none. `placeExtent`
+turns the place into the extent the maps fit when it is selected and when ⤢ or
+`0` is pressed: its box, at least ~800 m across (an address comes as a point
+or a tiny box), or the catalog's extent when no place is selected.
+
+The landmark labels of earlier versions (New Haven's, with a Labels toggle)
+are gone: the street maps name places better, everywhere. The figures still
+draw them (`data/landmarks.json`, `render.py`).
 
 ## Axes, scale bar and keys <Badge type="tip" text="standard" />
 

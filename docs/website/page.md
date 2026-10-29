@@ -30,12 +30,12 @@ bookmarked or shared:
 
 | Key | Meaning |
 |---|---|
-| `tab=grid` | Grid, animation or ICESat-2 tab open |
+| `tab=grid` | Grid or animation tab, or a location tool (`icesat2`), open |
+| `loc` | The selected place, unless Greater New Haven: a starred place's id (`donnelly`), `none`, or `<name>\|<w,s,e,n>\|<lon,lat>` for a searched one ([Place search](./search)) |
 | `a`, `b`, `mode` | Viewer image A, comparison image B, and mode (swipe, opacity, spy) |
 | `cols`, `g` | Grid columns and the images in its slots, `\|`-separated, empty for empty slots |
 | `anim`, `from`, `to` | Animation tab: image and date range |
-| `beam` | ICESat-2 tab: sample line and position along it (`2@3500`) |
-| `labels=0` | Landmarks and scale bar hidden |
+| `beam` | ICESat-2 tool: sample line and position along it (`2@3500`) |
 
 Images carry their time: `landsat/truecolor@2026-06-01..2026-08-31;px=median;cc=30`
 (timestep, optional end of a window, options and filters that differ from
@@ -45,7 +45,9 @@ view. See [Time, live data and credentials](./time#one-map-s-selection-slot).
 The hash is updated with `history.replaceState`, so changing images does not
 add browser-history entries. Unknown or unbuilt product ids are ignored. An
 `@<view>` suffix from links made by an older version is ignored (only an
-`@` followed by a date is a time). The map position is *not* in the URL.
+`@` followed by a date is a time); so is `labels=0` (the landmark labels
+are gone since 0.6). The map position is *not* in the URL, but the selected
+place is, and the maps open on it.
 
 ## Keyboard shortcuts <Badge type="tip" text="standard" />
 
@@ -53,9 +55,9 @@ add browser-history entries. Unknown or unbuilt product ids are ignored. An
 <<< @/../website/js/main.js#keyboard [website/js/main.js#keyboard]
 :::
 
-`L` toggles labels, `[` and `]` step through image A's group, `,` and `.`
+`[` and `]` step through image A's group, `,` and `.`
 step image A to the previous / next timestep with data in view, and `0`
-resets the view; in the animation tab, space plays / pauses and ← → step
+goes back to the selected place (or Greater New Haven); in the animation tab, space plays / pauses and ← → step
 frames. Shortcuts are ignored while typing in a field or while the picker,
 a calendar or the credentials dialog is open.
 
@@ -73,6 +75,19 @@ id. While searching, all groups are open, and groups without matches are
 hidden. Collapsed groups are remembered across pickers. Arrow keys move
 between items, Enter picks the first match, and Escape or a click outside
 closes the popup. Catalog text is escaped before it goes into `innerHTML`.
+
+Products whose coverage (`coverage.bbox`) misses the map in view are dimmed,
+with a ⌖ and "No data in view: covers …" as the tooltip; a group whose items
+all miss it is dimmed too (Location-specific › Connecticut, away from
+Connecticut). Unlike a locked product, a dimmed one can still be picked: the
+map then says "Dataset unavailable here". The test, `coverageMiss` in
+`slot.js`, is the one the maps use.
+
+The menu starts with the street maps, then the datasets that work anywhere,
+and ends with **Location-specific**: statewide Connecticut services (CT
+orthoimagery, CT lidar) and every image pre-built for Greater New Haven,
+labeled "pre-built, Greater New Haven" (`TREE` in
+`scripts/website/build_catalog.py`).
 
 ## Markup and styles <Badge type="tip" text="standard" />
 

@@ -314,7 +314,10 @@ cached). Under the frame count, a rough estimate of the cache the frames
 need: tiles times their rendered size (512 × 512 RGBA, 1 MB, kept in memory),
 with a warning when that is more than the tile cache holds (1500 tiles).
 
-## ICESat-2 tab
+## ICESat-2 profiles (a location tool)
+
+Opened from the header's **Location tools** menu, for Greater New Haven
+([Location tools](./search#location-tools)).
 
 ::: code-group
 <<< @/../website/js/icesat2.js#is2-arrow [arrow]
