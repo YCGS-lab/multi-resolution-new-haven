@@ -7,7 +7,8 @@ use does not allow storing them).
 
     GET /suggest?q=<text>[&near=<lon>,<lat>]
         Up to 5 places, points of interest or addresses for a partial query
-        (Suggest, "Label" pricing: titles and ids only):
+        (Suggest, "Label" pricing: titles and ids only; query refinements are
+        dropped):
         {"results": [{"id", "title"}]}
     GET /place?id=<place id>
         A suggested place (GetPlace, "Core" pricing):
@@ -22,7 +23,7 @@ import logging
 import os
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
@@ -76,7 +77,7 @@ def suggest(params: dict) -> dict:
     q = query(params)
     if q is None:
         return response(400, {"error": f"q: 1 to {MAX_QUERY} characters"})
-    res = client().suggest(QueryText=q, MaxResults=MAX_SUGGESTIONS, MaxQueryRefinements=0, BiasPosition=near(params), Language="en")
+    res = client().suggest(QueryText=q, MaxResults=MAX_SUGGESTIONS, BiasPosition=near(params), Language="en")
     results = [
         {"id": it["Place"]["PlaceId"], "title": it.get("Title", "")}
         for it in res.get("ResultItems", [])
@@ -121,4 +122,7 @@ def handler(event, context):
             return response(400 if code == "ValidationException" else 404, {"error": code})
         if code == "ThrottlingException":
             return response(429, {"error": "too many requests"})
+        return response(502, {"error": "place search failed"})
+    except BotoCoreError as e:
+        log.warning("places %s: %s", path, e)
         return response(502, {"error": "place search failed"})

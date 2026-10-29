@@ -68,6 +68,8 @@ def test_suggest_lists_places_only(places):
     assert op == "suggest" and kw["QueryText"] == "new haven" and kw["BiasPosition"] == [-116.1, 44.7]
     # Label pricing: no additional features asked for
     assert "AdditionalFeatures" not in kw and kw["MaxResults"] == 5
+    # MaxQueryRefinements must be 1-5 if given: leave it out (refinements are filtered)
+    assert "MaxQueryRefinements" not in kw
 
 
 @pytest.mark.parametrize("near", [None, "x", "1,2,3", "200,10", "10,-95"])
