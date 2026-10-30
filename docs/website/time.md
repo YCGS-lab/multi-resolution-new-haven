@@ -81,8 +81,8 @@ place (GOES scans, CHIRPS days) every step from a start date to now minus
 the product's latency is assumed to exist.
 
 STAC items keep their properties (e.g. `eo:cloud_cover`), so the filters
-(`applyFilters`) apply in the browser without asking again. Filters default
-to keeping every image (max cloud cover 100%).
+(`applyFilters`) apply in the browser without asking again. Max cloud cover
+defaults to 20% (scene-wide; slide it to 100% to keep every image).
 
 ## One map's selection: Slot
 
@@ -95,13 +95,11 @@ grid slot and the animation each have one.
 <<< @/../website/js/slot.js#slot [Slot]
 :::
 
-- **Default: the example, else the latest.** A dataset may have an example
-  (`time.example`: a good recent image, cloud free, picked by hand in
-  `EXAMPLES` of `scripts/website/build_catalog.py`); a new selection shows it,
-  and "Example" returns to it. Without one, a new selection is `auto`: it
-  follows the latest timestep with data in view (re-resolved when the view
-  moves), until the user picks one. "Latest" switches to auto (`@latest` in
-  the URL when the dataset has an example).
+- **Default: the latest.** A new selection is `auto`: it follows the latest
+  timestep with data in view (re-resolved when the view moves), until the
+  user picks one; "Latest" switches back to auto. (Hand-picked "Example"
+  timesteps for New Haven were dropped in 0.6: they meant nothing elsewhere.
+  `@latest` in older links still reads as auto.)
 - **Same dataset, same time.** Switching between products of one dataset
   (Landsat true color → urban false color) keeps the date.
 - **URL.** `a=landsat/truecolor@2026-06-01..2026-08-31;px=median;cc=30`:
@@ -296,7 +294,14 @@ several dates can sit side by side.
 <<< @/../website/js/animation.js#anim-frames [frames]
 <<< @/../website/js/animation.js#anim-load [Load imagery]
 <<< @/../website/js/animation.js#anim-play [play]
+<<< @/../website/js/animation.js#anim-handoff [from / to the viewer]
 :::
+
+The image travels with the user between the Viewer and the Animation tab:
+switching to Animation takes viewer image A (and its filters) and, unless a
+date range has been set, starts the range at A's date (~20 timesteps from
+it; hourly: that day and the next) on that frame; switching back gives
+viewer A the animation's image at the frame shown.
 
 Pick an image and a start and end date (by default the latest ~20
 timesteps in view; for hourly data the last day, every N hours); the frames

@@ -4,7 +4,7 @@ import { withMermaid } from "vitepress-plugin-mermaid";
 // Developer documentation, viewed locally (`npm run dev` in docs/).
 export default withMermaid(
   defineConfig({
-    title: "Raven (New Haven at many resolutions)",
+    title: "Bowerbird (New Haven at many resolutions)",
     description: "How the data pipeline and the map viewer work",
     lang: "en-US",
     cleanUrls: true,

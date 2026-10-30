@@ -86,7 +86,13 @@ async function main() {
   // ----- tabs -----------------------------------------------------------
   const tabs = document.querySelectorAll("[role=tab]");
   let tab = "viewer";
-  const showTab = (name) => {
+  const showTab = (name, { carry = true } = {}) => {
+    // The image travels between the viewer and the animation, with its date / the frame shown.
+    if (carry && tab === "viewer" && name === "animation") animation.adopt(viewer.slots.a.sel);
+    if (carry && tab === "animation" && name === "viewer") {
+      const sel = animation.handoff(viewer.slots.a.sel);
+      if (sel) viewer.setSel("a", sel);
+    }
     tab = name;
     tabs.forEach((t) => t.setAttribute("aria-selected", t.dataset.tab === name));
     tools.render();
@@ -174,7 +180,7 @@ async function main() {
   icesat2.onChange = saveState;
   // #endregion url-save
 
-  showTab(TABS.includes(params.get("tab")) ? params.get("tab") : "viewer");
+  showTab(TABS.includes(params.get("tab")) ? params.get("tab") : "viewer", { carry: false });
 }
 
 /** First image shown: Landsat true color (live, no key needed) if built, else the first in the menu. */

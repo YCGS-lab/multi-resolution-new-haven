@@ -160,6 +160,36 @@ export class Animation {
     this.buildFilters();
   }
 
+  // #region anim-handoff
+  /**
+   * From the viewer (switching tabs): its image A (product and filters) and,
+   * unless the user has set a date range, its date as the start of the range,
+   * shown first.
+   */
+  adopt(sel) {
+    if (!sel?.id || !this.catalog.get(sel.id)) return;
+    if (sel.id !== this.slot.sel.id) this.select(sel.id);
+    else if (!this.userRange) this.from = this.to = null;
+    if (!this.userRange) this.focus = sel.t ?? null;
+    if (sel.f && Object.keys(sel.f).length) this.slot.setTime({ f: sel.f });
+    else this.slotChanged();
+    this.buildFilters();
+  }
+
+  /**
+   * For the viewer (switching tabs), whose selection is `current`: the image
+   * at the frame shown; with no frame, another image at its latest timestep,
+   * or null (the viewer keeps its own) for the same image.
+   */
+  handoff(current) {
+    const s = this.slot.sel;
+    if (!s.id) return null;
+    const t = this.frames[this.index];
+    if (t) return { ...s, t, t2: null, auto: false };
+    return s.id === current?.id ? null : { ...s, t: null, t2: null, auto: true };
+  }
+  // #endregion anim-handoff
+
   /** Credentials changed. */
   refresh() {
     this.slot.refresh(0);
@@ -172,14 +202,25 @@ export class Animation {
     const p = this.slot.product;
     const hourly = p?.time?.step === "hour";
     this.el.everyLabel.hidden = !hourly;
-    // Default range: the latest ~20 timesteps with data in view (hourly: the last day and the one before).
+    // Default range: from the viewer's date (focus, see adopt) ~20 timesteps on (hourly: that day and the
+    // next); else the latest ~20 timesteps with data in view (hourly: the last day and the one before).
     if (p?.time && this.slot.steps && !this.userRange && !this.from) {
       const keys = hourly ? null : this.slot.steps.keys;
       const last = this.slot.steps.latest();
-      if (last) {
-        this.to = dayOf(last);
-        this.from = hourly ? dayOf(new Date(keyStart(last, "hour") - 86400e3).toISOString()) : dayOf(keys[Math.max(0, keys.length - 20)]);
+      const day = (key, plusDays = 0) => dayOf(new Date(keyStart(key, "hour").getTime() + plusDays * 86400e3).toISOString());
+      let range = null;
+      if (last && this.focus && hourly) {
+        const next = day(this.focus, 1);
+        range = [day(this.focus), next < day(last) ? next : day(last)];
+      } else if (last && this.focus) {
+        const i = keys.findIndex((k) => k >= this.focus);
+        if (i >= 0) range = [dayOf(keys[i]), dayOf(keys[Math.min(keys.length - 1, i + 19)])];
       }
+      if (last && !range) {
+        this.focus = null;
+        range = [hourly ? day(last, -1) : dayOf(keys[Math.max(0, keys.length - 20)]), dayOf(last)];
+      }
+      if (range) [this.from, this.to] = range;
     }
     this.computeFrames();
     this.onChange?.();
@@ -231,7 +272,12 @@ export class Animation {
     }
     this.frames = frames;
     this.index = Math.max(0, frames.indexOf(prevKey));
-    if (frames.length && prevKey == null) this.index = frames.length - 1;
+    if (frames.length && prevKey == null) {
+      // The viewer's date when coming from it (adopt), else the latest frame.
+      const i = this.focus ? frames.findIndex((k) => k >= this.focus) : -1;
+      this.index = i >= 0 ? i : frames.length - 1;
+      this.focus = null;
+    }
     this.shown = null;
     this.renderControls();
     this.update();

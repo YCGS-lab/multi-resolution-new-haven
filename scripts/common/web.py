@@ -731,7 +731,7 @@ def option(id: str, label: str, choices: list[tuple[str, str]], default: str, he
 
 
 def filter_range(id: str, label: str, prop: str, lo: float, hi: float, default: float, step: float = 1, unit: str = "") -> dict:
-    """Keep images whose property `prop` is at most the user's value (lo..hi; default = all)."""
+    """Keep images whose property `prop` is at most the user's value (lo..hi)."""
     return dict(id=id, type="max", label=label, property=prop, min=lo, max=hi, default=default, step=step, unit=unit)
 # endregion time-spec
 

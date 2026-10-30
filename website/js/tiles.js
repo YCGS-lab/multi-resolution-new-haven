@@ -475,7 +475,11 @@ function pcSearch(spec, product, ctx) {
     const p = fetch(`${spec.api}/mosaic/register`, { method: "POST", headers: { "content-type": "application/json" }, body })
       .then(async (res) => {
         if (!res.ok) throw new Error(`mosaic register: HTTP ${res.status}`);
-        return (await res.json()).searchid;
+        // "id" in current titiler-pgstac; "searchid" in older releases
+        const out = await res.json();
+        const id = out.id ?? out.searchid;
+        if (!id) throw new Error("mosaic register: no search id in the response");
+        return id;
       })
       .catch((err) => {
         searches.delete(body);

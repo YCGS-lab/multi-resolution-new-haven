@@ -17,7 +17,6 @@ TREE are listed under "Other".
 """
 
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -145,28 +144,6 @@ TREE = [
 # endregion tree
 
 
-# region examples
-# The "Example" timestep of each dataset with a time control: a good recent
-# image (cloud free, good quality), picked by hand and shown by default (the
-# website's Example button returns to it). Keys as in web.time_spec; t2 (end
-# of a window), o (window options) and f (filters) are optional. Update by hand.
-EXAMPLES = {
-    "ct-ortho": dict(t="2023", note="2023 flight, the latest"),
-    "naip": dict(t="2023", note="2023-07-05, the latest NAIP over New Haven"),
-    "planet": dict(t="2026-07", note="July 2026, as in the figures"),
-    "landsat": dict(t="2025-08-22", note="Landsat 9, 2025-08-22: Tier 1, 0.2% cloud over Greater New Haven"),
-    "viirs-lst": dict(t="2026-06-03", note="2026-06-03: clear, near nadir (the pre-built swath's day)"),
-    "goes-lst": dict(t="2026-06-03T18:00Z", note="2026-06-03 18:00 UTC: clear, high quality (as the pre-built image)"),
-    "era5-land": dict(t="2026-07-20T17:00Z", note="2026-07-20 17:00 UTC: a sunny summer afternoon"),
-    "ct-lidar": dict(t="2023", note="2023 flight (QL1)"),
-    "nisar-gcov": dict(t="2026-07-17", note="2026-07-17: full frame, dry ground"),
-    "smap": dict(t="2026-07-30T15:00Z", note="2026-07-30 15:00 UTC: the day after the 2026-07-29 storm"),
-    "chirps": dict(t="2026-07-29", note="2026-07-29: one of the wettest days of 2026 at New Haven"),
-    "viirs-nightlights": dict(t="2025", note="2025, the latest annual composite"),
-}
-# endregion examples
-
-
 # region links
 # "More info" (the dataset's or mission's home page) and "Data access" (where
 # the product shown can be downloaded; not necessarily where the website reads
@@ -237,8 +214,6 @@ def load_specs() -> tuple[dict, dict]:
             p["layers"] = [{**l, "source": f"{ds}/{l['source']}"} for l in p["layers"]]
             if not p.get("coverage"):
                 p["coverage"] = cog_coverage([sources[l["source"]] for l in p["layers"]])
-            if p.get("time") and ds in EXAMPLES:
-                p["time"] = {**p["time"], "example": example(f"{ds}/{name}", p["time"], EXAMPLES[ds])}
             if links := links_for(ds, name):
                 p["links"] = links
             products[f"{ds}/{name}"] = p
@@ -251,22 +226,6 @@ def links_for(dataset: str, product: str) -> dict | None:
         if k in LINKS:
             return LINKS[k]
     return None
-
-
-KEY_FORMS = {"year": r"\d{4}", "month": r"\d{4}-\d\d", "day": r"\d{4}-\d\d-\d\d", "hour": r"\d{4}-\d\d-\d\dT\d\d:00Z", "time": r"\d{4}-\d\d-\d\dT\d\d:\d\dZ"}
-
-
-def example(pid: str, time: dict, ex: dict) -> dict:
-    """An EXAMPLES entry, checked against the product's time spec."""
-    for k in ("t", "t2"):
-        if k in ex and not re.fullmatch(KEY_FORMS[time["step"]], ex[k]):
-            raise ValueError(f"{pid}: example {k}={ex[k]!r} is not a {time['step']} key")
-    a = time["availability"]
-    if a["type"] == "list" and ex["t"] not in a["values"]:
-        raise ValueError(f"{pid}: example {ex['t']} is not one of its timesteps {a['values']}")
-    if "t2" in ex and not time.get("window"):
-        raise ValueError(f"{pid}: example has an end date but the product has no window")
-    return ex
 
 
 def cog_coverage(layer_sources: list[dict]) -> dict | None:

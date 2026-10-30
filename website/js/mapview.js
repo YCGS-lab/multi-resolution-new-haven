@@ -258,7 +258,7 @@ export function placeLayers(id, place) {
 // Axes and scale bar
 // --------------------------------------------------------------------------
 
-const DEGREE_STEPS = [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 30];
+const DEGREE_STEPS = [0.00001, 0.00002, 0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 30];
 
 function degreeTicks(lo, hi, maxTicks) {
   const step = DEGREE_STEPS.find((s) => (hi - lo) / s <= maxTicks) ?? 30;
@@ -398,6 +398,13 @@ function logTicks(lo, hi) {
   return ticks;
 }
 
+/** An extend arrow (under: pointing left, over: right), outlined like the ramp, open where it joins it. */
+function extArrow(side, color) {
+  const d = side === "over" ? "M0 0.5 L11.5 7 L0 13.5" : "M12 0.5 L0.5 7 L12 13.5";
+  return `<svg class="cb-ext ${side}" viewBox="0 0 12 14" width="12" height="14" aria-hidden="true">
+    <path d="${d}" fill="${esc(color)}" stroke="#000" stroke-width="1" stroke-linejoin="miter" /></svg>`;
+}
+
 function colorbarHTML(cb) {
   const log = cb.scale === "log";
   const f = (v) => (log ? Math.log(v / cb.vmin) / Math.log(cb.vmax / cb.vmin) : (v - cb.vmin) / (cb.vmax - cb.vmin));
@@ -413,9 +420,9 @@ function colorbarHTML(cb) {
     <div class="colorbar">
       <div class="cb-label">${esc(cb.label)}</div>
       <div class="cb-bar">
-        ${under ? `<span class="cb-ext under" style="background:${cb.under}"></span>` : ""}
+        ${under ? extArrow("under", cb.under) : ""}
         <span class="cb-ramp" style="background:linear-gradient(to right,${stops})"></span>
-        ${over ? `<span class="cb-ext over" style="background:${cb.over}"></span>` : ""}
+        ${over ? extArrow("over", cb.over) : ""}
       </div>
       <div class="cb-ticks">${ticks
         .map(([v, label]) => `<span style="left:${(f(v) * 100).toFixed(2)}%">${esc(label)}</span>`)

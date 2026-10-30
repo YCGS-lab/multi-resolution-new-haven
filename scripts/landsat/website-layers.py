@@ -83,7 +83,7 @@ def main():
                     )
                 ],
             ),
-            filters=[web.filter_range("cc", "Max cloud cover", "eo:cloud_cover", 0, 100, 100, step=5, unit="%")],
+            filters=[web.filter_range("cc", "Max cloud cover", "eo:cloud_cover", 0, 100, 20, step=5, unit="%")],
         ),
         min_zoom=7,
     )

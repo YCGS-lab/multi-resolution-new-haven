@@ -164,7 +164,7 @@ keeps the color balance (gray stays gray), at the cost of less contrast.
 
 The website lists the Landsat 8-9 acquisition dates over the area in view
 from the Planetary Computer STAC API (with each scene's cloud cover, for
-the "max cloud cover" filter, 100% by default), and reads raw tiles of the
+the "max cloud cover" filter, 20% by default), and reads raw tiles of the
 selected date, or of a window of dates mosaicked with the latest, median or
 average pixel, from its data API. The scale factors turn the DNs into
 reflectance and °C in the browser; the five products are render specs as

@@ -24,7 +24,7 @@
   --a: var(--yale-blue);
   --b: #b8432c;
   --nodata: #d0d0d0;
-  --axis-w: 62px;
+  --axis-w: 70px; /* fits the longest latitude label, "85.00000°S" (~64 px at 11 px), at the deepest zoom */
   --axis-h: 22px;
   --serif: YaleNew, Georgia, "Times New Roman", serif;
   --sans: "Mallory Compact", Mallory, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -956,17 +956,12 @@ main {
   border-right: 1px solid #000;
 }
 
+/* extend arrows: SVG triangles with the ramp's black outline (mapview.js extArrow) */
 .cb-ext {
+  display: block;
   width: 12px;
+  height: 14px;
   flex: none;
-}
-
-.cb-ext.under {
-  clip-path: polygon(100% 0, 100% 100%, 0 50%);
-}
-
-.cb-ext.over {
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 .cb-ticks {
@@ -1118,7 +1113,7 @@ main {
 }
 
 .slot-frame {
-  --axis-w: 56px;
+  --axis-w: 68px;
   --axis-h: 20px;
 }
 
@@ -1475,14 +1470,12 @@ body.grid-active .axis {
   font-weight: 500;
 }
 
-.tc-latest,
-.tc-example {
+.tc-latest {
   padding: 3px 8px;
   font-size: 12px;
 }
 
-.tc-latest.active,
-.tc-example.active {
+.tc-latest.active {
   background: var(--yale-blue);
   border-color: var(--yale-blue);
   color: #fff;
@@ -1924,7 +1917,7 @@ body.grid-active .tc-advanced {
   border: 1px solid var(--line);
   border-radius: 2px;
   padding: 8px 10px 4px 0;
-  --axis-w: 56px;
+  --axis-w: 68px;
 }
 
 #is2-map {
