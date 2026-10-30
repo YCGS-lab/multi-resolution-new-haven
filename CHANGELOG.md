@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.6 (2026-10-30)
+
+- Website renamed **Bowerbird**, with a bowerbird-and-bower icon in the header and as the
+  favicon.
+- Place search in the header: debounced autocomplete through a new place search API
+  (`terraform/places`: Amazon Location Places v2 behind a Lambda and a throttled HTTP API,
+  wired into `terraform/complete` and covered by the cost guard), plus starred places
+  (Greater New Haven, Donnelly, Idaho). The selected place is kept in the URL, marked on
+  the maps, and the reset buttons return to it.
+- Location-specific tools menu, keyed to the selected place; ICESat-2 photon profiles moved
+  there from its tab.
+- Dataset picker: Street maps first; the Connecticut datasets and the pre-built Greater New
+  Haven layers (labeled as such) under Location-specific at the bottom; datasets with no
+  data in view are dimmed but selectable.
+- Compare: swap A and B. Landmark labels and the Labels toggle removed; the scale bar is
+  always shown.
+- Viewer and Animation carry the dataset, date and view (center and zoom) across when
+  switching tabs.
+- Fixes: Planetary Computer mosaics (Landsat, NAIP) after its register response changed;
+  colorbar outline around the extension arrows; latitude axis sized to fit its longest
+  label. Example dates removed; Landsat max cloud cover defaults to 20%.
+
 ## 0.5.1 (2026-10-21)
 
 - Tiler module: the prune scheduler's IAM role name fits AWS's 64-character limit for
