@@ -24,7 +24,9 @@
   --a: var(--yale-blue);
   --b: #b8432c;
   --nodata: #d0d0d0;
-  --axis-w: 70px; /* fits the longest latitude label, "85.00000°S" (~64 px at 11 px), at the deepest zoom */
+  /* Latitude axis: fits its longest label ("85.00000°S") at the deepest zoom; set from
+     the label measured with the page's fonts at start-up (mapview.js fitLatitudeAxis). */
+  --axis-w: 76px;
   --axis-h: 22px;
   --serif: YaleNew, Georgia, "Times New Roman", serif;
   --sans: "Mallory Compact", Mallory, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -1113,7 +1115,6 @@ main {
 }
 
 .slot-frame {
-  --axis-w: 68px;
   --axis-h: 20px;
 }
 
@@ -1917,7 +1918,6 @@ body.grid-active .tc-advanced {
   border: 1px solid var(--line);
   border-radius: 2px;
   padding: 8px 10px 4px 0;
-  --axis-w: 68px;
 }
 
 #is2-map {

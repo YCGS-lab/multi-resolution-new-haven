@@ -3,6 +3,7 @@ import { loadCatalog } from "./catalog.js";
 import { onCogOpened } from "./cog.js";
 import { initCredentialsDialog, loadEnv, onCredentialsChange } from "./env.js";
 import { Grid } from "./grid.js";
+import { fitLatitudeAxis } from "./mapview.js";
 import { Icesat2 } from "./icesat2.js";
 import { Place, SearchBox, TOOLS, ToolsMenu } from "./location.js";
 import { isOpen } from "./picker.js";
@@ -39,6 +40,7 @@ async function main() {
   const place = new Place(catalog);
   place.current = place.decode(params.get("loc"));
 
+  fitLatitudeAxis();
   const viewer = new Viewer(document.getElementById("viewer"), catalog, place);
   const grid = new Grid(document.getElementById("grid"), catalog, place);
   const animation = new Animation(document.getElementById("animation"), catalog, place);
@@ -87,11 +89,16 @@ async function main() {
   const tabs = document.querySelectorAll("[role=tab]");
   let tab = "viewer";
   const showTab = (name, { carry = true } = {}) => {
-    // The image travels between the viewer and the animation, with its date / the frame shown.
-    if (carry && tab === "viewer" && name === "animation") animation.adopt(viewer.slots.a.sel);
+    // The image travels between the viewer and the animation, with its date / the frame shown, and the
+    // map's center and zoom.
+    if (carry && tab === "viewer" && name === "animation") {
+      animation.matchView(viewer.viewState);
+      animation.adopt(viewer.slots.a.sel);
+    }
     if (carry && tab === "animation" && name === "viewer") {
       const sel = animation.handoff(viewer.slots.a.sel);
       if (sel) viewer.setSel("a", sel);
+      viewer.matchView(animation.viewState);
     }
     tab = name;
     tabs.forEach((t) => t.setAttribute("aria-selected", t.dataset.tab === name));

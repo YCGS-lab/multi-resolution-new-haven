@@ -189,6 +189,12 @@ export class Viewer {
     this.update();
   }
 
+  /** Same center and zoom as another map's view state (switching tabs). */
+  matchView(vs) {
+    this.viewState = clampViewState({ target: [...vs.target], zoom: vs.zoom }, this.catalog.limits, ...this.size);
+    this.update();
+  }
+
   /** Back to the selected place (or Greater New Haven). */
   reset() {
     this.viewState = placeViewState(this.catalog, this.place.current, ...this.size);

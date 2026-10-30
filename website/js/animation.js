@@ -106,7 +106,10 @@ export class Animation {
     if (this.deck) return;
     const c = this.catalog;
     this.size = [this.mapEl.clientWidth || 800, this.mapEl.clientHeight || 450];
-    this.viewState = placeViewState(c, this.place.current, ...this.size);
+    this.viewState = this.matched
+      ? clampViewState(this.matched, c.limits, ...this.size)
+      : placeViewState(c, this.place.current, ...this.size);
+    this.matched = null;
     this.deck = new Deck({
       parent: this.mapEl,
       views: new MapView({ id: "anim", controller: CONTROLLER }),
@@ -441,8 +444,20 @@ export class Animation {
     this.update();
   }
 
+  /** Same center and zoom as another map's view state (switching tabs); before the map exists, when it is made. */
+  matchView(vs) {
+    const v = { target: [...vs.target], zoom: vs.zoom };
+    if (!this.deck) {
+      this.matched = v;
+      return;
+    }
+    this.viewState = clampViewState(v, this.catalog.limits, ...this.size);
+    this.update();
+  }
+
   /** Back to the selected place (or Greater New Haven). */
   reset() {
+    this.matched = null;
     this.viewState = placeViewState(this.catalog, this.place.current, ...this.size);
     this.update();
   }

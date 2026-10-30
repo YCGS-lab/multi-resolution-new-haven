@@ -301,7 +301,8 @@ The image travels with the user between the Viewer and the Animation tab:
 switching to Animation takes viewer image A (and its filters) and, unless a
 date range has been set, starts the range at A's date (~20 timesteps from
 it; hourly: that day and the next) on that frame; switching back gives
-viewer A the animation's image at the frame shown.
+viewer A the animation's image at the frame shown. Both ways, the other map
+takes the same center and zoom (`matchView`).
 
 Pick an image and a start and end date (by default the latest ~20
 timesteps in view; for hourly data the last day, every N hours); the frames

@@ -101,8 +101,11 @@ draw them (`data/landmarks.json`, `render.py`).
 :::
 
 Axes and the scale bar are HTML, positioned from the world view state.
-Ticks are longitudes and latitudes at a round step (0.01°, 0.02°, 0.05°, ...)
-chosen to fit the width. The scale bar is a round length (1, 2 or 5 × 10ⁿ)
+Ticks are longitudes and latitudes at a round step (0.00001°, 0.00002°,
+0.00005°, ... about 1 m at the finest) chosen to fit the width. The latitude
+axis is as wide as its longest label at the deepest zoom ("85.00000°N"),
+measured at start-up with the page's font (`fitLatitudeAxis`), so no
+browser's font rendering cuts the labels off. The scale bar is a round length (1, 2 or 5 × 10ⁿ)
 up to a fifth of the map width. Its ground length uses the Mercator scale
 at the map center. `update` returns early when nothing changed, because it
 runs on every frame.

@@ -271,6 +271,29 @@ function degreeTicks(lo, hi, maxTicks) {
 const fmtLon = (v, d) => `${Math.abs(v).toFixed(d)}°${v < 0 ? "W" : "E"}`;
 const fmtLat = (v, d) => `${Math.abs(v).toFixed(d)}°${v < 0 ? "S" : "N"}`;
 
+/**
+ * Size the latitude axes (--axis-w) for their longest label at the deepest
+ * zoom ("85.00000°N" / "85.00000°S", digits are tabular), measured with the
+ * page's font once it has loaded, so no browser or font setting cuts it off.
+ */
+export async function fitLatitudeAxis() {
+  const decimals = Math.ceil(-Math.log10(DEGREE_STEPS[0]) - 1e-9);
+  const axis = document.createElement("div");
+  axis.className = "axis axis-left";
+  axis.style.cssText = "position: absolute; left: -9999px; top: 0; visibility: hidden; overflow: visible";
+  axis.innerHTML = [85, -85].map((v) => `<span class="tick" style="position: static; display: block; transform: none">${fmtLat(v, decimals)}</span>`).join("");
+  document.body.append(axis);
+  const ticks = [...axis.children];
+  try {
+    await document.fonts?.load(getComputedStyle(ticks[0]).font, ticks[0].textContent + ticks[1].textContent);
+  } catch {
+    // measure with whatever font is there
+  }
+  const w = Math.max(...ticks.map((t) => t.getBoundingClientRect().width)); // with the tick's padding
+  axis.remove();
+  if (w > 0) document.documentElement.style.setProperty("--axis-w", `${Math.ceil(w) + 6}px`); // + the axis border and slack
+}
+
 function niceLength(maxM) {
   const exp = 10 ** Math.floor(Math.log10(maxM));
   return [5, 2, 1].map((m) => m * exp).find((l) => l <= maxM);
