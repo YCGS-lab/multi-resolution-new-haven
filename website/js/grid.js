@@ -10,6 +10,7 @@
 import { Deck, MapView } from "../vendor/deck-gl-raster.js";
 import {
   CONTROLLER,
+  REDUCED_MOTION,
   LoadingState,
   MapChrome,
   backgroundLayer,
@@ -51,7 +52,7 @@ export class Grid {
     root.querySelector("#add-row").addEventListener("click", () => {
       this.addRows(1);
       this.renderSlots();
-      this.slots.at(-this.cols).el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      this.slots.at(-this.cols).el.scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "nearest" });
     });
     root.querySelector("#remove-row").addEventListener("click", () => this.removeEmptyRow());
     root.querySelector("#rearrange-toggle").addEventListener("change", (e) => this.setRearrange(e.target.checked));

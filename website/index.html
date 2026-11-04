@@ -186,8 +186,8 @@
               <option value="0.5">0.5 frames/s</option>
               <option value="1">1 frame/s</option>
               <option value="2" selected>2 frames/s</option>
-              <option value="4">4 frames/s</option>
-              <option value="8">8 frames/s</option>
+              <!-- No faster: frames that alternate bright and dark must not flash more than 3 times a second (WCAG 2.3.1) -->
+              <option value="3">3 frames/s</option>
             </select>
           </label>
           <label class="toggle"><input type="checkbox" id="anim-loop" checked /> <span>Loop</span></label>

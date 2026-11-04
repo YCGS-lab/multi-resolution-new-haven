@@ -24,7 +24,14 @@ const NODATA_FILL = [208, 208, 208]; // same gray as NODATA_FACE in render.py
 const DECK_ZOOM_OFFSET = Math.log2((2 * Math.PI * 6378137) / 512);
 
 /** Pan and zoom with the mouse / touch / keyboard, without rotating or tilting. */
-export const CONTROLLER = { inertia: 250, dragRotate: false, touchRotate: false, keyboard: { rotateSpeedX: 0, rotateSpeedY: 0 } };
+/** The reader asked their system for less motion: no map inertia or smooth scrolling. */
+export const REDUCED_MOTION = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+export const CONTROLLER = {
+  inertia: REDUCED_MOTION ? false : 250,
+  dragRotate: false,
+  touchRotate: false,
+  keyboard: { rotateSpeedX: 0, rotateSpeedY: 0 },
+};
 
 /** MapView view state of a world view state. */
 export function toDeckViewState(vs, catalog) {
