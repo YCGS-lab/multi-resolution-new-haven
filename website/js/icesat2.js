@@ -24,6 +24,12 @@ import { interval } from "./time.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 const hexRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+/** Black or white, whichever has more contrast on the color [r, g, b] (WCAG relative luminance). */
+const inkOn = (rgb) => {
+  const [r, g, b] = rgb.map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return lum > 0.179 ? "#000" : "#fff";
+};
 const NEAR_M = 15; // half-width of the along-track window for the readout
 
 // Basemap choices (the first is the default); `t`: the timestep of a timed product.
@@ -43,6 +49,7 @@ export class Icesat2 {
     this.line = null; // selected line
     this.pos = 0; // cursor: meters along track
     this.xr = null; // profile x range [m0, m1] (zoom), null = whole line
+    this.hiddenClasses = new Set(); // photon classes switched off in the legend
     this.mapEl = root.querySelector("#is2-map");
     this.arrow = root.querySelector(".is2-arrow");
     this.canvas = root.querySelector("#is2-profile");
@@ -126,7 +133,7 @@ export class Icesat2 {
     const el = this.root.querySelector(".is2-lines");
     el.innerHTML = this.data.lines
       .map(
-        (l) => `<button type="button" class="is2-line" data-n="${l.n}" style="--line:${l.color}" aria-pressed="false">
+        (l) => `<button type="button" class="is2-line" data-n="${l.n}" style="--line:${l.color}; --line-ink:${inkOn(l.rgb)}" aria-pressed="false">
           <span class="is2-num">${l.n}</span>
           <span class="is2-desc"><b>${esc(l.time)} UTC</b><br />RGT ${l.rgt}, cycle ${l.cycle}, beam ${esc(l.beam)} (${l.strength})</span>
         </button>`,
@@ -144,14 +151,28 @@ export class Icesat2 {
     this.root.querySelectorAll(".is2-line").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.n === line.n)));
     const counts = {};
     for (const c of line.c) counts[c] = (counts[c] ?? 0) + 1;
-    this.root.querySelector(".is2-legend").innerHTML = [...this.classes]
+    // Each class can be shown or hidden, so they can be told apart without color (WCAG 1.4.1).
+    const legend = this.root.querySelector(".is2-legend");
+    legend.innerHTML = [...this.classes]
       .reverse()
-      .map((c) => `<span class="lg-entry"><span class="swatch round" style="background:${c.color}"></span>${esc(c.label)} (${(counts[c.code] ?? 0).toLocaleString()})</span>`)
+      .map(
+        (c) => `<button type="button" class="lg-entry lg-toggle" data-code="${c.code}" aria-pressed="${!this.hiddenClasses.has(c.code)}"
+          title="Show or hide these photons"><span class="swatch round" style="background:${c.color}"></span>${esc(c.label)} (${(counts[c.code] ?? 0).toLocaleString()})</button>`,
+      )
       .join("");
+    legend.querySelectorAll(".lg-toggle").forEach((b) =>
+      b.addEventListener("click", () => {
+        const code = +b.dataset.code;
+        this.hiddenClasses.has(code) ? this.hiddenClasses.delete(code) : this.hiddenClasses.add(code);
+        b.setAttribute("aria-pressed", String(!this.hiddenClasses.has(code)));
+        this.drawProfile();
+      }),
+    );
     this.root.querySelector(".is2-title").innerHTML = `
       <h2 class="title">ICESat-2 photons with ATL08 classification: sample line ${line.n}</h2>
       <div class="subtitle">${esc(line.time)} UTC, RGT ${line.rgt}, cycle ${line.cycle}, beam ${esc(line.beam)} (${line.strength}, spot ${line.spot});
         ${line.d.length.toLocaleString()} ATL03 photons; laser shots every ~0.7 m along track, ~11 m footprint</div>`;
+    this.placeArrow();
     this.update();
     this.drawProfile();
     this.onChange?.();
@@ -312,13 +333,7 @@ export class Icesat2 {
   // #region is2-arrow
   placeArrow() {
     const line = this.line;
-    if (!line || !this.size) return;
-    const { lon, lat, heading } = this.along(line, this.pos);
-    const [x, y] = this.project(lon, lat);
-    const inside = x >= -20 && y >= -20 && x <= this.size[0] + 20 && y <= this.size[1] + 20;
-    this.arrow.hidden = !inside;
-    this.arrow.style.transform = `translate(${x}px, ${y}px) rotate(${heading}deg)`;
-    this.arrow.style.setProperty("--line", line.color);
+    if (!line) return;
     // The map arrow and the profile are two sliders for the same position along the track.
     for (const el of [this.arrow, this.canvas]) {
       el.setAttribute("aria-valuemin", "0");
@@ -326,6 +341,13 @@ export class Icesat2 {
       el.setAttribute("aria-valuenow", String(Math.round(this.pos)));
       el.setAttribute("aria-valuetext", `${(this.pos / 1000).toFixed(2)} km along track`);
     }
+    if (!this.size) return;
+    const { lon, lat, heading } = this.along(line, this.pos);
+    const [x, y] = this.project(lon, lat);
+    const inside = x >= -20 && y >= -20 && x <= this.size[0] + 20 && y <= this.size[1] + 20;
+    this.arrow.hidden = !inside;
+    this.arrow.style.transform = `translate(${x}px, ${y}px) rotate(${heading}deg)`;
+    this.arrow.style.setProperty("--line", line.color);
   }
 
   initArrow() {
@@ -503,6 +525,7 @@ export class Icesat2 {
     ctx.clip();
     const size = Math.max(1.5, Math.min(3.5, (pw / ((x1 - x0) / 0.7)) * 1.5));
     for (const c of this.classes) {
+      if (this.hiddenClasses.has(c.code)) continue;
       ctx.fillStyle = c.color;
       const s = c.code === 0 || c.code === 4 ? size * 0.75 : size;
       const { d, h, c: cls } = line;

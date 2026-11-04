@@ -2016,8 +2016,31 @@ body.grid-active .tc-advanced {
   height: 22px;
   border-radius: 50%;
   background: var(--line);
-  color: #fff;
+  color: var(--line-ink, #fff); /* black or white by the beam color's luminance (WCAG 1.4.3) */
   font-weight: 700;
+}
+
+/* ICESat-2 photon classes: legend entries that show / hide the class in the profile */
+.lg-toggle {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lg-toggle:hover {
+  background: var(--accent-soft);
+}
+
+.lg-toggle[aria-pressed="false"] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.lg-toggle[aria-pressed="false"] .swatch {
+  background: transparent !important;
 }
 
 .is2-map-frame {
