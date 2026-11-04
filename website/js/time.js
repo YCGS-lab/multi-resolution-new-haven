@@ -159,7 +159,8 @@ export class Steps {
 function acquired(items, a) {
   const summarize = (list) => {
     const days = list.map((i) => i.datetime.slice(0, 10)).sort();
-    const gsd = a.gsd ? [...new Set(list.map((i) => i[a.gsd]).filter((v) => v != null))].sort((x, y) => x - y) : [];
+    // (rounded to cm: items carry e.g. 0.6 and 0.6000000000000001)
+    const gsd = a.gsd ? [...new Set(list.map((i) => i[a.gsd]).filter((v) => v != null).map((v) => Math.round(v * 100) / 100))].sort((x, y) => x - y) : [];
     return { first: days[0], last: days.at(-1), gsd };
   };
   const out = summarize(items);
