@@ -283,8 +283,12 @@ export class Animation {
       this.index = i >= 0 ? i : frames.length - 1;
       this.focus = null;
     }
-    this.shown = null;
-    this.renderControls();
+    // Recomputed whenever the timesteps in view are (every pan): frames still in the list keep
+    // their place underneath, so the map doesn't flash to the background.
+    const keep = (k) => (k != null && frames.includes(k) ? k : null);
+    this.shown = keep(this.shown);
+    this.lastDrawn = keep(this.lastDrawn); // the frame drawn before the current one
+    this.drawing = keep(this.drawing); // and the current one    this.renderControls();
     this.update();
   }
   // #endregion anim-frames
@@ -541,11 +545,17 @@ export class Animation {
     const t = this.frames[this.index];
     if (p && !status) {
       const extra = (k) => ({ time: this.slot.ctx(k, null), view: this.bounds, onReady: () => this.update() });
-      // The last fully drawn frame stays underneath until the current one has loaded (no flashes).
-      const prev = this.shown;
-      if (prev && prev !== t) layers.push(...productLayers(`anim-prev${this.cancels || ""}`, c, p, null, undefined, extra(prev)));
+      // The last fully drawn frame (or, before any has finished, the one drawn last) stays
+      // underneath until the current one has loaded, so frames never flash to the background.
+      // One id prefix for both: a layer's id is the prefix, product and frame key, so the layer
+      // that drew frame A is the same deck.gl layer, tiles and all, once it is underneath B (a
+      // different prefix would make deck.gl replace it with a new, empty layer: a blink).
+      const lid = `anim${this.cancels || ""}`;
+      if (t !== this.drawing) [this.lastDrawn, this.drawing] = [this.drawing, t];
+      const prev = this.shown ?? this.lastDrawn;
+      if (prev && prev !== t) layers.push(...productLayers(lid, c, p, null, undefined, extra(prev)));
       if (t) {
-        const cur = productLayers(`anim-cur${this.cancels || ""}`, c, p, this.loading, undefined, extra(t));
+        const cur = productLayers(lid, c, p, this.loading, undefined, extra(t));
         layers.push(...cur.map((l) => (l.clone ? l.clone({ onViewportLoad: () => this.frameLoaded(t) }) : l)));
       } else if (!p.time) layers.push(...productLayers("anim-cur", c, p, this.loading));
     }
