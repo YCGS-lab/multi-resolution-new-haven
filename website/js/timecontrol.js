@@ -378,12 +378,13 @@ function showCalendar(anchor, owner) {
   el.querySelector(".sel, .has, button[data-k]:not([disabled])")?.focus({ preventScroll: true });
 }
 
-export function closeCalendar() {
+/** Close the calendar; focus goes back to its date button unless `refocus` is false. */
+export function closeCalendar({ refocus = true } = {}) {
   const el = document.getElementById("time-popup");
   if (el && !el.hidden) {
     el.hidden = true;
     el.innerHTML = "";
-    openFor?.anchor?.focus({ preventScroll: true });
+    if (refocus) openFor?.anchor?.focus({ preventScroll: true });
   }
   openFor = null;
 }
@@ -393,6 +394,11 @@ export const calendarOpen = () => !!openFor;
 document.addEventListener("pointerdown", (e) => {
   const el = document.getElementById("time-popup");
   if (openFor && el && !el.contains(e.target) && !openFor.anchor.contains(e.target)) closeCalendar();
+});
+// Tabbing out of the calendar closes it, leaving focus where it went (WCAG 2.4.3).
+document.addEventListener("focusin", (e) => {
+  const el = document.getElementById("time-popup");
+  if (openFor && el && !el.contains(e.target) && !openFor.anchor.contains(e.target)) closeCalendar({ refocus: false });
 });
 document.addEventListener("keydown", (e) => {
   if (openFor && e.key === "Escape") {

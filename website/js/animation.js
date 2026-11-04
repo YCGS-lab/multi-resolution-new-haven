@@ -500,8 +500,12 @@ export class Animation {
         ? "Finding imagery…"
         : `${n} frame${n === 1 ? "" : "s"}${this.truncated ? ` (the last ${MAX_FRAMES})` : ""}`;
     el.load.disabled = !n || this.busy;
+    // Load and Cancel take each other's place: focus follows (WCAG 2.4.3).
+    const had = document.activeElement;
     el.load.hidden = !!this.busy;
     el.cancel.hidden = !this.busy;
+    if (had === el.load && el.load.hidden) el.cancel.focus();
+    else if (had === el.cancel && el.cancel.hidden) el.load.focus();
     const size = this.slot.loadingSteps ? { text: "", warn: false } : this.sizeEstimate();
     el.size.textContent = size.text;
     el.size.classList.toggle("warn", size.warn);

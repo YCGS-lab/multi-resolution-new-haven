@@ -245,7 +245,10 @@ export class Grid {
       view: () => this.bounds,
     });
     el.querySelector(".add-image").addEventListener("click", () => slot.picker.open());
-    el.querySelector(".clear").addEventListener("click", () => this.select(slot, null));
+    el.querySelector(".clear").addEventListener("click", () => {
+      this.select(slot, null);
+      el.querySelector(".add-image").focus(); // the × is gone: focus its replacement (WCAG 2.4.3)
+    });
     // Rearranging without dragging (WCAG 2.1.1, 2.5.7): swap with the previous / next slot.
     el.querySelectorAll(".move").forEach((b) => b.addEventListener("click", () => this.move(slot, +b.dataset.step)));
     this.initDrag(slot);

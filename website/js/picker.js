@@ -189,11 +189,12 @@ export class Picker {
   // #endregion picker-tree
 }
 
-export function close() {
+/** Close the open popup; focus goes back to its button unless `refocus` is false. */
+export function close({ refocus = true } = {}) {
   if (!active) return;
   active.button.classList.remove("open");
   active.button.setAttribute("aria-expanded", "false");
-  active.button.focus({ preventScroll: true });
+  if (refocus) active.button.focus({ preventScroll: true });
   active = null;
   const el = popup();
   el.hidden = true;
@@ -207,6 +208,10 @@ export function isOpen() {
 // Close on outside click, Escape, resize; arrow keys move between items.
 document.addEventListener("pointerdown", (e) => {
   if (active && !popup().contains(e.target) && !active.button.contains(e.target)) close();
+});
+// Tabbing out of the popup closes it, leaving focus where it went (WCAG 2.4.3).
+document.addEventListener("focusin", (e) => {
+  if (active && !popup().contains(e.target) && !active.button.contains(e.target)) close({ refocus: false });
 });
 document.addEventListener("keydown", (e) => {
   if (!active) return;

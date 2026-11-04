@@ -164,6 +164,7 @@ export class SearchBox {
       this.input.focus();
     });
     document.addEventListener("pointerdown", (e) => !host.contains(e.target) && this.close());
+    host.addEventListener("focusout", (e) => !host.contains(e.relatedTarget) && this.close());
     place.onChange(() => this.render());
     this.render();
   }
@@ -311,6 +312,7 @@ export class ToolsMenu {
     this.list = host.querySelector(".tools-list");
     this.button.addEventListener("click", () => (this.list.hidden ? this.show() : this.close()));
     document.addEventListener("pointerdown", (e) => !host.contains(e.target) && this.close());
+    host.addEventListener("focusout", (e) => e.relatedTarget && !host.contains(e.relatedTarget) && !this.list.hidden && this.close());
     document.addEventListener("keydown", (e) => e.key === "Escape" && !this.list.hidden && this.close());
   }
 

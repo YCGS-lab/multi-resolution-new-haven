@@ -177,10 +177,13 @@ export function initCredentialsDialog() {
     dialog.close();
   });
   dialog.querySelector(".cred-cancel").addEventListener("click", () => dialog.close());
-  dialog.addEventListener("close", () => button.focus());
+  // Focus goes back to whatever opened the dialog (a picker, a notice's button), else the Credentials button.
+  let opener = null;
+  dialog.addEventListener("close", () => (opener?.isConnected && !opener.closest("[hidden]") ? opener : button).focus());
   onCredentialsChange(update);
   update();
   openCredentials = (focus) => {
+    opener = document.activeElement;
     render();
     dialog.showModal();
     (focus && form.elements[focus])?.focus();
