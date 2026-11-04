@@ -142,12 +142,15 @@ export class SearchBox {
     host.innerHTML = `
       <span class="ps-icon" aria-hidden="true">⌕</span>
       <input type="search" class="ps-input" autocomplete="off" spellcheck="false" role="combobox"
-        aria-expanded="false" aria-controls="ps-list" aria-label="Search for a place"
+        aria-expanded="false" aria-controls="ps-list" aria-autocomplete="list" aria-label="Search for a place"
         placeholder="${this.api ? "Search places…" : "Starred places"}" />
       <button type="button" class="ps-clear" title="Clear the selected place" aria-label="Clear">×</button>
-      <div class="ps-list" id="ps-list" role="listbox" hidden></div>`;
+      <div class="ps-list" hidden><div class="ps-options" id="ps-list" role="listbox" aria-label="Places"></div></div>
+      <div class="ps-status visually-hidden" role="status"></div>`;
     this.input = host.querySelector(".ps-input");
     this.list = host.querySelector(".ps-list");
+    this.options = host.querySelector(".ps-options");
+    this.status = host.querySelector(".ps-status"); // what the list shows, announced
     this.host = host;
     this.input.addEventListener("focus", () => {
       this.input.select();
@@ -194,18 +197,22 @@ export class SearchBox {
   show(items, note) {
     this.items = items;
     this.active = -1;
-    this.list.innerHTML =
-      items
-        .map(
-          (it, i) => `
-        <button type="button" class="ps-item ${it.kind}" role="option" data-i="${i}" tabindex="-1">
+    this.input.removeAttribute("aria-activedescendant");
+    this.options.innerHTML = items
+      .map(
+        (it, i) => `
+        <button type="button" class="ps-item ${it.kind}" role="option" id="ps-opt-${i}" aria-selected="false" data-i="${i}" tabindex="-1">
           <span class="ps-mark" aria-hidden="true">${it.kind === "starred" ? "★" : "⌖"}</span>${esc(it.kind === "starred" ? it.name : it.title)}
         </button>`,
-        )
-        .join("") + (note ? `<div class="ps-note">${esc(note)}</div>` : "");
+      )
+      .join("");
+    this.list.querySelector(".ps-note")?.remove();
+    if (note) this.list.insertAdjacentHTML("beforeend", `<div class="ps-note" aria-hidden="true">${esc(note)}</div>`);
     this.list.hidden = !items.length && !note;
     this.input.setAttribute("aria-expanded", String(!this.list.hidden));
-    this.list.querySelectorAll(".ps-item").forEach((b) => {
+    const count = items.length ? `${items.length} place${items.length === 1 ? "" : "s"}; arrow keys to choose.` : "";
+    this.status.textContent = [note, count].filter(Boolean).join(" ");
+    this.options.querySelectorAll(".ps-item").forEach((b) => {
       b.addEventListener("pointerdown", (e) => e.preventDefault()); // keep the input focused
       b.addEventListener("click", () => this.choose(this.items[+b.dataset.i]));
     });
@@ -213,7 +220,11 @@ export class SearchBox {
 
   highlight(i) {
     this.active = i;
-    this.list.querySelectorAll(".ps-item").forEach((b, j) => b.classList.toggle("active", j === i));
+    this.options.querySelectorAll(".ps-item").forEach((b, j) => {
+      b.classList.toggle("active", j === i);
+      b.setAttribute("aria-selected", String(j === i));
+    });
+    this.input.setAttribute("aria-activedescendant", `ps-opt-${i}`);
   }
 
   key(e) {
@@ -224,8 +235,10 @@ export class SearchBox {
       if (this.active >= 0 || this.items.length) this.choose(this.items[Math.max(0, this.active)]);
       else if (this.input.value.trim()) this.geocode(this.input.value.trim());
     } else if (e.key === "Escape") {
+      // Close, back to the selected place's name; focus stays in the box.
       this.close();
-      this.input.blur();
+      this.input.value = this.place.current?.name ?? "";
+      this.input.select();
     } else return;
     e.preventDefault();
   }
@@ -263,8 +276,10 @@ export class SearchBox {
   /** {title, point, bbox} from the API, or a starred place. */
   done(p) {
     this.close();
-    this.input.blur();
     this.place.set(p.id ? p : { name: p.title, point: p.point, bbox: p.bbox ?? null });
+    // Focus stays in the box (WCAG 2.4.3), now showing the chosen place.
+    this.input.value = this.place.current?.name ?? "";
+    this.status.textContent = this.place.current ? `Map moved to ${this.place.current.name}.` : "";
     this.render();
   }
 
@@ -272,6 +287,7 @@ export class SearchBox {
     clearTimeout(this.timer);
     this.list.hidden = true;
     this.input.setAttribute("aria-expanded", "false");
+    this.input.removeAttribute("aria-activedescendant");
   }
 }
 // #endregion search-box
