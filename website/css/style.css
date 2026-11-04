@@ -7,7 +7,7 @@
   --gray-100: #f7f7f7;
   --gray-200: #d9d9d9;
   --gray-300: #bababa;
-  --gray-500: #757575;
+  --gray-500: #6b6b6b; /* muted text: 4.97:1 on --gray-100, 5.33:1 on white (WCAG 1.4.3) */
   --gray-700: #4a4a4a;
   --gray-900: #1c1c1c;
 
@@ -1499,11 +1499,10 @@ body.grid-active .axis {
   cursor: pointer;
 }
 
-/* no data in the map's view: a hint only (still selectable) */
+/* no data in the map's view: a hint only (still selectable); the ⌖ icon and hidden text say so */
 .pk-item.outside .pk-pick,
 .pk-group.outside {
   color: var(--gray-500);
-  opacity: 0.7;
 }
 
 .req-icon.outside {
