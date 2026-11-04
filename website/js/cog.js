@@ -496,7 +496,19 @@ class FinerCOGLayer extends COGLayer {
  * with no imagery: diagonal lines in screen space, so they look the same at any zoom and tile
  * size. For DECKGL_FILTER_COLOR; tiles.js uses it for image-service tiles too.
  */
-export { hatchGLSL };
+export { hatchGLSL, dotsGLSL };
+
+/**
+ * "No data in scene" (inside a scene's footprint, but no value: clouds masked, fill): white with
+ * gray dots in screen space, unlike the plain gray of areas with no scene and the red hatching of
+ * failed tiles. For DECKGL_FILTER_COLOR (tiles.js FootprintLayer).
+ */
+const dotsGLSL = () => {
+  const r = (window.devicePixelRatio || 1).toFixed(2);
+  return `
+  vec2 cell = mod(gl_FragCoord.xy, 8.0 * ${r}) - 4.0 * ${r};
+  color = dot(cell, cell) < 1.6 * ${r} * ${r} ? vec4(0.55, 0.55, 0.55, 1.0) : vec4(1.0, 1.0, 1.0, 1.0);`;
+};
 export const FAILED_HATCH_GLSL = `
   float stripe = mod(gl_FragCoord.x + gl_FragCoord.y, 16.0 * DEVICE_PIXEL_RATIO);
   color = stripe < 3.0 * DEVICE_PIXEL_RATIO ? vec4(0.745, 0.118, 0.118, 0.85) : vec4(0.745, 0.118, 0.118, 0.12);`;

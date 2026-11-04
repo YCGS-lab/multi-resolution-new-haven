@@ -537,6 +537,13 @@ export function keyHTML(p, catalog, { tag = "", source = true } = {}) {
   const cb = catalog.colorbar(p);
   if (cb) parts.push(colorbarHTML(cb));
   if (p.legend) parts.push(legendHTML(p.legend));
+  // Where the scene footprints are known (STAC / CMR searches), the map tells apart three kinds of
+  // empty areas (tiles.js FootprintLayer, the background, failed tiles' hatching).
+  if (["stac", "cmr"].includes(p.time?.availability?.type))
+    parts.push(`<div class="empty-key">
+      <span><i class="ek-swatch ek-scene"></i>No data in scene (clouds, fill)</span>
+      <span><i class="ek-swatch ek-none"></i>No scene</span>
+      <span><i class="ek-swatch ek-failed"></i>Failed to load</span></div>`);
   const credits = [p.source, ...catalog.attributions(p)].filter(Boolean).join(". ");
   const lines = [p.subtitle && `<div class="source-detail">${esc(p.subtitle)}</div>`, credits && `<div>Source: ${esc(credits)}</div>`];
   if (source && (p.subtitle || credits)) parts.push(`<div class="source">${lines.filter(Boolean).join("")}</div>`);

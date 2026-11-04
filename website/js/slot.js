@@ -12,7 +12,7 @@
 // (or "@latest", from older links): the latest.
 
 import { requirement } from "./env.js";
-import { applyFilters, availability, dayRange, daysBetween, dayOf, interval, keyLabel } from "./time.js";
+import { applyFilters, availability, dayRange, daysBetween, dayOf, footprints, interval, keyLabel } from "./time.js";
 
 const C = 2 * Math.PI * 6378137;
 /** Slippy-map zoom (256 px tiles) of a world zoom (2^zoom px per Web Mercator meter). */
@@ -246,7 +246,18 @@ export class Slot {
       options: o,
       filters: f,
       key: [t, t2 ?? "", ...Object.values(o), ...Object.values(f)].join("|"),
+      footprints: this.footprints(t, t2),
     };
+  }
+
+  /** The footprints of the scenes drawn for t (to t2), when the source gives them (time.js footprints()); memoized. */
+  footprints(t, t2) {
+    const memo = `${t}|${t2 ?? ""}|${JSON.stringify(this.sel.f)}`;
+    if (this.fp?.steps !== this.raw || this.fp.memo !== memo) {
+      const keys = t2 ? (this.raw?.between?.(t, t2) ?? []) : [t];
+      this.fp = { steps: this.raw, memo, rings: this.raw ? footprints(this.raw, keys, this.product.time, this.sel.f) : null };
+    }
+    return this.fp.rings;
   }
 
   /** Short text for titles: "18 Sep 2026" / "1 Jun 2026 to 31 Aug 2026 (median)" / "2023, flown 14 Aug – 2 Sep 2023 (CT)". */

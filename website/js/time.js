@@ -271,9 +271,46 @@ export class HourlySteps {
 
 /** The timesteps that pass the user's filters ({id: value}), e.g. max cloud cover. */
 export function applyFilters(steps, time, filt) {
-  const active = (time.filters ?? []).filter((f) => f.type === "max" && filt?.[f.id] != null && filt[f.id] < f.max);
+  const active = activeFilters(time, filt);
   if (!active.length) return steps;
-  return steps.filter((e) => !e.items || e.items.some((p) => active.every((f) => !(p[f.property] > filt[f.id]))));
+  return steps.filter((e) => !e.items || e.items.some((p) => passes(p, active, filt)));
+}
+
+const activeFilters = (time, filt) => (time.filters ?? []).filter((f) => f.type === "max" && filt?.[f.id] != null && filt[f.id] < f.max);
+const passes = (item, active, filt) => active.every((f) => !(item[f.property] > filt[f.id]));
+
+/**
+ * The footprints (outer rings, [[lon, lat]...]) of the scenes of timesteps `keys` that pass the
+ * filters, as the STAC and CMR searches give them; null when there are none (other sources).
+ */
+export function footprints(steps, keys, time, filt) {
+  const active = activeFilters(time, filt);
+  const rings = [];
+  for (const k of keys) for (const item of steps?.get?.(k)?.items ?? []) if (item.footprint && passes(item, active, filt)) rings.push(...item.footprint);
+  return rings.length ? rings : null;
+}
+
+const round4 = (v) => Math.round(v * 1e4) / 1e4;
+
+/** Outer rings of a GeoJSON Polygon / MultiPolygon, rounded to ~10 m. */
+function geojsonRings(g) {
+  const polys = g?.type === "Polygon" ? [g.coordinates] : g?.type === "MultiPolygon" ? g.coordinates : [];
+  return polys.map((p) => p[0].map(([x, y]) => [round4(x), round4(y)]));
+}
+
+/** Outer rings of a CMR granule: "polygons" ("lat lon lat lon ...") or "boxes" ("s w n e"). */
+function cmrRings(g) {
+  if (g.polygons?.length)
+    return g.polygons.map((p) => {
+      const v = p[0].trim().split(/\s+/).map(Number);
+      const ring = [];
+      for (let i = 0; i + 1 < v.length; i += 2) ring.push([round4(v[i + 1]), round4(v[i])]);
+      return ring;
+    });
+  return (g.boxes ?? []).map((b) => {
+    const [s, w, n, e] = b.trim().split(/\s+/).map(Number);
+    return [[w, s], [e, s], [e, n], [w, n], [w, s]]; // prettier-ignore
+  });
 }
 
 // --------------------------------------------------------------------------
@@ -382,7 +419,8 @@ const PROVIDERS = {
       bbox: box,
       limit: 1000,
       sortby: [{ field: "datetime", direction: "desc" }],
-      fields: { include: ["id", "properties.datetime", ...props.map((p) => `properties.${p}`)], exclude: ["assets", "links", "geometry"] },
+      // geometry: the scenes' footprints (the map draws "no data in scene" inside them)
+      fields: { include: ["id", "geometry", "properties.datetime", ...props.map((p) => `properties.${p}`)], exclude: ["assets", "links"] },
     };
     if (src.query?.length) {
       body["filter-lang"] = "cql2-json";
@@ -398,7 +436,7 @@ const PROVIDERS = {
       for (const f of page.features) {
         const k = isoKey(f.properties.datetime, step);
         if (!groups.has(k)) groups.set(k, { key: k, items: [] });
-        groups.get(k).items.push(f.properties);
+        groups.get(k).items.push({ ...f.properties, footprint: geojsonRings(f.geometry) });
       }
       n += page.features.length;
       const next = page.features.length ? page.links?.find((l) => l.rel === "next") : null;
@@ -432,7 +470,7 @@ const PROVIDERS = {
       for (const g of entries) {
         const k = isoKey(g.time_start, step);
         if (!groups.has(k)) groups.set(k, { key: k, items: [] });
-        groups.get(k).items.push({ granule: g.title, start: g.time_start });
+        groups.get(k).items.push({ granule: g.title, start: g.time_start, footprint: cmrRings(g) });
       }
       n += entries.length;
       searchAfter = res.headers.get("CMR-Search-After");

@@ -29,7 +29,7 @@
 // layers use longitude / latitude (MapView).
 
 import { BitmapLayer, GeoTIFF, SolidPolygonLayer, TileLayer } from "../vendor/deck-gl-raster.js";
-import { cogLayer, hatchGLSL } from "./cog.js";
+import { cogLayer, dotsGLSL, hatchGLSL } from "./cog.js";
 import { credential, env } from "./env.js";
 import { cachedGrid, hourKey, zarrArea, zarrGrids } from "./zarr.js";
 
@@ -705,10 +705,53 @@ class FailedTileLayer extends BitmapLayer {
     return { ...shaders, inject: { ...shaders.inject, "fs:DECKGL_FILTER_COLOR": hatchGLSL() } };
   }
 }
+/** The selected scenes' footprints, drawn under the imagery: where it has no data inside a scene. */
+class FootprintLayer extends SolidPolygonLayer {
+  static layerName = "FootprintLayer";
+
+  getShaders(type) {
+    const shaders = super.getShaders(type);
+    return { ...shaders, inject: { ...shaders.inject, "fs:DECKGL_FILTER_COLOR": dotsGLSL() } };
+  }
+}
+
 let blank = null;
 const blankImage = () => blank ?? (blank = Object.assign(document.createElement("canvas"), { width: 1, height: 1 }));
 
-function liveTileLayer(id, catalog, tr, { loading, props, extent, smooth = false }) {
+/**
+ * `ring` ([[lon, lat]...]) clipped to the box [w, s, e, n] (Sutherland-Hodgman: exact for the
+ * convex scene footprints, good enough as a fill for concave ones).
+ */
+function clipRing(ring, [w, s, e, n]) {
+  const at = (a, b, t) => [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+  const sides = [
+    [(p) => p[0] >= w, (a, b) => at(a, b, (w - a[0]) / (b[0] - a[0]))],
+    [(p) => p[0] <= e, (a, b) => at(a, b, (e - a[0]) / (b[0] - a[0]))],
+    [(p) => p[1] >= s, (a, b) => at(a, b, (s - a[1]) / (b[1] - a[1]))],
+    [(p) => p[1] <= n, (a, b) => at(a, b, (n - a[1]) / (b[1] - a[1]))],
+  ];
+  let out = ring;
+  for (const [inside, cross] of sides) {
+    const pts = out;
+    out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % pts.length];
+      if (inside(a)) out.push(a);
+      if (inside(a) !== inside(b)) out.push(cross(a, b));
+    }
+    if (!out.length) break;
+  }
+  return out;
+}
+
+/**
+ * `footprints`: the selected scenes' footprints (time.js footprints()). Under each loaded tile,
+ * the part of them in the tile is filled with the "no data in scene" dots (FootprintLayer), so
+ * pixels without data inside a scene (clouds masked, fill) are told apart from the background
+ * gray of "no scene here"; tiles still loading show neither.
+ */
+function liveTileLayer(id, catalog, tr, { loading, props, extent, smooth = false, footprints = null }) {
   return new TileLayer({
     id,
     tileSize: tr.tileSize,
@@ -733,16 +776,24 @@ function liveTileLayer(id, catalog, tr, { loading, props, extent, smooth = false
     // A retry reloads the tiles in view in place: loaded ones come straight from the tile cache,
     // failed ones (never cached) are requested again.
     updateTriggers: { getTileData: loading?.generation ?? 0 },
-    renderSubLayers: (p) =>
-      p.data === FAILED
-        ? new FailedTileLayer(p, { data: null, image: blankImage(), bounds: tileBounds(p.tile.bbox) })
-        : p.data &&
+    renderSubLayers: (p) => {
+      const bounds = tileBounds(p.tile.bbox);
+      if (p.data === FAILED) return new FailedTileLayer(p, { id: `${p.id}-failed`, data: null, image: blankImage(), bounds });
+      const layers = [];
+      const rings = footprints?.map((r) => clipRing(r, bounds)).filter((r) => r.length >= 3);
+      if (rings?.length) layers.push(new FootprintLayer(p, { id: `${p.id}-scenes`, data: rings, getPolygon: (d) => d }));
+      if (p.data)
+        layers.push(
           new BitmapLayer(p, {
+            id: `${p.id}-image`,
             data: null,
             image: p.data,
-            bounds: tileBounds(p.tile.bbox),
+            bounds,
             textureParameters: smooth ? undefined : { minFilter: "nearest", magFilter: "nearest" },
           }),
+        );
+      return layers;
+    },
     ...props,
   });
 }
@@ -929,6 +980,7 @@ export function productLayers(id, catalog, product, { loading, props = () => ({}
     if (tr)
       return liveTileLayer(`${lid}|${tr.key}`, catalog, tr, {
         loading,
+        footprints: i === 0 ? time?.footprints : null, // under the bottom layer only
         props: props("lnglat"),
         extent: product.coverage?.bbox,
         smooth: spec.smooth && spec.type === "xyz",

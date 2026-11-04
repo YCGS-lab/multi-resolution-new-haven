@@ -2344,3 +2344,36 @@ body.grid-active .tc-advanced {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- key to the empty areas of a map (mapview.js keyHTML) ---------- */
+.empty-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-size: 0.8rem;
+  color: var(--gray-700);
+}
+
+.empty-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ek-swatch {
+  width: 18px;
+  height: 12px;
+  border: 1px solid var(--control-border);
+}
+
+.ek-scene {
+  background: radial-gradient(circle, #8c8c8c 1.2px, transparent 1.6px) 0 0 / 8px 8px, #fff;
+}
+
+.ek-none {
+  background: var(--nodata);
+}
+
+.ek-failed {
+  background: repeating-linear-gradient(-45deg, rgba(190, 30, 30, 0.85) 0 2px, rgba(190, 30, 30, 0.12) 2px 8px);
+}
