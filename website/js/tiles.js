@@ -846,12 +846,16 @@ function zarrLayer(id, catalog, layer, { loading, props, time, view, onReady }) 
   const grid = cachedGrid(spec, area, hk);
   if (grid === undefined) {
     const k = `${spec.url}|${area}|${hk}`;
+    // A failed read is not tried again (the redraw below would loop) until a retry.
+    const generation = loading?.generation ?? 0;
+    if (zarrLayer.failed.get(k) === generation) return [];
     if (!zarrLayer.reading.has(k)) {
       zarrLayer.reading.add(k);
       loading?.start();
       zarrGrids(spec, area, [hk])
         .then(() => loading?.end(), (err) => {
           console.warn(`${layer.source}: read failed`, err);
+          zarrLayer.failed.set(k, generation);
           loading?.end(err);
         })
         .finally(() => {
@@ -865,6 +869,7 @@ function zarrLayer(id, catalog, layer, { loading, props, time, view, onReady }) 
   return [gridBitmap(`${id}|${hk}|${area}`, grid, layer.render, props)];
 }
 zarrLayer.reading = new Set();
+zarrLayer.failed = new Map(); // read key -> the LoadingState generation it failed in
 
 const gridImages = new WeakMap(); // grid -> Map(render JSON -> ImageData)
 
