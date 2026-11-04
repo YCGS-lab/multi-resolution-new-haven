@@ -156,9 +156,28 @@ export function viewBounds(vs, catalog, w, h) {
  * Counts a map's tile requests and shows "Loading…" (after a short delay, to
  * avoid flicker) in its .map-message element while any are pending.
  */
+/**
+ * A visually hidden status region in a map (WCAG 4.1.3), made up front: a live region must
+ * exist before its text changes to be announced. Kinds: "load" (tiles that failed) and
+ * "notice" (showNotices).
+ */
+function mapStatus(mapEl, kind) {
+  let el = mapEl.querySelector(`.map-status-${kind}`);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = `map-status-${kind} visually-hidden`;
+    el.setAttribute("role", "status");
+    mapEl.append(el);
+  }
+  return el;
+}
+
 export class LoadingState {
   constructor(messageEl) {
     this.el = messageEl;
+    // Every map with notices has a LoadingState: make both of its status regions now.
+    this.status = mapStatus(messageEl.parentElement, "load");
+    mapStatus(messageEl.parentElement, "notice");
     this.pending = 0;
     this.errors = 0;
     this.timer = null;
@@ -195,6 +214,9 @@ export class LoadingState {
     this.el.textContent = msg;
     this.el.title = !this.pending && this.lastError ? this.lastError : "";
     this.el.classList.toggle("error", !this.pending && !!this.errors);
+    // Failures are announced; "Loading…", which comes and goes with every pan, is not.
+    const said = !this.pending && this.errors ? `${msg}${this.lastError ? `: ${this.lastError}` : ""}` : "";
+    if (this.status.textContent !== said) this.status.textContent = said;
   }
 
   /** Forget pending state (e.g. when the product changes and old requests are dropped). */
@@ -221,6 +243,8 @@ export function showNotices(el, notices, onCredentials) {
   if (key === el.dataset.key) return;
   el.dataset.key = key;
   el.hidden = !shown.length;
+  const status = el.parentElement.querySelector(".map-status-notice");
+  if (status) status.textContent = shown.map(({ tag, status: s }) => `${tag ? `${tag}: ` : ""}${s.message}`).join(" ");
   el.innerHTML = shown
     .map(({ tag, status: s }) => {
       const btn = s.kind === "credential" ? `<button type="button" class="btn notice-btn" data-cred="${esc(s.credential)}">Enter API key</button>` : "";

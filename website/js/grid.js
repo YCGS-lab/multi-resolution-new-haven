@@ -218,7 +218,7 @@ export class Grid {
           <button class="add-image" type="button"><span class="plus" aria-hidden="true">+</span>Add image</button>
           <div class="scalebar"></div>
           <div class="map-message" hidden></div>
-          <div class="map-notice" hidden aria-live="polite"></div>
+          <div class="map-notice" hidden></div>
           <div class="rearrange-overlay">
             <span>⠿ Drag to move, or</span>
             <div class="move-buttons">

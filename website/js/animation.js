@@ -74,6 +74,7 @@ export class Animation {
       bar: $(".anim-progress .bar"),
       progress: $(".anim-progress"),
       progressText: $(".anim-progress-text"),
+      status: $(".anim-status"),
       slider: $("#anim-slider"),
       ticks: $(".anim-ticks"),
       date: $("#anim-date"),
@@ -310,7 +311,12 @@ export class Animation {
       this.el.progress.hidden = false;
       this.el.bar.style.width = `${(100 * f).toFixed(1)}%`;
       this.el.progressText.textContent = text ?? `${done} / ${total} tiles (${Math.round(100 * f)}%)`;
+      this.el.progress.setAttribute("aria-valuenow", String(Math.round(100 * f)));
+      this.el.progress.setAttribute("aria-valuetext", this.el.progressText.textContent);
     };
+    // The outcome is announced (WCAG 4.1.3), not every step.
+    const announce = (text) => job === this.loadJob && (this.el.status.textContent = text);
+    announce("");
     this.busy = true;
     this.el.progress.classList.remove("error");
     this.renderControls();
@@ -324,6 +330,7 @@ export class Animation {
           signal: abort.signal,
         });
         progress(1, 1, `${this.frames.length} frames loaded`);
+        announce(`${this.frames.length} frames loaded`);
       } else {
         const zoom = toDeckViewState(this.viewState, this.catalog).zoom;
         const jobs = this.frames.flatMap((t) => prefetchTiles(this.catalog, p, this.slot.ctx(t, null), this.bounds, zoom, { signal: abort.signal }));
@@ -338,11 +345,13 @@ export class Animation {
         };
         await Promise.all(Array.from({ length: CONCURRENCY }, worker));
         if (job === this.loadJob) progress(done, jobs.length, `${this.frames.length} frames loaded (${jobs.length} tiles)`);
+        announce(`${this.frames.length} frames loaded`);
       }
       if (job === this.loadJob) this.loaded = key;
     } catch (err) {
       if (job === this.loadJob) {
         progress(0, 1, `Loading failed: ${err.message}`);
+        announce(`Loading failed: ${err.message}`);
         this.el.progress.classList.add("error");
       }
     } finally {
@@ -365,6 +374,7 @@ export class Animation {
     this.cancels++;
     const done = this.el.progressText.textContent.match(/^(\d+) \/ (\d+)/);
     this.el.progressText.textContent = done ? `Cancelled after ${done[1]} / ${done[2]}` : "Cancelled";
+    this.el.status.textContent = this.el.progressText.textContent;
     this.el.progress.classList.add("error");
     this.renderControls();
     this.update();

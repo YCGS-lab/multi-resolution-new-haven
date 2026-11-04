@@ -81,7 +81,7 @@
             </div>
             <div class="scalebar"></div>
             <div class="map-message" hidden></div>
-            <div class="map-notice" hidden aria-live="polite"></div>
+            <div class="map-notice" hidden></div>
             <div class="map-buttons">
               <button id="viewer-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
               <button id="viewer-zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
@@ -147,7 +147,8 @@
           <span class="anim-count-wrap"><span class="anim-count"></span><span class="anim-size"></span></span>
           <button type="button" class="btn primary" id="anim-load" title="Fetch every frame for the area in view ahead of time">Load imagery</button>
           <button type="button" class="btn" id="anim-cancel" title="Stop loading (frames already loaded are kept)" hidden>Cancel</button>
-          <div class="anim-progress" hidden>
+          <span class="anim-status visually-hidden" role="status"></span>
+          <div class="anim-progress" role="progressbar" aria-label="Loading imagery" aria-valuemin="0" aria-valuemax="100" hidden>
             <div class="bar"></div>
             <span class="anim-progress-text"></span>
           </div>
@@ -158,7 +159,7 @@
           <div class="map" id="anim-map">
             <div class="scalebar"></div>
             <div class="map-message" hidden></div>
-            <div class="map-notice" hidden aria-live="polite"></div>
+            <div class="map-notice" hidden></div>
             <div class="map-buttons">
               <button id="anim-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
               <button id="anim-zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
