@@ -59,7 +59,7 @@ export class Animation {
     this.loading = new LoadingState(root.querySelector("#anim-map .map-message"));
     this.noticeEl = root.querySelector("#anim-map .map-notice");
     this.slot = new Slot(catalog, { onChange: () => this.slotChanged() });
-    this.picker = new Picker(root.querySelector("#anim-picker"), catalog, { onSelect: (id) => this.select(id), view: () => this.bounds });
+    this.picker = new Picker(root.querySelector("#anim-picker"), catalog, { onSelect: (id) => this.select(id), view: () => this.bounds, name: "Animated image" });
 
     const $ = (s) => root.querySelector(s);
     this.el = {

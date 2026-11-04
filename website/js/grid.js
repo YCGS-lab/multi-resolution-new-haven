@@ -208,14 +208,14 @@ export class Grid {
       <div class="slot-head">
         <span class="drag-grip" title="Drag to rearrange" aria-hidden="true">⠿</span>
         <div class="picker-host"></div>
-        <button class="icon-btn clear" title="Remove this image" aria-label="Remove this image">×</button>
+        <button class="icon-btn clear" title="Remove this image">×</button>
       </div>
       <div class="time-host"></div>
       <div class="slot-title"></div>
       <div class="map-frame slot-frame">
         <div class="axis axis-left"></div>
         <div class="map slot-map">
-          <button class="add-image" type="button"><span class="plus">+</span>Add image</button>
+          <button class="add-image" type="button"><span class="plus" aria-hidden="true">+</span>Add image</button>
           <div class="scalebar"></div>
           <div class="map-message" hidden></div>
           <div class="map-notice" hidden aria-live="polite"></div>
@@ -240,6 +240,7 @@ export class Grid {
     slot.picker = new Picker(el.querySelector(".picker-host"), this.catalog, {
       placeholder: "Select an image",
       compact: true,
+      name: () => `Slot ${this.slots.indexOf(slot) + 1} image`,
       onSelect: (sel) => this.select(slot, sel),
       view: () => this.bounds,
     });
@@ -262,6 +263,8 @@ export class Grid {
     el.querySelector(".clear").hidden = !r;
     el.querySelector(".add-image").hidden = !!r;
     const i = this.slots.indexOf(slot);
+    el.querySelector(".clear").setAttribute("aria-label", `Remove the image from slot ${i + 1}`);
+    el.querySelector(".add-image").setAttribute("aria-label", `Add image to slot ${i + 1}`);
     el.querySelectorAll(".move").forEach((b) => {
       const to = i + +b.dataset.step;
       b.disabled = to < 0 || to >= this.slots.length;

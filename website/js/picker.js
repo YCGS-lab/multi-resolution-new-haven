@@ -21,9 +21,12 @@ export class Picker {
    * host: element to render the button into.
    * onSelect(id) is called when the user picks an image.
    * view() is the map's lon / lat box [w, s, e, n] (products without data there are dimmed).
+   * name: what the picker is for, read before its contents by screen readers ("Image A"),
+   * or a function returning it.
    */
-  constructor(host, catalog, { onSelect, view, placeholder = "Select an image", compact = false } = {}) {
+  constructor(host, catalog, { onSelect, view, placeholder = "Select an image", compact = false, name = "Image" } = {}) {
     this.catalog = catalog;
+    this.name = typeof name === "function" ? name : () => name;
     this.onSelect = onSelect;
     this.view = view;
     this.placeholder = placeholder;
@@ -46,17 +49,20 @@ export class Picker {
 
   render() {
     const r = this.catalog.get(this.sel);
+    const name = `<span class="visually-hidden">${esc(this.name())}: </span>`;
     if (!r) {
-      this.button.innerHTML = `<span class="pb-label placeholder">${esc(this.placeholder)}</span><span class="caret" aria-hidden="true">▾</span>`;
+      this.button.innerHTML = `${name}<span class="pb-label placeholder">${esc(this.placeholder)}</span><span class="caret" aria-hidden="true">▾</span>`;
       this.button.title = "";
       return;
     }
     const path = r.path.join(" › ");
     const req = requirement(r);
     this.button.innerHTML = `
-      <span class="pb-text">
+      ${name}<span class="pb-text">
         <span class="pb-path">${esc(path)}</span>
-        <span class="pb-label">${req.ok ? "" : `<span class="req-icon ${req.kind}" aria-hidden="true">${REQ_ICON[req.kind]}</span>`}${esc(r.label)}</span>
+        <span class="pb-label">${req.ok ? "" : `<span class="req-icon ${req.kind}" aria-hidden="true">${REQ_ICON[req.kind]}</span>`}${esc(r.label)}${
+          req.ok ? "" : `<span class="visually-hidden"> (${esc(req.message)})</span>`
+        }</span>
       </span>
       <span class="caret" aria-hidden="true">▾</span>`;
     this.button.title = `${path} › ${r.label}${req.ok ? "" : `\n${req.message}`}`;
@@ -130,7 +136,7 @@ export class Picker {
           <div class="pk-item${isCur ? " current" : ""}${req.ok ? "" : ` unavailable ${req.kind}`}${out ? " outside" : ""}" style="--depth:${depth}">
             <button type="button" class="pk-pick" data-id="${esc(node.id)}"${isCur ? ` aria-current="true"` : ""}
               ${req.ok ? "" : `aria-disabled="true" data-req="${req.kind}" data-cred="${esc(req.credential ?? "")}"`}
-              title="${esc(tip)}">${icon}${esc(node.label)}</button>
+              title="${esc(tip)}">${icon}${esc(node.label)}${kind ? `<span class="visually-hidden"> (${esc(tip)})</span>` : ""}</button>
           </div>`);
         return out ? OUT : SHOWN;
       }

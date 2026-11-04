@@ -1582,8 +1582,14 @@ body.grid-active .axis {
   accent-color: var(--accent);
 }
 
+/* hidden, but still the slider's label for screen readers */
 .compact .tc-filter span {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .tc-filter output {

@@ -56,8 +56,8 @@ export class Viewer {
     this.spy = null; // lens center in px, or null when the cursor is off the map
 
     this.pickers = {
-      a: new Picker(root.querySelector("#picker-a"), catalog, { onSelect: (s) => this.select("a", s), view: () => this.bounds }),
-      b: new Picker(root.querySelector("#picker-b"), catalog, { onSelect: (s) => this.select("b", s), view: () => this.bounds }),
+      a: new Picker(root.querySelector("#picker-a"), catalog, { onSelect: (s) => this.select("a", s), view: () => this.bounds, name: "Image A" }),
+      b: new Picker(root.querySelector("#picker-b"), catalog, { onSelect: (s) => this.select("b", s), view: () => this.bounds, name: "Image B" }),
     };
     for (const k of ["a", "b"]) {
       root.querySelector(`#prev-${k}`).addEventListener("click", () => this.step(k, -1));
