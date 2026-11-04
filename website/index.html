@@ -237,6 +237,7 @@
 
     <!-- University links, as in the geospatial.yale.edu footer (Yale Policy 1605: link the accessibility statement) -->
     <footer class="app-footer">
+      <button type="button" class="footer-shortcuts" id="shortcuts-button">Keyboard shortcuts</button>
       <a class="external" href="https://usability.yale.edu/web-accessibility/accessibility-yale"
         >Accessibility at Yale<span class="ext-icon" aria-hidden="true"></span><span class="visually-hidden">(Link is external)</span></a
       >
@@ -254,6 +255,27 @@
     <!-- #endregion grid-canvas-markup -->
     <!-- Shared popup for every image picker -->
     <div id="picker-popup" class="picker-popup" role="dialog" aria-label="Choose an image" hidden></div>
+
+    <!-- Keyboard shortcuts (main.js) -->
+    <dialog id="shortcuts-dialog" class="credentials-dialog shortcuts-dialog" aria-labelledby="shortcuts-title">
+      <h2 id="shortcuts-title">Keyboard shortcuts</h2>
+      <p class="cred-intro">
+        These work while a map, or the tab's panel, has focus (click the map, or use "Skip to main content"), and
+        not while typing in a field or on a button.
+      </p>
+      <dl class="shortcuts">
+        <dt>Tab, Shift+Tab</dt><dd>Move between controls; the maps are tab stops too</dd>
+        <dt>← → ↑ ↓</dt><dd>On a map: pan</dd>
+        <dt>+ −</dt><dd>On a map: zoom in, out</dd>
+        <dt>[ ]</dt><dd>Viewer: previous, next image in the group</dd>
+        <dt>, .</dt><dd>Viewer: previous, next date with data in view</dd>
+        <dt>0</dt><dd>Viewer and Grid: back to the selected place</dd>
+        <dt>Space</dt><dd>Animation: play, pause</dd>
+        <dt>← →</dt><dd>Animation, outside the map: previous, next frame</dd>
+        <dt>Esc</dt><dd>Close a menu, the image picker or the calendar</dd>
+      </dl>
+      <form method="dialog" class="cred-actions"><button type="submit" class="btn primary">Close</button></form>
+    </dialog>
 
     <!-- API keys for locked datasets (kept in this browser only) -->
     <dialog id="credentials-dialog" class="credentials-dialog" aria-labelledby="credentials-title">

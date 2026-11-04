@@ -372,6 +372,45 @@ main {
   font-size: 0.8667rem;
 }
 
+/* At the footer's left, styled as its links */
+.footer-shortcuts {
+  margin-right: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.footer-shortcuts:hover,
+.footer-shortcuts:focus-visible {
+  text-decoration: none;
+}
+
+.footer-shortcuts:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 12px 0 16px;
+}
+
+.shortcuts dt {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.shortcuts dd {
+  margin: 0;
+}
+
 /* Underlined; the underline goes on hover/focus, as YaleSites' "underline-with-icon" links */
 .app-footer a {
   color: #fff;

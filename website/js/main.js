@@ -17,6 +17,10 @@ document.querySelector(".skip-link").addEventListener("click", (e) => {
   document.getElementById("main").focus();
 });
 
+// Keyboard shortcuts dialog (footer button)
+const shortcuts = document.getElementById("shortcuts-dialog");
+document.getElementById("shortcuts-button").addEventListener("click", () => shortcuts.showModal());
+
 // Footer copyright year, kept current (index.html has the year of the last edit).
 document.getElementById("copyright-year").textContent = new Date().getFullYear();
 
@@ -162,10 +166,15 @@ async function main() {
   // #region keyboard
   // ----- keyboard shortcuts -------------------------------------------------
   document.addEventListener("keydown", (e) => {
-    // Not while typing, or when the focused control has its own use for the key (Space presses a
-    // button, arrows move a slider or pan a map).
+    // Only while the open tab's panel or its map has focus, not page-wide (WCAG 2.1.4); never while
+    // typing, or on a control with its own use for the key (Space presses a button, arrows move a
+    // slider; on a map, arrows pan it).
     if (e.ctrlKey || e.metaKey || e.altKey || isOpen() || calendarOpen()) return;
-    if (e.target.closest("input, select, textarea, dialog, button, a, canvas, [role=slider], [role=tab], [contenteditable]")) return;
+    const panel = document.getElementById(tab);
+    const onMap = e.target.matches("canvas") && !e.key.startsWith("Arrow");
+    const inPanel = panel.contains(e.target) || e.target.id === "main" || (tab === "grid" && !!e.target.closest("#grid-deck"));
+    if (!inPanel) return;
+    if (!onMap && e.target.closest("input, select, textarea, dialog, button, a, canvas, [role=slider], [role=tab], [contenteditable]")) return;
     if (tab === "viewer" && e.key === "[") viewer.step("a", -1);
     else if (tab === "viewer" && e.key === "]") viewer.step("a", 1);
     else if (tab === "viewer" && e.key === ",") viewer.stepTime("a", -1);
