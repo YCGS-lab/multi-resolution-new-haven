@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7 (2026-11-04)
 
 - Footer with Yale's required links, as on geospatial.yale.edu: Accessibility at Yale (Yale
   Policy 1605), Privacy Policy and the copyright notice. A Keyboard shortcuts dialog opens
