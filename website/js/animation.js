@@ -17,6 +17,7 @@ import {
   clampViewState,
   fromDeckViewState,
   keyHTML,
+  labelMap,
   placeLayers,
   placeViewState,
   productLayers,
@@ -547,6 +548,7 @@ export class Animation {
       this.root.querySelector(".anim-title").innerHTML = p ? `<div class="title-block">${titleHTML(p, { time: label, t })}</div>` : "";
       this.root.querySelector(".anim-legend").innerHTML = p ? `<div class="key-block">${keyHTML(p, c)}</div>` : "";
     }
+    labelMap(this.mapEl, p && `Animation of ${[p.title || p.menu_title, label].filter(Boolean).join(", ")}`, this.place.current);
     this.renderControls();
   }
 

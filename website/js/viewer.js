@@ -12,6 +12,7 @@ import {
   clampViewState,
   fromDeckViewState,
   keyHTML,
+  labelMap,
   overlayProps,
   placeLayers,
   placeViewState,
@@ -331,6 +332,8 @@ export class Viewer {
       this.root.querySelector(".viewer-titles").innerHTML = col(ra, "A") + col(rb, "B");
       this.root.querySelector(".viewer-legends").innerHTML = keyCol(ra, "A") + keyCol(rb, "B");
     }
+    const what = (p, t) => p && [p.title || p.menu_title, t].filter(Boolean).join(", ");
+    labelMap(this.mapEl, rb ? `${what(ra, ta) || "No image"} (A) compared with ${what(rb, tb)} (B)` : what(ra, ta), this.place.current);
     this.onChange?.();
   }
 }

@@ -368,6 +368,13 @@ main {
   white-space: nowrap;
 }
 
+/* deck.gl's map canvases are tab stops (arrow keys pan) with an inline outline:none */
+.map canvas:focus-visible,
+#grid-deck canvas:focus-visible {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: -3px;
+}
+
 /* ---------- common controls ---------- */
 
 .toggle {

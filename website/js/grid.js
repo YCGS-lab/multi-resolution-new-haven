@@ -16,6 +16,7 @@ import {
   clampViewState,
   fromDeckViewState,
   keyHTML,
+  labelMap,
   placeLayers,
   placeViewState,
   productLayers,
@@ -318,8 +319,11 @@ export class Grid {
 
   // #region grid-render
   render() {
-    if (!this.active || !this.slotSize) return;
+    if (!this.active) return;
     const c = this.catalog;
+    const shown = this.slots.filter((s) => c.get(s.sel)).length;
+    labelMap(this.deckEl, `Grid of ${shown} image${shown === 1 ? "" : "s"}, panned and zoomed together`, this.place.current);
+    if (!this.slotSize) return;
     const canvas = this.deckEl.getBoundingClientRect();
     const [w, h] = this.slotSize;
     const views = [];

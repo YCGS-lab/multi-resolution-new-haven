@@ -299,6 +299,22 @@ function niceLength(maxM) {
   return [5, 2, 1].map((m) => m * exp).find((l) => l <= maxM);
 }
 
+// #region map-label
+/**
+ * Name a map for assistive technology. deck.gl makes its canvas a tab stop (arrow keys pan,
+ * + and - zoom); as MapLibre does, it is announced as a "map" region named by what it shows.
+ */
+export function labelMap(parent, what, place) {
+  const canvas = parent.querySelector("canvas");
+  if (!canvas) return;
+  const label = `${what || "No image"}${place ? `, ${place.name}` : ""}. Arrow keys pan, plus and minus zoom.`;
+  if (canvas.getAttribute("aria-label") === label) return;
+  canvas.setAttribute("role", "region");
+  canvas.setAttribute("aria-roledescription", "map");
+  canvas.setAttribute("aria-label", label);
+}
+// #endregion map-label
+
 // #region map-chrome
 /**
  * Longitude / latitude axes and the scale bar of one map frame:
