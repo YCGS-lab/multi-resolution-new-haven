@@ -696,13 +696,22 @@ function fillUrl(url, ctx) {
  */
 export const FAILED = Object.freeze({ failed: true });
 
+/**
+ * `shaders` with `glsl` added to DECKGL_FILTER_COLOR, after what is there: the extensions'
+ * code (ClipExtension's swipe, MaskExtension's spy lens) must stay, or a layer would draw
+ * outside its clip or mask.
+ */
+function withColorFilter(shaders, glsl) {
+  const hook = "fs:DECKGL_FILTER_COLOR";
+  return { ...shaders, inject: { ...shaders.inject, [hook]: `${shaders.inject?.[hook] ?? ""}\n${glsl}` } };
+}
+
 /** A failed tile: a BitmapLayer whose pixels are the red hatching of failed tiles (cog.js). */
 class FailedTileLayer extends BitmapLayer {
   static layerName = "FailedTileLayer";
 
   getShaders() {
-    const shaders = super.getShaders();
-    return { ...shaders, inject: { ...shaders.inject, "fs:DECKGL_FILTER_COLOR": hatchGLSL() } };
+    return withColorFilter(super.getShaders(), hatchGLSL());
   }
 }
 /** The selected scenes' footprints, drawn under the imagery: where it has no data inside a scene. */
@@ -710,13 +719,21 @@ class FootprintLayer extends SolidPolygonLayer {
   static layerName = "FootprintLayer";
 
   getShaders(type) {
-    const shaders = super.getShaders(type);
-    return { ...shaders, inject: { ...shaders.inject, "fs:DECKGL_FILTER_COLOR": dotsGLSL() } };
+    return withColorFilter(super.getShaders(type), dotsGLSL());
   }
 }
 
 let blank = null;
-const blankImage = () => blank ?? (blank = Object.assign(document.createElement("canvas"), { width: 1, height: 1 }));
+/** One opaque pixel: the hatching keeps its alpha (the layer's opacity, e.g. in Opacity comparisons). */
+const blankImage = () => {
+  if (!blank) {
+    blank = Object.assign(document.createElement("canvas"), { width: 1, height: 1 });
+    const g = blank.getContext("2d");
+    g.fillStyle = "#fff";
+    g.fillRect(0, 0, 1, 1);
+  }
+  return blank;
+};
 
 /**
  * `ring` ([[lon, lat]...]) clipped to the box [w, s, e, n] (Sutherland-Hodgman: exact for the
@@ -984,7 +1001,9 @@ export function productLayers(id, catalog, product, { loading, props = () => ({}
     if (tr)
       return liveTileLayer(`${lid}|${tr.key}`, catalog, tr, {
         loading,
-        footprints: i === 0 ? time?.footprints : null, // under the bottom layer only
+        // Under the bottom layer only; not when faded over another image (Opacity comparisons),
+        // where B's missing data should show A, not a white fill that washes A out.
+        footprints: i === 0 && props("lnglat").opacity == null ? time?.footprints : null,
         props: props("lnglat"),
         extent: product.coverage?.bbox,
         minZoom: product.min_zoom,

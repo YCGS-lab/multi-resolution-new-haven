@@ -507,15 +507,18 @@ const dotsGLSL = () => {
   const r = (window.devicePixelRatio || 1).toFixed(2);
   return `
   vec2 cell = mod(gl_FragCoord.xy, 8.0 * ${r}) - 4.0 * ${r};
-  color = dot(cell, cell) < 1.6 * ${r} * ${r} ? vec4(0.55, 0.55, 0.55, 1.0) : vec4(1.0, 1.0, 1.0, 1.0);`;
+  color = vec4(dot(cell, cell) < 1.6 * ${r} * ${r} ? vec3(0.55) : vec3(1.0), color.a); // keeps the layer's opacity`;
 };
 export const FAILED_HATCH_GLSL = `
   float stripe = mod(gl_FragCoord.x + gl_FragCoord.y, 16.0 * DEVICE_PIXEL_RATIO);
-  color = stripe < 3.0 * DEVICE_PIXEL_RATIO ? vec4(0.745, 0.118, 0.118, 0.85) : vec4(0.745, 0.118, 0.118, 0.12);`;
-const hatchGLSL = () => FAILED_HATCH_GLSL.replaceAll("DEVICE_PIXEL_RATIO", (window.devicePixelRatio || 1).toFixed(2));
+  color = vec4(0.745, 0.118, 0.118, (stripe < 3.0 * DEVICE_PIXEL_RATIO ? 0.85 : 0.12) * OPACITY);`;
+// `alpha`: the incoming color's alpha, i.e. the layer's opacity (BitmapLayer); "1.0" where there
+// is none (the COG pipeline's failed tile).
+const hatchGLSL = (alpha = "color.a") =>
+  FAILED_HATCH_GLSL.replaceAll("DEVICE_PIXEL_RATIO", (window.devicePixelRatio || 1).toFixed(2)).replace("OPACITY", alpha);
 
 /** Draws a failed tile (content {failed: true}). */
-const FAILED_TILE_MODULE = { name: "cogFailedTile", inject: { "fs:DECKGL_FILTER_COLOR": hatchGLSL() } };
+const FAILED_TILE_MODULE = { name: "cogFailedTile", inject: { "fs:DECKGL_FILTER_COLOR": hatchGLSL("1.0") } };
 // #endregion finer-cog-layer
 
 /**
