@@ -751,13 +751,17 @@ function clipRing(ring, [w, s, e, n]) {
  * pixels without data inside a scene (clouds masked, fill) are told apart from the background
  * gray of "no scene here"; tiles still loading show neither.
  */
-function liveTileLayer(id, catalog, tr, { loading, props, extent, smooth = false, footprints = null }) {
+function liveTileLayer(id, catalog, tr, { loading, props, extent, minZoom = null, smooth = false, footprints = null }) {
   return new TileLayer({
     id,
     tileSize: tr.tileSize,
     zoomOffset: tr.tileSize === TILE_SIZE ? ZOOM_OFFSET : 0,
+    // The product's min_zoom: the map shows it from half a level below (slot.js), where the
+    // tiles would be one level coarser than the service serves (NAIP: HTTP 400 below z11).
+    ...(minZoom != null && { minZoom }),
     maxZoom: tr.maxZoom,
-    extent,
+    // Below minZoom, deck.gl loads minZoom tiles only within an extent (else none): the world.
+    extent: extent ?? (minZoom != null ? [-180, -85.0511, 180, 85.0511] : undefined),
     refinementStrategy: "no-overlap",
     maxRequests: 8,
     getTileData: async ({ index, signal }) => {
@@ -809,7 +813,7 @@ export function prefetchTiles(catalog, product, ctx, bounds, zoom, { signal } = 
   for (const layer of product.layers) {
     const tr = tileRenderer(catalog, product, layer, ctx);
     if (!tr) continue;
-    const z = prefetchZoom(tr, zoom);
+    const z = Math.max(prefetchZoom(tr, zoom), product.min_zoom ?? 0);
     for (const [x, y] of tileRange(bounds, z))
       jobs.push(() => cachedTile(`${tr.key}|${z}/${x}/${y}`, (sig) => tr.render({ x, y, z }, sig), signal).catch(() => null));
   }
@@ -826,7 +830,7 @@ export function prefetchEstimate(catalog, product, ctx, bounds, zoom) {
   for (const layer of product.layers) {
     const tr = tileRenderer(catalog, product, layer, ctx);
     if (!tr) continue;
-    const n = tileRange(bounds, prefetchZoom(tr, zoom)).length;
+    const n = tileRange(bounds, Math.max(prefetchZoom(tr, zoom), product.min_zoom ?? 0)).length;
     tiles += n;
     bytes += n * tr.tileSize ** 2 * 4;
   }
@@ -852,7 +856,7 @@ function tileRange([w, s, e, n], z) {
 
 function arcgisLayer(id, catalog, product, layer, { loading, props, time }) {
   const tr = tileRenderer(catalog, product, layer, time);
-  return liveTileLayer(`${id}|${time?.t ?? ""}`, catalog, tr, { loading, props, extent: product.coverage?.bbox });
+  return liveTileLayer(`${id}|${time?.t ?? ""}`, catalog, tr, { loading, props, extent: product.coverage?.bbox, minZoom: product.min_zoom });
 }
 // #endregion arcgis-layer
 
@@ -983,6 +987,7 @@ export function productLayers(id, catalog, product, { loading, props = () => ({}
         footprints: i === 0 ? time?.footprints : null, // under the bottom layer only
         props: props("lnglat"),
         extent: product.coverage?.bbox,
+        minZoom: product.min_zoom,
         smooth: spec.smooth && spec.type === "xyz",
       });
     if (spec.type === "xyz" && !/\{(time|credential):/.test(spec.url)) return xyzLayers(lid, catalog, layer, { props: props("lnglat") });
