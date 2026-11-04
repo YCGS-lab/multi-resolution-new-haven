@@ -75,6 +75,7 @@ export default withMermaid(
             { text: "Time, live data, credentials, animation, ICESat-2", link: "/website/time" },
             { text: "Page, picker and URL state", link: "/website/page" },
             { text: "Place search and location tools", link: "/website/search" },
+            { text: "Accessibility: audit and plan", link: "/website/accessibility" },
           ],
         },
         {
