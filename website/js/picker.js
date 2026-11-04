@@ -31,7 +31,9 @@ export class Picker {
     this.button = document.createElement("button");
     this.button.className = "picker-button" + (compact ? " compact" : "");
     this.button.type = "button";
-    this.button.setAttribute("aria-haspopup", "listbox");
+    // A disclosure for the (non-modal) popup: a search box and a tree of buttons.
+    this.button.setAttribute("aria-expanded", "false");
+    this.button.setAttribute("aria-controls", "picker-popup");
     this.button.addEventListener("click", () => (active === this ? close() : this.open()));
     host.append(this.button);
     this.render();
@@ -45,7 +47,7 @@ export class Picker {
   render() {
     const r = this.catalog.get(this.sel);
     if (!r) {
-      this.button.innerHTML = `<span class="pb-label placeholder">${esc(this.placeholder)}</span><span class="caret">▾</span>`;
+      this.button.innerHTML = `<span class="pb-label placeholder">${esc(this.placeholder)}</span><span class="caret" aria-hidden="true">▾</span>`;
       this.button.title = "";
       return;
     }
@@ -56,7 +58,7 @@ export class Picker {
         <span class="pb-path">${esc(path)}</span>
         <span class="pb-label">${req.ok ? "" : `<span class="req-icon ${req.kind}" aria-hidden="true">${REQ_ICON[req.kind]}</span>`}${esc(r.label)}</span>
       </span>
-      <span class="caret">▾</span>`;
+      <span class="caret" aria-hidden="true">▾</span>`;
     this.button.title = `${path} › ${r.label}${req.ok ? "" : `\n${req.message}`}`;
   }
 
@@ -64,10 +66,11 @@ export class Picker {
     close();
     active = this;
     this.button.classList.add("open");
+    this.button.setAttribute("aria-expanded", "true");
     const el = popup();
     el.innerHTML = `
       <input type="search" class="pk-search" placeholder="Search images…" aria-label="Search images" />
-      <div class="pk-tree" role="listbox"></div>`;
+      <div class="pk-tree" role="group" aria-label="Images"></div>`;
     el.hidden = false;
     const search = el.querySelector(".pk-search");
     search.addEventListener("input", () => this.renderTree(search.value));
@@ -125,7 +128,7 @@ export class Picker {
         const tip = !req.ok ? req.message : out ? `No data in view: covers ${node.coverage.name}` : node.title || node.menu_title;
         html.push(`
           <div class="pk-item${isCur ? " current" : ""}${req.ok ? "" : ` unavailable ${req.kind}`}${out ? " outside" : ""}" style="--depth:${depth}">
-            <button type="button" class="pk-pick" data-id="${esc(node.id)}" role="option" aria-selected="${isCur}"
+            <button type="button" class="pk-pick" data-id="${esc(node.id)}"${isCur ? ` aria-current="true"` : ""}
               ${req.ok ? "" : `aria-disabled="true" data-req="${req.kind}" data-cred="${esc(req.credential ?? "")}"`}
               title="${esc(tip)}">${icon}${esc(node.label)}</button>
           </div>`);
@@ -146,7 +149,7 @@ export class Picker {
       html[start] = `
         <button type="button" class="pk-group${out ? " outside" : ""}" style="--depth:${depth}" data-key="${esc(key)}" aria-expanded="${!isCollapsed}"
           ${out ? `title="No data in view"` : ""}>
-          <span class="pk-caret">${isCollapsed ? "▸" : "▾"}</span>${esc(node.label)}
+          <span class="pk-caret" aria-hidden="true">${isCollapsed ? "▸" : "▾"}</span>${esc(node.label)}
         </button>`;
       return out ? OUT : SHOWN;
     };
@@ -159,6 +162,8 @@ export class Picker {
         const k = g.dataset.key;
         collapsed.has(k) ? collapsed.delete(k) : collapsed.add(k);
         this.renderTree(popup().querySelector(".pk-search").value);
+        // The tree was rebuilt: focus the same group again, not the page (WCAG 2.4.3).
+        popup().querySelector(`.pk-group[data-key="${CSS.escape(k)}"]`)?.focus();
       }),
     );
     const pick = (id) => {
@@ -181,6 +186,7 @@ export class Picker {
 export function close() {
   if (!active) return;
   active.button.classList.remove("open");
+  active.button.setAttribute("aria-expanded", "false");
   active.button.focus({ preventScroll: true });
   active = null;
   const el = popup();
