@@ -1,7 +1,8 @@
 # Accessibility: audit and plan
 
-Status: **plan for review** (audit of 2026-11-04, branch `accessibility`). Nothing
-below except the footer has been changed yet.
+Status: **fixed on branch `accessibility`, pending review and a screen-reader pass**
+(audit and fixes of 2026-11-04). Every numbered item below has its own commit; see
+[Status of the fixes](#status-of-the-fixes).
 
 ## What Yale requires
 
@@ -29,7 +30,67 @@ and [Procedure 1605 PR.01](https://your.yale.edu/policies-procedures/procedures/
 - Checks in the running page (Chromium): the accessibility tree, accessible names, landmarks
   and headings, computed text contrast, target sizes, and layout at 320 CSS px.
 - **Not done yet:** a WAVE or axe scan, and testing with a screen reader (VoiceOver / NVDA).
-  Both are in phase 4.
+  See [Still to do](#still-to-do).
+
+## Status of the fixes
+
+All 24 items are done, one commit each on `accessibility` (`9173119` … `1f07f58`). Where
+the fix differs from the plan below:
+
+- **2:** the map canvases are announced as `role=region` with
+  `aria-roledescription="map"` and a label naming the image, date and place, as MapLibre
+  does. They are not `role=img`, because they are keyboard-operable: arrows pan, + and − zoom.
+- **13:** the ICESat-2 profile canvas is a `role=slider` with the same values as the map
+  arrow, because both move the same position.
+- **20:** photon classes can be shown or hidden one at a time from the legend, which now
+  works as a set of toggle buttons. They are not given distinct shapes: the points are
+  1.5-3.5 px, too small to tell shapes apart. The beam numbers are black or white, whichever
+  contrasts with the beam's color.
+- **21:** the skip link is "Skip to main content" and focuses `<main>`. It does this from
+  script, since the URL's hash holds the app's state.
+- **22:** the shortcuts act only while the open tab's map or panel has focus. They are listed
+  in a dialog opened from "Keyboard shortcuts" at the footer's left.
+
+### Verification (2026-11-04, Chromium, local copy)
+
+- **Every tab** (Viewer with compare, Grid, Animation):
+  - no button, link, slider, tab or radio is unnamed or named by a glyph;
+  - no form field is unlabelled;
+  - no text is below 4.5:1 contrast (computed per element);
+  - the smallest text is 12 px.
+- **At 320×640 CSS px:** no horizontal scrolling on any tab, and every header control is
+  reachable.
+- **Viewer:**
+  - the swipe divider reports its position and takes arrows, Page Up/Down, Home and End;
+  - compare mode moves with the arrow keys (Swipe → Opacity → Spy);
+  - `[`/`]` act on the focused map but not page-wide or on a button.
+- **Tabs:** Left, Right, Home and End move between and select tabs, with a single tab stop.
+- **Place search:**
+  - the arrow keys set `aria-activedescendant`;
+  - the result count and the chosen place are announced;
+  - focus stays in the box.
+- **Picker:** collapsing a group keeps focus on it. Tabbing out closes the popup (and the
+  calendar).
+- **Grid:**
+  - Earlier and Later move an image, focus follows it, and the move is announced;
+  - × hands focus to Add image.
+- **Animation:**
+  - Space on a focused button presses it;
+  - Play keeps its name and reports `aria-pressed`;
+  - the frame slider reads its date ("20 Oct 2026 (frame 5 of 5)");
+  - Load imagery shows a progressbar;
+  - focus moves Load → Cancel → Load, and "5 frames loaded" is announced.
+- **ICESat-2:** the class toggles hide their photons, and the profile slider reports its
+  distance along the track.
+- **Credentials dialog:** focus returns to whatever opened it.
+- **Status regions:** tile failures and map notices are announced; "Loading…" is not.
+
+### Still to do
+
+- A **VoiceOver (Safari)** and an **NVDA (Firefox)** pass on the main tasks: pick an image,
+  change the date, compare, build a grid, play an animation, search for a place.
+- A **WAVE** (or Siteimprove) scan of each tab on the deployed site.
+- Optionally an expert review. ITS can suggest a supplier (accessibility@yale.edu).
 
 ## Findings and fixes
 

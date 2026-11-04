@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+- Footer with Yale's required links, as on geospatial.yale.edu: Accessibility at Yale (Yale
+  Policy 1605), Privacy Policy and the copyright notice. A Keyboard shortcuts dialog opens
+  from the footer too.
+- Accessibility (WCAG 2.1 AA; audit and fixes in `docs/website/accessibility.md`):
+  - **Keyboard:**
+    - the maps have a visible focus ring;
+    - Space and the arrow keys no longer hijack buttons;
+    - the grid can be rearranged with Earlier / Later buttons;
+    - the tabs and compare mode follow the ARIA keyboard patterns;
+    - popups close when focus leaves them, and focus never drops to the page;
+    - there is a skip link;
+    - the single-key shortcuts act only on the map or panel.
+  - **Screen readers:**
+    - every icon button, map, slider, picker and grid slot has a name;
+    - place search is an announced combobox;
+    - map notices, tile failures and animation loading are announced.
+  - **Small screens and zoom:** the header and the controls reflow at 320 px wide (or
+    400% zoom); font sizes follow the browser's text size.
+  - **Visual:**
+    - muted text and control borders meet contrast (4.5:1 and 3:1);
+    - no text is below 12 px, and icon buttons are at least 24 px;
+    - ICESat-2 photon classes can be shown one by one.
+  - **Motion:** the animation runs at up to 3 frames/s, and `prefers-reduced-motion` turns
+    off map inertia and smooth scrolling.
+
 ## 0.6 (2026-10-30)
 
 - Website renamed **Bowerbird**, with a bowerbird-and-bower icon in the header and as the
