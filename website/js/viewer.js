@@ -67,6 +67,17 @@ export class Viewer {
     root.querySelector("#b-same-as-a").addEventListener("click", () => this.compareThroughTime());
     root.querySelector("#swap-ab").addEventListener("click", () => this.swap());
     root.querySelectorAll("#compare-mode button").forEach((b) => b.addEventListener("click", () => this.setMode(b.dataset.mode)));
+    // A radio group (ARIA APG): one tab stop; arrow keys move to and choose the next mode.
+    root.querySelector("#compare-mode").addEventListener("keydown", (e) => {
+      const list = [...root.querySelectorAll("#compare-mode button")];
+      const i = list.indexOf(document.activeElement);
+      const d = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+      if (i < 0 || !d) return;
+      e.preventDefault();
+      const b = list[(i + d + list.length) % list.length];
+      this.setMode(b.dataset.mode);
+      b.focus();
+    });
     root.querySelector("#opacity-slider").addEventListener("input", (e) => {
       this.opacity = e.target.value / 100;
       this.update();
@@ -180,7 +191,10 @@ export class Viewer {
 
   setMode(mode) {
     this.mode = mode;
-    this.root.querySelectorAll("#compare-mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
+    this.root.querySelectorAll("#compare-mode button").forEach((b) => {
+      b.setAttribute("aria-checked", b.dataset.mode === mode);
+      b.tabIndex = b.dataset.mode === mode ? 0 : -1;
+    });
     this.root.querySelector("#opacity-slider").hidden = mode !== "opacity";
     this.update();
   }

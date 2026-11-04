@@ -63,9 +63,9 @@
             <button class="btn subtle" id="b-same-as-a" title="Compare through time: B = A's image at its previous date">A, earlier</button>
             <button class="icon-btn" id="swap-ab" title="Swap A and B" aria-label="Swap A and B">&#8646;</button>
             <div class="segmented" id="compare-mode" role="radiogroup" aria-label="Comparison mode">
-              <button data-mode="swipe" aria-pressed="true" title="Drag the divider to reveal B">Swipe</button>
-              <button data-mode="opacity" aria-pressed="false" title="Fade between A and B">Opacity</button>
-              <button data-mode="spy" aria-pressed="false" title="B is shown inside a lens that follows the cursor">Spy</button>
+              <button data-mode="swipe" role="radio" aria-checked="true" title="Drag the divider to reveal B">Swipe</button>
+              <button data-mode="opacity" role="radio" aria-checked="false" tabindex="-1" title="Fade between A and B">Opacity</button>
+              <button data-mode="spy" role="radio" aria-checked="false" tabindex="-1" title="B is shown inside a lens that follows the cursor">Spy</button>
             </div>
             <input type="range" id="opacity-slider" min="0" max="100" value="50" hidden aria-label="Opacity of B" />
             <div class="time-host" id="time-b"></div>

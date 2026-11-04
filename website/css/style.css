@@ -463,7 +463,8 @@ main {
   border-left: 1px solid var(--line);
 }
 
-.segmented button[aria-pressed="true"] {
+.segmented button[aria-pressed="true"],
+.segmented button[aria-checked="true"] {
   background: var(--yale-blue);
   color: #fff;
 }
