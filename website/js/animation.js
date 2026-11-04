@@ -568,11 +568,11 @@ export class Animation {
       [{ tag: "", status: status ?? (p?.time && this.slot.steps && !this.frames.length ? { kind: "empty", message: "No frames: no imagery in view between these dates." } : null) }],
       (name) => openCredentials(name),
     );
-    const label = t ? (this.slot.steps?.label(t) ?? keyLabel(t, p.time.step)) : "";
+    const label = t ? this.slot.stepLabel(t) : "";
     const key = JSON.stringify([p?.id, label]);
     if (key !== this.titleKey) {
       this.titleKey = key;
-      this.root.querySelector(".anim-title").innerHTML = p ? `<div class="title-block">${titleHTML(p, { time: label, t, native: this.slot.nativeLabel?.() })}</div>` : "";
+      this.root.querySelector(".anim-title").innerHTML = p ? `<div class="title-block">${titleHTML(p, { time: label, t, native: t ? this.slot.nativeLabel(t) : null })}</div>` : "";
       this.root.querySelector(".anim-legend").innerHTML = p ? `<div class="key-block">${keyHTML(p, c)}</div>` : "";
     }
     labelMap(this.mapEl, p && `Animation of ${[p.title || p.menu_title, label].filter(Boolean).join(", ")}`, this.place.current);

@@ -267,20 +267,24 @@ export class Slot {
     if (!p?.time || !t) return "";
     const step = p.time.step;
     const lab = (k) => this.steps?.label?.(k) ?? keyLabel(k, step);
-    if (!t2) {
-      const acq = this.steps?.get?.(t)?.acquired;
-      if (!acq) return lab(t);
-      const parts = acq.regions ? acq.regions.map((r) => `${dayRange(r.first, r.last)} (${r.region})`) : [dayRange(acq.first, acq.last)];
-      return `${lab(t)}, flown ${parts.join("; ")}`;
-    }
+    if (!t2) return this.stepLabel(t);
     const px = p.time.window?.options?.find((x) => x.id === "px");
     const how = px ? px.choices.find((c) => c.value === o.px)?.label.toLowerCase() : "";
     return `${keyLabel(t, step)} to ${keyLabel(t2, step)}${how ? ` (${how} pixel)` : ""}`;
   }
 
-  /** The resolution of the selected year's / month's acquisitions in view ("0.3 m", "0.6 m (MA), 0.3 m (CT)"), or null. */
-  nativeLabel() {
-    const { t, t2 } = this.sel;
+  /** One timestep's title: its label, and for years / months when the scenes in view were acquired ("2023, flown 5 Jul 2023 (CT)"). */
+  stepLabel(t) {
+    const lab = this.steps?.label?.(t) ?? keyLabel(t, this.product.time.step);
+    const acq = this.steps?.get?.(t)?.acquired;
+    if (!acq) return lab;
+    const parts = acq.regions ? acq.regions.map((r) => `${dayRange(r.first, r.last)} (${r.region})`) : [dayRange(acq.first, acq.last)];
+    return `${lab}, flown ${parts.join("; ")}`;
+  }
+
+  /** The resolution of the selected (or `t`'s) year's / month's acquisitions in view ("0.3 m", "0.6 m (MA), 0.3 m (CT)"), or null. */
+  nativeLabel(t = this.sel.t) {
+    const { t2 } = this.sel;
     const acq = !t2 && t ? this.steps?.get?.(t)?.acquired : null;
     if (!acq?.gsd?.length) return null;
     const m = (gsd) => gsd.map((g) => `${+g.toFixed(2)} m`).join("-");
