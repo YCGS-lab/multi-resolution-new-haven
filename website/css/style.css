@@ -320,7 +320,8 @@ main {
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 24px;
+  justify-content: flex-end;
+  gap: 12px;
   padding: 0 24px;
   overflow: hidden;
   white-space: nowrap;
@@ -329,19 +330,42 @@ main {
   font-size: 13px;
 }
 
+/* Underlined; the underline goes on hover/focus, as YaleSites' "underline-with-icon" links */
 .app-footer a {
   color: #fff;
-  text-decoration: none;
-}
-
-.app-footer a:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.app-footer a:hover,
+.app-footer a:focus-visible {
+  text-decoration: none;
 }
 
 .app-footer a:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
+}
+
+/* External-link arrow (YaleSites "Link Purpose" icon), in the link's color */
+.ext-icon {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-left: 0.3em;
+  background: currentColor;
+  -webkit-mask: url("../img/external-link.svg") center / contain no-repeat;
+  mask: url("../img/external-link.svg") center / contain no-repeat;
+}
+
+/* Read by screen readers, not shown */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ---------- common controls ---------- */
