@@ -2090,3 +2090,110 @@ body.grid-active .tc-advanced {
     grid-template-rows: minmax(300px, 1fr) minmax(320px, 1fr);
   }
 }
+
+/* ---------- small screens and high zoom (WCAG 1.4.10 Reflow) ----------
+   Below 760 CSS px wide (a phone, or a 1280 px window at 200-400% zoom) or 500 px high, the
+   header and footer scroll with the page instead of staying fixed, the header's rows wrap,
+   and the panels grow with their content, the maps keeping a usable height. */
+@media (max-width: 760px), (max-height: 500px) {
+  :root {
+    --header-h: 0px;
+    --footer-h: 0px;
+  }
+
+  .app-header {
+    position: relative;
+    height: auto;
+    padding: 0 12px;
+  }
+
+  .header-main {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 4px 16px;
+    padding-bottom: 10px;
+  }
+
+  .app-header h1 {
+    font-size: 24px;
+  }
+
+  .tabs {
+    overflow-x: auto;
+  }
+
+  .tabs button {
+    padding-bottom: 4px;
+  }
+
+  .header-options {
+    flex-wrap: wrap;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .place-search {
+    flex: 1 1 200px;
+    width: auto;
+  }
+
+  .app-footer {
+    position: relative;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    height: auto;
+    padding: 6px 12px;
+    row-gap: 2px;
+    white-space: normal;
+  }
+
+  #viewer,
+  #animation,
+  #icesat2 {
+    height: auto;
+    padding: 10px 12px;
+  }
+
+  #grid {
+    padding: 10px 12px 24px;
+  }
+
+  .viewer-frame,
+  .is2-map-frame {
+    flex: none;
+    height: max(260px, 60vh);
+  }
+
+  /* the picker leaves room for its ◀ ▶ buttons */
+  .control-group {
+    flex-wrap: wrap;
+  }
+
+  .viewer-controls .picker-button,
+  .anim-controls .picker-button {
+    width: min(340px, calc(100vw - 100px));
+  }
+
+  .title-meta {
+    grid-template-columns: auto;
+  }
+
+  .title-links {
+    flex-wrap: wrap;
+  }
+
+  .grid-toolbar,
+  .anim-timeline {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+
+  .grid-toolbar {
+    position: static; /* a wrapped toolbar would cover much of a short screen */
+  }
+
+  .anim-slider-wrap {
+    flex-basis: 100%;
+    order: -1;
+  }
+}
