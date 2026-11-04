@@ -160,10 +160,6 @@ export function viewBounds(vs, catalog, w, h) {
 
 // #region loading-state
 /**
- * Counts a map's tile requests and shows "Loading…" (after a short delay, to
- * avoid flicker) in its .map-message element while any are pending.
- */
-/**
  * A visually hidden status region in a map (WCAG 4.1.3), made up front: a live region must
  * exist before its text changes to be announced. Kinds: "load" (tiles that failed) and
  * "notice" (showNotices).
@@ -179,6 +175,14 @@ function mapStatus(mapEl, kind) {
   return el;
 }
 
+/**
+ * Counts a map's tile requests and shows "Loading…" (after a short delay, to
+ * avoid flicker) in its .map-message element while any are pending; then, if
+ * any failed, "N tiles failed to load", a button that retries them: retry()
+ * bumps `generation`, which the layers take as an update trigger to request
+ * their failed tiles again (tiles.js liveTileLayer, cog.js cogLayer), and
+ * calls `onRetry()` (the map's redraw, set by its owner).
+ */
 export class LoadingState {
   constructor(messageEl) {
     this.el = messageEl;
@@ -186,19 +190,19 @@ export class LoadingState {
     this.status = mapStatus(messageEl.parentElement, "load");
     mapStatus(messageEl.parentElement, "notice");
     this.pending = 0;
-    this.errors = 0;
+    this.errors = 0; // failures since the last retry (or reset)
+    this.generation = 0;
+    this.onRetry = null;
     this.timer = null;
+    messageEl.addEventListener("click", (e) => e.target.closest(".map-retry") && this.retry());
   }
 
   start() {
     if (this.pending++ === 0) {
-      this.errors = 0;
-      this.lastError = null;
       clearTimeout(this.timer);
       this.timer = setTimeout(() => this.show(), 250);
     }
   }
-
 
   end(error) {
     if (error) {
@@ -212,24 +216,39 @@ export class LoadingState {
   }
 
   show() {
-    const msg = this.pending
-      ? "Loading…"
-      : this.errors
-        ? `${this.errors} tile${this.errors > 1 ? "s" : ""} failed to load`
-        : "";
+    const failed = !this.pending && this.errors;
+    const msg = this.pending ? "Loading…" : failed ? `${this.errors} tile${this.errors > 1 ? "s" : ""} failed to load` : "";
     this.el.hidden = !msg;
-    this.el.textContent = msg;
-    this.el.title = !this.pending && this.lastError ? this.lastError : "";
-    this.el.classList.toggle("error", !this.pending && !!this.errors);
+    if (failed) {
+      // Keep the button (and its focus) while only the count changes.
+      const b = this.el.querySelector(".map-retry") ?? Object.assign(document.createElement("button"), { type: "button", className: "map-retry" });
+      b.textContent = `${msg}. Click to retry`;
+      if (!b.isConnected) this.el.replaceChildren(b);
+    } else this.el.textContent = msg;
+    this.el.title = failed && this.lastError ? this.lastError : "";
+    this.el.classList.toggle("error", !!failed);
     // Failures are announced; "Loading…", which comes and goes with every pan, is not.
     const said = !this.pending && this.errors ? `${msg}${this.lastError ? `: ${this.lastError}` : ""}` : "";
     if (this.status.textContent !== said) this.status.textContent = said;
+  }
+
+  /** Request the failed tiles again. */
+  retry() {
+    const hadFocus = this.el.contains(document.activeElement);
+    this.generation++;
+    this.errors = 0;
+    this.lastError = null;
+    this.show();
+    // The button is gone: focus moves to the map (WCAG 2.4.3).
+    if (hadFocus) (this.el.parentElement.querySelector("canvas") ?? document.getElementById("main"))?.focus();
+    this.onRetry?.();
   }
 
   /** Forget pending state (e.g. when the product changes and old requests are dropped). */
   reset() {
     this.pending = 0;
     this.errors = 0;
+    this.lastError = null;
     clearTimeout(this.timer);
     this.show();
   }

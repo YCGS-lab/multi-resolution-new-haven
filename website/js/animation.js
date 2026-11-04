@@ -57,6 +57,7 @@ export class Animation {
     this.mapEl = root.querySelector("#anim-map");
     this.chrome = new MapChrome(root.querySelector(".anim-frame"), catalog);
     this.loading = new LoadingState(root.querySelector("#anim-map .map-message"));
+    this.loading.onRetry = () => this.update();
     this.noticeEl = root.querySelector("#anim-map .map-notice");
     this.slot = new Slot(catalog, { onChange: () => this.slotChanged() });
     this.picker = new Picker(root.querySelector("#anim-picker"), catalog, { onSelect: (id) => this.select(id), view: () => this.bounds, name: "Animated image" });

@@ -849,7 +849,31 @@ main {
 }
 
 .map-message.error {
+  padding: 0;
   background: rgba(160, 30, 30, 0.9);
+}
+
+/* "N tiles failed to load. Click to retry" */
+.map-retry {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: #fff;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  pointer-events: auto; /* the message itself lets pointer events through to the map */
+}
+
+.map-retry:hover {
+  text-decoration: none;
+}
+
+.map-retry:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 #drag-label {

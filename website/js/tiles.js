@@ -690,6 +690,12 @@ function fillUrl(url, ctx) {
   return missing ? null : out;
 }
 
+/**
+ * A tile that failed to load (not cached: tiles.js caches only successes). Kept by deck.gl as
+ * the tile's content until a retry (LoadingState.retry) reloads it.
+ */
+export const FAILED = Object.freeze({ failed: true });
+
 function liveTileLayer(id, catalog, tr, { loading, props, extent, smooth = false }) {
   return new TileLayer({
     id,
@@ -707,12 +713,17 @@ function liveTileLayer(id, catalog, tr, { loading, props, extent, smooth = false
         return img;
       } catch (err) {
         loading?.end(signal?.aborted ? null : err);
-        if (!signal?.aborted) console.warn(`${id}: tile failed`, err);
-        return null;
+        if (signal?.aborted) return null;
+        console.warn(`${id}: tile failed`, err);
+        return FAILED;
       }
     },
+    // A retry reloads the tiles in view in place: loaded ones come straight from the tile cache,
+    // failed ones (never cached) are requested again.
+    updateTriggers: { getTileData: loading?.generation ?? 0 },
     renderSubLayers: (p) =>
       p.data &&
+      p.data !== FAILED &&
       new BitmapLayer(p, {
         data: null,
         image: p.data,

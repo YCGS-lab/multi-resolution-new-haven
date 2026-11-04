@@ -39,6 +39,7 @@ export class Viewer {
     this.chrome = new MapChrome(root.querySelector(".viewer-frame"), catalog);
     this.handle = root.querySelector(".swipe-handle");
     this.loading = new LoadingState(root.querySelector(".map-message"));
+    this.loading.onRetry = () => this.update();
     this.noticeEl = root.querySelector(".map-notice");
 
     this.slots = {

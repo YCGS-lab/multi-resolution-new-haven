@@ -477,10 +477,22 @@ class FinerCOGLayer extends COGLayer {
         if (typeof ratio !== "function") throw new Error("deck.gl-raster changed: RasterTileset2D.getPixelRatio is gone");
         this.getPixelRatio = () => LOD_PIXEL_RATIO * ratio();
       }
+
+      // A retry (the `retryGeneration` prop changed) reloads only the tiles that failed, not every
+      // tile in view as deck.gl's Tileset2D.reloadAll does (it reaches into `_cache`, as above).
+      reloadAll() {
+        for (const tile of this._cache.values()) if (tile.content?.failed) tile.setNeedsReload();
+      }
     }
-    return tileLayer.clone({ TilesetClass: FinerTileset });
+    return tileLayer.clone({
+      TilesetClass: FinerTileset,
+      updateTriggers: { ...tileLayer.props.updateTriggers, getTileData: this.props.retryGeneration },
+    });
   }
 }
+
+/** Draws a failed tile (content {failed: true}): nothing yet. */
+const FAILED_TILE_MODULE = { name: "cogFailedTile", inject: { "fs:DECKGL_FILTER_COLOR": "discard;" } };
 // #endregion finer-cog-layer
 
 /**
@@ -500,6 +512,7 @@ export function cogLayer(id, spec, layer, { loading, props = {} } = {}) {
     pool,
     maxRequests: 8,
     refinementStrategy: "no-overlap",
+    retryGeneration: loading?.generation ?? 0, // see FinerCOGLayer
     getTileData: async (image, opts) => {
       loading?.start();
       try {
@@ -509,13 +522,19 @@ export function cogLayer(id, spec, layer, { loading, props = {} } = {}) {
         return data;
       } catch (err) {
         loading?.end(opts.signal?.aborted ? null : err);
-        if (!opts.signal?.aborted) console.warn(`${spec.url}: tile failed`, err);
-        return null;
+        if (opts.signal?.aborted) return null;
+        console.warn(`${spec.url}: tile failed`, err);
+        // Kept until a retry; the raster mesh needs the tile's size.
+        const { x, y } = opts;
+        const width = Math.min(image.tileWidth, image.width - x * image.tileWidth);
+        const height = Math.min(image.tileHeight, image.height - y * image.tileHeight);
+        return { failed: true, width, height };
       }
     },
-    renderTile: (data) => ({
-      renderPipeline: [{ module: prog.module, props: { bands: data.texture, lut: data.lut, occupancy: data.occupancy } }],
-    }),
+    renderTile: (data) =>
+      data.failed
+        ? { renderPipeline: [{ module: FAILED_TILE_MODULE, props: {} }] }
+        : { renderPipeline: [{ module: prog.module, props: { bands: data.texture, lut: data.lut, occupancy: data.occupancy } }] },
     onTileUnload: (tile) => {
       tile.content?.texture?.destroy();
       tile.content?.occupancy?.destroy();

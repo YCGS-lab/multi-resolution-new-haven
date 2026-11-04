@@ -235,6 +235,7 @@ export class Grid {
     slot.el = el;
     slot.map = el.querySelector(".slot-map");
     slot.loading = new LoadingState(el.querySelector(".map-message"));
+    slot.loading.onRetry = () => this.update();
     slot.notice = el.querySelector(".map-notice");
     slot.time = new TimeControl(el.querySelector(".time-host"), slot.ts, { compact: true });
     slot.chrome = new MapChrome(el.querySelector(".slot-frame"), this.catalog, { tickSpacing: [96, 44] });
