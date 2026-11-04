@@ -7,6 +7,7 @@
   --gray-100: #f7f7f7;
   --gray-200: #d9d9d9;
   --gray-300: #bababa;
+  --control-border: #8a8a8a; /* buttons and form fields: 3.4:1 on white, 3.2:1 on --gray-100 (WCAG 1.4.11) */
   --gray-500: #6b6b6b; /* muted text: 4.97:1 on --gray-100, 5.33:1 on white (WCAG 1.4.3) */
   --gray-700: #4a4a4a;
   --gray-900: #1c1c1c;
@@ -410,7 +411,7 @@ main {
 
 .btn,
 .icon-btn {
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   background: var(--panel);
   border-radius: 2px;
   padding: 5px 12px;
@@ -448,7 +449,7 @@ main {
 
 .field select {
   padding: 3px 6px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   border-radius: 2px;
   background: var(--panel);
 }
@@ -459,7 +460,7 @@ main {
 
 .segmented {
   display: inline-flex;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -515,7 +516,7 @@ main {
   max-width: 100%;
   min-height: 40px;
   padding: 3px 10px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   border-radius: 2px;
   background: var(--panel);
   cursor: pointer;
@@ -579,7 +580,7 @@ main {
 .pk-search {
   margin: 8px;
   padding: 6px 10px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   border-radius: 18px;
 }
 
@@ -1448,7 +1449,7 @@ body.grid-active .axis {
   flex: 1;
   min-width: 0;
   padding: 5px 8px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   border-radius: 2px;
   font-family: ui-monospace, monospace;
   font-size: 13px;
@@ -1540,7 +1541,7 @@ body.grid-active .axis {
 .tc-hour,
 .tc-option select {
   padding: 4px 8px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   border-radius: 2px;
   background: var(--panel);
   cursor: pointer;
@@ -1669,7 +1670,7 @@ body.grid-active .axis {
 
 .cal-year {
   padding: 2px 4px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   border-radius: 2px;
 }
 
@@ -1846,7 +1847,7 @@ body.grid-active .tc-advanced {
 
 .anim-controls input[type="date"] {
   padding: 3px 6px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   border-radius: 2px;
 }
 
@@ -1990,7 +1991,7 @@ body.grid-active .tc-advanced {
   align-items: center;
   gap: 8px;
   padding: 4px 10px 4px 6px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--control-border);
   border-left: 4px solid var(--line);
   border-radius: 2px;
   background: var(--panel);
