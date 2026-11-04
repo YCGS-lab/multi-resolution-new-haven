@@ -13,6 +13,8 @@
     <!-- #endregion head-scripts -->
   </head>
   <body>
+    <!-- Bypass the header (WCAG 2.4.1); main.js moves focus (the URL's hash holds the app's state) -->
+    <a class="skip-link" href="#main">Skip to main content</a>
     <header class="app-header">
       <div class="header-top">
         <a class="brand" href="https://geospatial.yale.edu/" title="Yale Center for Geospatial Solutions">
@@ -40,7 +42,7 @@
       </div>
     </header>
 
-    <main>
+    <main id="main" tabindex="-1">
       <!-- Single-image viewer, with optional comparison -->
       <section id="viewer" class="tab-panel" role="tabpanel" aria-labelledby="tab-viewer">
         <div class="viewer-controls">

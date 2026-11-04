@@ -11,6 +11,12 @@ import { decodeSel, encodeSel } from "./slot.js";
 import { calendarOpen } from "./timecontrol.js";
 import { Viewer } from "./viewer.js";
 
+// Skip link: focus the main content without touching the URL's hash (the app's state).
+document.querySelector(".skip-link").addEventListener("click", (e) => {
+  e.preventDefault();
+  document.getElementById("main").focus();
+});
+
 // Footer copyright year, kept current (index.html has the year of the last edit).
 document.getElementById("copyright-year").textContent = new Date().getFullYear();
 

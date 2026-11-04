@@ -62,6 +62,29 @@ a {
   display: none !important;
 }
 
+/* ---------- skip link: off-screen until focused ---------- */
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 8px 14px;
+  background: #fff;
+  color: var(--yale-blue);
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+  outline: 3px solid var(--blue-light);
+}
+
+main:focus {
+  outline: none;
+}
+
 /* ---------- header (as geospatial.yale.edu: Yale blue, two tiers) ---------- */
 
 .app-header {
