@@ -169,8 +169,21 @@ export class Grid {
 
   swap(i, j) {
     [this.slots[i], this.slots[j]] = [this.slots[j], this.slots[i]];
-    this.renderSlots();
+    this.renderSlots(); // (re-renders each slot: its number in the labels)
     this.onChange?.();
+  }
+
+  /** Swap `slot` with its neighbour `step` (-1, 1) away; focus follows it, and it is announced. */
+  move(slot, step) {
+    const i = this.slots.indexOf(slot);
+    const j = i + step;
+    if (j < 0 || j >= this.slots.length) return;
+    this.swap(i, j);
+    const r = this.catalog.get(slot.sel);
+    this.root.querySelector(".grid-status").textContent = `Moved ${r ? r.title || r.menu_title : "image"} to slot ${j + 1}.`;
+    const b = slot.el.querySelector(`.move[data-step="${step}"]`);
+    (b.disabled ? slot.el.querySelector(".move:not(:disabled)") : b)?.focus();
+    slot.el.scrollIntoView({ block: "nearest" });
   }
 
   // ----- DOM -----------------------------------------------------------
@@ -206,7 +219,13 @@ export class Grid {
           <div class="scalebar"></div>
           <div class="map-message" hidden></div>
           <div class="map-notice" hidden aria-live="polite"></div>
-          <div class="rearrange-overlay"><span>⠿ Drag to move</span></div>
+          <div class="rearrange-overlay">
+            <span>⠿ Drag to move, or</span>
+            <div class="move-buttons">
+              <button type="button" class="btn move" data-step="-1"><span aria-hidden="true">← </span>Earlier</button>
+              <button type="button" class="btn move" data-step="1">Later<span aria-hidden="true"> →</span></button>
+            </div>
+          </div>
         </div>
         <div class="axis-corner"></div>
         <div class="axis axis-bottom"></div>
@@ -226,6 +245,8 @@ export class Grid {
     });
     el.querySelector(".add-image").addEventListener("click", () => slot.picker.open());
     el.querySelector(".clear").addEventListener("click", () => this.select(slot, null));
+    // Rearranging without dragging (WCAG 2.1.1, 2.5.7): swap with the previous / next slot.
+    el.querySelectorAll(".move").forEach((b) => b.addEventListener("click", () => this.move(slot, +b.dataset.step)));
     this.initDrag(slot);
     this.renderSlot(slot);
     return el;
@@ -240,6 +261,12 @@ export class Grid {
     el.draggable = this.rearrange && !!r;
     el.querySelector(".clear").hidden = !r;
     el.querySelector(".add-image").hidden = !!r;
+    const i = this.slots.indexOf(slot);
+    el.querySelectorAll(".move").forEach((b) => {
+      const to = i + +b.dataset.step;
+      b.disabled = to < 0 || to >= this.slots.length;
+      b.setAttribute("aria-label", `Move slot ${i + 1} ${+b.dataset.step < 0 ? "earlier" : "later"}`);
+    });
     slot.time.render();
     const timeLabel = slot.ts.timeLabel();
     const key = JSON.stringify([slot.sel, timeLabel, slot.ts.sel.t]);

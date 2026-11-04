@@ -1309,7 +1309,23 @@ body.grid-active .axis {
   box-shadow: inset 0 0 0 2px rgba(39, 107, 190, 0.6);
 }
 
-.rearrange-overlay span {
+#grid.rearranging .slot:not(.empty) .rearrange-overlay {
+  align-content: center;
+  gap: 8px;
+}
+
+.move-buttons {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto; /* the slot's map area passes pointer events to the grid canvas */
+}
+
+.move-buttons .btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.rearrange-overlay > span {
   padding: 5px 12px;
   border-radius: 14px;
   background: rgba(0, 53, 107, 0.85);
