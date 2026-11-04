@@ -21,10 +21,12 @@
       </div>
       <div class="header-main">
         <h1><img class="app-icon" src="img/bowerbird.svg" alt="" />Bowerbird</h1>
-        <nav class="tabs" role="tablist">
-          <button role="tab" data-tab="viewer" aria-selected="true">Viewer</button>
-          <button role="tab" data-tab="grid" aria-selected="false">Grid</button>
-          <button role="tab" data-tab="animation" aria-selected="false">Animation</button>
+        <nav class="tabs-nav" aria-label="Views">
+          <div class="tabs" role="tablist">
+            <button role="tab" id="tab-viewer" data-tab="viewer" aria-controls="viewer" aria-selected="true">Viewer</button>
+            <button role="tab" id="tab-grid" data-tab="grid" aria-controls="grid" aria-selected="false" tabindex="-1">Grid</button>
+            <button role="tab" id="tab-animation" data-tab="animation" aria-controls="animation" aria-selected="false" tabindex="-1">Animation</button>
+          </div>
         </nav>
         <div class="header-options">
           <!-- Place search: the selected location (location.js) -->
@@ -40,7 +42,7 @@
 
     <main>
       <!-- Single-image viewer, with optional comparison -->
-      <section id="viewer" class="tab-panel" role="tabpanel">
+      <section id="viewer" class="tab-panel" role="tabpanel" aria-labelledby="tab-viewer">
         <div class="viewer-controls">
           <div class="control-group">
             <span class="slot-tag tag-a" hidden>A</span>
@@ -94,7 +96,7 @@
       </section>
 
       <!-- Grid of synchronized images -->
-      <section id="grid" class="tab-panel" role="tabpanel" hidden>
+      <section id="grid" class="tab-panel" role="tabpanel" aria-labelledby="tab-grid" hidden>
         <div class="grid-toolbar">
           <label class="field">
             Columns
@@ -126,7 +128,7 @@
       </section>
 
       <!-- Animation through time (after NASA Worldview) -->
-      <section id="animation" class="tab-panel" role="tabpanel" hidden>
+      <section id="animation" class="tab-panel" role="tabpanel" aria-labelledby="tab-animation" hidden>
         <div class="anim-controls">
           <div class="picker-host" id="anim-picker"></div>
           <label class="field">From <input type="date" id="anim-from" /></label>
@@ -191,7 +193,8 @@
       </section>
 
       <!-- ICESat-2 beams and photon profiles -->
-      <section id="icesat2" class="tab-panel" role="tabpanel" hidden>
+      <!-- A location tool (Location tools menu), not one of the tabs -->
+      <section id="icesat2" class="tab-panel" aria-label="ICESat-2 photon profiles" hidden>
         <div class="is2-body">
           <div class="is2-left">
             <div class="is2-lines" aria-label="Beam passes"></div>

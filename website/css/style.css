@@ -116,6 +116,11 @@ a {
   height: 34px;
 }
 
+.tabs-nav {
+  display: flex;
+  min-width: 0;
+}
+
 .tabs {
   display: flex;
   gap: 8px;

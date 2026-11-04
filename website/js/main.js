@@ -104,7 +104,12 @@ async function main() {
       viewer.matchView(animation.viewState);
     }
     tab = name;
-    tabs.forEach((t) => t.setAttribute("aria-selected", t.dataset.tab === name));
+    // Roving tabindex: the selected tab is the tab stop (the Viewer's while a location tool is open).
+    const stop = TABS.slice(0, tabs.length).includes(name) ? name : "viewer";
+    tabs.forEach((t) => {
+      t.setAttribute("aria-selected", t.dataset.tab === name);
+      t.tabIndex = t.dataset.tab === stop ? 0 : -1;
+    });
     tools.render();
     for (const t of TABS) document.getElementById(t).hidden = name !== t;
     document.body.classList.toggle("grid-active", name === "grid");
@@ -115,6 +120,18 @@ async function main() {
     saveState();
   };
   tabs.forEach((t) => t.addEventListener("click", () => showTab(t.dataset.tab)));
+  // Arrow keys / Home / End move between the tabs and select them (ARIA APG tabs).
+  document.querySelector("[role=tablist]").addEventListener("keydown", (e) => {
+    const list = [...tabs];
+    const i = list.indexOf(document.activeElement);
+    if (i < 0) return;
+    const j = { ArrowLeft: i - 1, ArrowRight: i + 1, Home: 0, End: list.length - 1 }[e.key];
+    if (j === undefined) return;
+    e.preventDefault();
+    const t = list[(j + list.length) % list.length];
+    t.focus();
+    showTab(t.dataset.tab);
+  });
 
   // ----- place search and location-specific tools -----------------------------
   const isTool = (name) => TOOLS.some((t) => t.id === name);
