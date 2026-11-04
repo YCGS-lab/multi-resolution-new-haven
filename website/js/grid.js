@@ -279,7 +279,7 @@ export class Grid {
     const key = JSON.stringify([slot.sel, timeLabel, slot.ts.sel.t]);
     if (slot.titleKey !== key) {
       slot.titleKey = key;
-      el.querySelector(".slot-title").innerHTML = r ? titleHTML(r, { compact: true, time: timeLabel, t: slot.ts.sel.t }) : "";
+      el.querySelector(".slot-title").innerHTML = r ? titleHTML(r, { compact: true, time: timeLabel, t: slot.ts.sel.t, native: slot.ts.nativeLabel() }) : "";
       el.querySelector(".slot-key").innerHTML = r ? keyHTML(r, this.catalog, { source: false }) : "";
     }
     if (!r) el.querySelectorAll(".axis").forEach((a) => (a.innerHTML = ""));

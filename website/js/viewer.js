@@ -349,9 +349,9 @@ export class Viewer {
     if (key !== this.titlesKey) {
       this.titlesKey = key;
       const tag = (t) => (rb ? `<span class="slot-tag tag-${t.toLowerCase()}">${t}</span>` : "");
-      const times = { A: [ta, this.slots.a.sel.t], B: [tb, this.slots.b.sel.t] };
+      const times = { A: [ta, this.slots.a.sel.t, this.slots.a], B: [tb, this.slots.b.sel.t, this.slots.b] };
       const col = (p, t) =>
-        p ? `<div class="title-block">${titleHTML(p, { tag: tag(t), time: times[t][0], t: times[t][1] })}</div>` : "";
+        p ? `<div class="title-block">${titleHTML(p, { tag: tag(t), time: times[t][0], t: times[t][1], native: times[t][2].nativeLabel() })}</div>` : "";
       const keyCol = (p, t) => (p ? `<div class="key-block">${keyHTML(p, c, { tag: tag(t) })}</div>` : "");
       this.root.querySelector(".viewer-titles").innerHTML = col(ra, "A") + col(rb, "B");
       this.root.querySelector(".viewer-legends").innerHTML = keyCol(ra, "A") + keyCol(rb, "B");

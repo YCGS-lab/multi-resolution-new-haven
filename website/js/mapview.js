@@ -432,8 +432,9 @@ function linksHTML(links) {
  * time and subtitle on one line, no links. Otherwise the subtitle goes with the
  * source, in keyHTML.
  */
-export function titleHTML(p, { tag = "", compact = false, time = "", t = null } = {}) {
-  const native = (t && p.native_by_time?.[t]) || p.native;
+export function titleHTML(p, { tag = "", compact = false, time = "", t = null, native: inView = null } = {}) {
+  // `native`: the resolution of what is in view (slot.nativeLabel()), when the source says.
+  const native = inView || (t && p.native_by_time?.[t]) || p.native;
   let subHTML = "";
   if (compact) {
     const sub = [time, p.subtitle].filter(Boolean).join(" · ");

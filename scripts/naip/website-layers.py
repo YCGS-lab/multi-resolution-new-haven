@@ -32,7 +32,7 @@ def main():
         "cir": web.pc_mosaic_source("naip", {"r": "image|4", "g": "image|1", "b": "image|2"}, native_m=0.3, fmt="png"),
     }
     meta = dict(
-        time=web.time_spec("year", web.avail_stac("truecolor"), label="Year", widget="list"),
+        time=web.time_spec("year", web.avail_stac("truecolor", region="naip:state", gsd="gsd"), label="Year", widget="list"),
         coverage=web.CONUS,
         min_zoom=11,
     )

@@ -152,6 +152,36 @@ export class Steps {
   }
 }
 
+/**
+ * When a year's or month's items were acquired: {first, last, gsd: [m...], regions: [{region,
+ * first, last, gsd}]} (days "YYYY-MM-DD"; regions only when the spec names a region property).
+ */
+function acquired(items, a) {
+  const summarize = (list) => {
+    const days = list.map((i) => i.datetime.slice(0, 10)).sort();
+    const gsd = a.gsd ? [...new Set(list.map((i) => i[a.gsd]).filter((v) => v != null))].sort((x, y) => x - y) : [];
+    return { first: days[0], last: days.at(-1), gsd };
+  };
+  const out = summarize(items);
+  if (a.region) {
+    const by = new Map();
+    for (const i of items) {
+      const r = i[a.region] ?? "?";
+      if (!by.has(r)) by.set(r, []);
+      by.get(r).push(i);
+    }
+    out.regions = [...by].map(([region, list]) => ({ region: String(region).toUpperCase(), ...summarize(list) })).sort((x, y) => x.region.localeCompare(y.region));
+  }
+  return out;
+}
+
+/** "14 Aug 2023", "14 Aug – 2 Sep 2023" or "28 Dec 2022 – 3 Jan 2023". */
+export function dayRange(first, last) {
+  if (first === last) return keyLabel(first, "day");
+  const [a, b] = [keyLabel(first, "day"), keyLabel(last, "day")];
+  return first.slice(0, 4) === last.slice(0, 4) ? `${a.slice(0, -5)} – ${b}` : `${a} – ${b}`;
+}
+
 function lowerBound(arr, x) {
   let lo = 0;
   let hi = arr.length;
@@ -345,7 +375,8 @@ const PROVIDERS = {
   /** STAC items over the box (newest first), grouped by timestep. */
   async stac(catalog, product, a, box) {
     const src = catalog.sources[`${product.dataset}/${a.source}`];
-    const props = (product.time.filters ?? []).map((f) => f.property);
+    // Filter properties, and (year / month steps) the region and resolution of acquisitions.
+    const props = [...(product.time.filters ?? []).map((f) => f.property), a.region, a.gsd].filter(Boolean);
     const body = {
       collections: [src.collection],
       bbox: box,
@@ -374,6 +405,7 @@ const PROVIDERS = {
       url = next?.href;
       init = next?.method === "POST" ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(next.merge ? { ...body, ...next.body } : next.body) } : undefined;
     }
+    if (step === "year" || step === "month") for (const g of groups.values()) g.acquired = acquired(g.items, a);
     return new Steps(step, [...groups.values()]);
   },
   // #endregion avail-stac

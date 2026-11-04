@@ -12,7 +12,7 @@
 // (or "@latest", from older links): the latest.
 
 import { requirement } from "./env.js";
-import { applyFilters, availability, daysBetween, dayOf, interval, keyLabel } from "./time.js";
+import { applyFilters, availability, dayRange, daysBetween, dayOf, interval, keyLabel } from "./time.js";
 
 const C = 2 * Math.PI * 6378137;
 /** Slippy-map zoom (256 px tiles) of a world zoom (2^zoom px per Web Mercator meter). */
@@ -249,17 +249,33 @@ export class Slot {
     };
   }
 
-  /** Short text for titles: "18 Sep 2026" / "1 Jun 2026 to 31 Aug 2026 (median)". */
+  /** Short text for titles: "18 Sep 2026" / "1 Jun 2026 to 31 Aug 2026 (median)" / "2023, flown 14 Aug – 2 Sep 2023 (CT)". */
   timeLabel() {
     const p = this.product;
     const { t, t2, o } = this.sel;
     if (!p?.time || !t) return "";
     const step = p.time.step;
     const lab = (k) => this.steps?.label?.(k) ?? keyLabel(k, step);
-    if (!t2) return lab(t);
+    if (!t2) {
+      const acq = this.steps?.get?.(t)?.acquired;
+      if (!acq) return lab(t);
+      const parts = acq.regions ? acq.regions.map((r) => `${dayRange(r.first, r.last)} (${r.region})`) : [dayRange(acq.first, acq.last)];
+      return `${lab(t)}, flown ${parts.join("; ")}`;
+    }
     const px = p.time.window?.options?.find((x) => x.id === "px");
     const how = px ? px.choices.find((c) => c.value === o.px)?.label.toLowerCase() : "";
     return `${keyLabel(t, step)} to ${keyLabel(t2, step)}${how ? ` (${how} pixel)` : ""}`;
+  }
+
+  /** The resolution of the selected year's / month's acquisitions in view ("0.3 m", "0.6 m (MA), 0.3 m (CT)"), or null. */
+  nativeLabel() {
+    const { t, t2 } = this.sel;
+    const acq = !t2 && t ? this.steps?.get?.(t)?.acquired : null;
+    if (!acq?.gsd?.length) return null;
+    const m = (gsd) => gsd.map((g) => `${+g.toFixed(2)} m`).join("-");
+    const per = acq.regions?.filter((r) => r.gsd.length) ?? [];
+    if (per.length > 1 && new Set(per.map((r) => m(r.gsd))).size > 1) return per.map((r) => `${m(r.gsd)} (${r.region})`).join(", ");
+    return m(acq.gsd);
   }
 }
 // #endregion slot

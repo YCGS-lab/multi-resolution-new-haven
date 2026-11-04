@@ -561,7 +561,7 @@ export class Animation {
     const key = JSON.stringify([p?.id, label]);
     if (key !== this.titleKey) {
       this.titleKey = key;
-      this.root.querySelector(".anim-title").innerHTML = p ? `<div class="title-block">${titleHTML(p, { time: label, t })}</div>` : "";
+      this.root.querySelector(".anim-title").innerHTML = p ? `<div class="title-block">${titleHTML(p, { time: label, t, native: this.slot.nativeLabel?.() })}</div>` : "";
       this.root.querySelector(".anim-legend").innerHTML = p ? `<div class="key-block">${keyHTML(p, c)}</div>` : "";
     }
     labelMap(this.mapEl, p && `Animation of ${[p.title || p.menu_title, label].filter(Boolean).join(", ")}`, this.place.current);

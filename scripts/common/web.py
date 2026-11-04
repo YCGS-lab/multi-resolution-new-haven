@@ -684,11 +684,21 @@ def avail_list(values: list[str], labels: dict[str, str] | None = None, params: 
     return a
 
 
-def avail_stac(source: str, max_items: int = 4000) -> dict:
+def avail_stac(source: str, max_items: int = 4000, region: str | None = None, gsd: str | None = None) -> dict:
     """Timesteps with STAC items intersecting the view, from the search API of
     a pc_mosaic_source (its collection and query); the items' properties
-    used by the filters (e.g. eo:cloud_cover) come along."""
-    return dict(type="stac", source=source, max_items=max_items)
+    used by the filters (e.g. eo:cloud_cover) come along.
+
+    For year and month timesteps, the website shows when the items in view
+    were acquired (first and last day) and, given `gsd` (an item property,
+    e.g. "gsd"), their resolution; given `region` (an item property, e.g.
+    "naip:state"), both per region."""
+    a = dict(type="stac", source=source, max_items=max_items)
+    if region:
+        a["region"] = region
+    if gsd:
+        a["gsd"] = gsd
+    return a
 
 
 def avail_cmr(concept_id: str, max_items: int = 2000) -> dict:
