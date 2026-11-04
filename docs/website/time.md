@@ -84,6 +84,21 @@ STAC items keep their properties (e.g. `eo:cloud_cover`), so the filters
 (`applyFilters`) apply in the browser without asking again. Max cloud cover
 defaults to 20% (scene-wide; slide it to 100% to keep every image).
 
+STAC and CMR items also keep their **footprints** (outer rings, rounded to
+~10 m). `slot.ctx()` carries those of the scenes drawn (the date or window,
+after the filters), and the map fills them under each loaded tile with gray
+dots on white: inside a scene but no data (clouds masked, fill), told apart
+from the background gray of "no scene here" (see
+[Map views](/website/map-views#loading-state)).
+
+For **year and month** steps, a STAC search can also report when, where and
+at what resolution the items in view were acquired: `avail_stac(...,
+region=, gsd=)` names the item properties (NAIP: `naip:state`, `gsd`). The
+title then reads "2023, flown 5 Jul 2023 (CT)" (one range per state across a
+state line), and "Native resolution" the `gsd` in view ("0.3 m", or per
+state). NAIP's years already follow the area in view: each state is flown on
+its own 2-3 year cycle.
+
 ## One map's selection: Slot
 
 A `Slot` holds one map's product and time selection, the timesteps over its
@@ -310,10 +325,15 @@ are the timesteps with data in view between them, after the filters (at
 most 120). **Load imagery** fetches and renders every frame's tiles for the
 area in view into the tile cache (six requests at a time, with a progress
 bar), as Worldview does; ERA5 frames are read from the Zarr store run by run.
-The slider jumps between frames; Play steps through them at 0.5-8 frames
+The slider jumps between frames; Play steps through them at 0.5-3 frames
 per second, looping or not (space: play / pause, ← →: step). The last fully
 loaded frame stays underneath the current one until it has loaded, so
-frames never flash to gray. Panning after loading still works (new tiles
+frames never flash to gray. Both use one layer id prefix (an id is the
+prefix, product and frame key): the layer that drew frame A is the same
+deck.gl layer, tiles and all, once it is underneath B. With a role in the
+id (`anim-cur` / `anim-prev`) deck.gl replaced it by a new, empty layer,
+and the map blinked. Frames still in the list keep their place when the
+frames are recomputed (every pan). Panning after loading still works (new tiles
 load live); the button then offers to reload for the new view. **Cancel**
 stops a slow load (requests in flight are aborted; tiles already loaded stay
 cached). Under the frame count, a rough estimate of the cache the frames

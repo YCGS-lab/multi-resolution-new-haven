@@ -45,6 +45,12 @@ STAC API that says which years cover the area in view, so the website uses
 it (a year drop-down) and works beyond Connecticut. The figures keep CT ECO.
 :::
 
+On the website, the years offered follow the area in view (each state is
+flown on its own cycle), and the title and "Native resolution" give the
+flight dates and resolution of the quarter-quads in view, per state (from
+the STAC items' `datetime`, `naip:state` and `gsd`; see
+[Time](/website/time#which-timesteps-have-data-in-view)).
+
 ::: code-group
 <<< @/../scripts/naip/visualize-remote.py#oversample-block-average [scripts/naip/visualize-remote.py#oversample-block-average]
 :::

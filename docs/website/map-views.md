@@ -78,6 +78,25 @@ requests pending, "Loading…" appears; failures are counted and reported. The
 delay avoids a flicker on fast loads. COG, ArcGIS and XYZ layers all report
 through it, and the benchmark uses it to detect when a map has settled.
 
+Failures stay counted until a retry: "N tiles failed to load. Click to
+retry" is a button. `retry()` bumps `generation`, which every tile layer
+takes as its `getTileData` update trigger, and redraws. deck.gl then reloads
+the tiles in view in place: loaded image-service tiles come straight from the
+tile cache, failed ones (never cached) are requested again; COG layers
+(`FinerCOGLayer`) reload only their failed tiles. A failed Zarr read is not
+repeated until a retry.
+
+Three kinds of empty map area look different:
+
+| | Look | |
+|---|---|---|
+| Failed to load | red diagonal hatching (screen space) | tiles kept as `FAILED` / `{failed: true}` until a retry |
+| No data in scene | gray dots on white | the footprints of the scenes drawn (STAC, CMR), under each loaded tile |
+| No scene | the background gray | everything else, and every empty area of products without footprints |
+
+The key under the map (`keyHTML`) explains them for products with
+footprints.
+
 ## The selected place <Badge type="tip" text="standard" />
 
 ::: code-group
