@@ -9,7 +9,7 @@ year's DOQQs, mosaicked by the data API, as 8-bit images shown as they are
 (no stretch). No local copy.
 
 NAIP is flown every 2-3 years per state, at 1 m (to 2014), 0.6 m (2016-2021)
-or 0.3 m (2022 on, in Connecticut from 2023).
+or 0.3 m (2022 on), varying by state.
 
 Products: truecolor (R, G, B) and cir (NIR, R, G).
 """
@@ -22,7 +22,7 @@ from common import web
 
 DATASET = "naip"
 SOURCE = "USDA FSA National Agriculture Imagery Program (NAIP), via Microsoft Planetary Computer"
-NATIVE = "0.3-1 m, by year and state (0.3 m in Connecticut since 2023)"
+NATIVE = "0.3-1 m, by year and state"
 
 
 def main():
