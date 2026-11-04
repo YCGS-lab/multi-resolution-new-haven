@@ -116,9 +116,13 @@ resource "aws_lambda_function" "this" {
     })
   }
 
-  # Explicit "None" when off: dropping the block does not turn SnapStart off.
-  snap_start {
-    apply_on = var.snap_start ? "PublishedVersions" : "None"
+  # Off = no block: the provider then sends ApplyOn None, and reads None back as
+  # no block (an explicit "None" block would show a change on every plan).
+  dynamic "snap_start" {
+    for_each = var.snap_start ? [1] : []
+    content {
+      apply_on = "PublishedVersions"
+    }
   }
 
   logging_config {

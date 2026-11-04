@@ -36,5 +36,5 @@ output "reserved_concurrency" {
 
 output "snap_start" {
   description = "SnapStart apply_on: PublishedVersions or None"
-  value       = aws_lambda_function.this.snap_start[0].apply_on
+  value       = try(aws_lambda_function.this.snap_start[0].apply_on, "None")
 }

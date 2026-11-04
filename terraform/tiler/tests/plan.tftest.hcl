@@ -221,7 +221,7 @@ run "snap_start_off_for_one_deployment" {
   }
   assert {
     condition     = module.ecmwf.snap_start == "None" && module.nasa.snap_start == "PublishedVersions" && module.noaa.snap_start == "PublishedVersions"
-    error_message = "snap_start = false must set apply_on = None (removing the block does not turn SnapStart off), leaving the others on"
+    error_message = "snap_start = false should turn SnapStart off for that deployment only"
   }
 }
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2 (2026-11-04)
+
+- `tiler_snap_start = false` no longer shows a change (and publishes a new Lambda version)
+  on every plan: SnapStart off is again no `snap_start` block, which the AWS provider
+  sends as `ApplyOn None` and reads back as no block. 0.8.1's explicit `None` block was
+  unnecessary, and its `snap_start` output failed once SnapStart was off.
+
 ## 0.8.1 (2026-11-04)
 
 - Tiler Lambda versions: only the live one is kept (`tiler_keep_versions`, default 1;
@@ -8,8 +15,7 @@
   prunes right away; rolling back now means redeploying an earlier ref.
 - SnapStart can be turned off per deployment (`tiler_snap_start`, default on everywhere),
   for a deployment that is rarely used: its first request after a pause then pays a full
-  cold start instead of ~$8/month per 2 GB of cache. Off sets `apply_on = "None"`
-  explicitly (removing the block left SnapStart on).
+  cold start instead of ~$8/month per 2 GB of cache.
 
 ## 0.8 (2026-11-04)
 
