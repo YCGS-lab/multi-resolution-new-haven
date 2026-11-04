@@ -541,7 +541,7 @@ export function keyHTML(p, catalog, { tag = "", source = true } = {}) {
   // empty areas (tiles.js FootprintLayer, the background, failed tiles' hatching).
   if (["stac", "cmr"].includes(p.time?.availability?.type))
     parts.push(`<div class="empty-key">
-      <span><i class="ek-swatch ek-scene"></i>No data in scene (clouds, fill)</span>
+      <span><i class="ek-swatch ek-scene"></i>No data in scene (clouds, water, fill)</span>
       <span><i class="ek-swatch ek-none"></i>No scene</span>
       <span><i class="ek-swatch ek-failed"></i>Failed to load</span></div>`);
   const credits = [p.source, ...catalog.attributions(p)].filter(Boolean).join(". ");

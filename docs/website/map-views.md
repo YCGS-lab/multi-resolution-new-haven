@@ -91,7 +91,7 @@ Three kinds of empty map area look different:
 | | Look | |
 |---|---|---|
 | Failed to load | red diagonal hatching (screen space) | tiles kept as `FAILED` / `{failed: true}` until a retry |
-| No data in scene | gray dots on white | the footprints of the scenes drawn (STAC, CMR), under each loaded tile |
+| No data in scene (clouds, water, fill) | gray dots on white | the footprints of the scenes drawn (STAC, CMR), under each loaded tile |
 | No scene | the background gray | everything else, and every empty area of products without footprints |
 
 The key under the map (`keyHTML`) explains them for products with
