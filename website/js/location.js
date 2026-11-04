@@ -304,14 +304,14 @@ export class ToolsMenu {
     this.openTool = open;
     this.activeTool = active;
     host.innerHTML = `
-      <button type="button" class="pill tools-button" aria-haspopup="menu" aria-expanded="false"
+      <button type="button" class="pill tools-button" aria-expanded="false" aria-controls="tools-list"
         title="Tools for the selected place">Location tools <span aria-hidden="true">▾</span></button>
-      <div class="tools-list" role="menu" hidden></div>`;
+      <div class="tools-list" id="tools-list" hidden></div>`;
     this.button = host.querySelector(".tools-button");
     this.list = host.querySelector(".tools-list");
     this.button.addEventListener("click", () => (this.list.hidden ? this.show() : this.close()));
     document.addEventListener("pointerdown", (e) => !host.contains(e.target) && this.close());
-    document.addEventListener("keydown", (e) => e.key === "Escape" && this.close());
+    document.addEventListener("keydown", (e) => e.key === "Escape" && !this.list.hidden && this.close());
   }
 
   /** The tools for a place (made for the starred place it lies in). */
@@ -324,7 +324,7 @@ export class ToolsMenu {
     const here = this.toolsFor(p);
     const other = TOOLS.filter((t) => !here.includes(t));
     const item = (t, where) => `
-      <button type="button" class="tools-item${this.activeTool() === t.id ? " active" : ""}" role="menuitem" data-id="${t.id}">
+      <button type="button" class="tools-item${this.activeTool() === t.id ? " active" : ""}" data-id="${t.id}"${this.activeTool() === t.id ? ` aria-current="true"` : ""}>
         ${esc(t.label)}${where ? `<span class="tools-where">${esc(this.place.starred(t.place).name)}</span>` : ""}
       </button>`;
     const name = p ? p.name : "No place selected";
@@ -345,6 +345,8 @@ export class ToolsMenu {
   }
 
   close() {
+    // A disclosure (button + list of buttons), not an ARIA menu: focus inside goes back to the button.
+    if (this.list.contains(document.activeElement)) this.button.focus();
     this.list.hidden = true;
     this.button.setAttribute("aria-expanded", "false");
   }
