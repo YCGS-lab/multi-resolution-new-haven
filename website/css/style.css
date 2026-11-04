@@ -14,6 +14,7 @@
   --header-top-h: 46px;
   --header-main-h: 56px;
   --header-h: calc(var(--header-top-h) + var(--header-main-h));
+  --footer-h: 28px;
   --bg: var(--gray-100);
   --panel: #ffffff;
   --ink: var(--gray-900);
@@ -308,6 +309,39 @@ main {
   position: relative;
   z-index: 1;
   padding-top: var(--header-h);
+}
+
+/* ---------- footer (University links, as on geospatial.yale.edu) ---------- */
+
+.app-footer {
+  position: fixed;
+  inset: auto 0 0 0;
+  height: var(--footer-h);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 24px;
+  overflow: hidden;
+  white-space: nowrap;
+  background: var(--yale-blue);
+  color: #fff;
+  font-size: 13px;
+}
+
+.app-footer a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.app-footer a:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 /* ---------- common controls ---------- */
@@ -718,7 +752,7 @@ main {
 /* ---------- viewer ---------- */
 
 #viewer {
-  height: 100vh;
+  height: calc(100vh - var(--footer-h));
   display: flex;
   flex-direction: column;
   padding: calc(var(--header-h) + 10px) 16px 10px;
@@ -1039,7 +1073,7 @@ main {
 /* ---------- grid ---------- */
 
 #grid {
-  padding: 10px 16px 40px;
+  padding: 10px 16px calc(40px + var(--footer-h));
 }
 
 .grid-toolbar {
@@ -1191,7 +1225,7 @@ main {
   top: var(--header-h);
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--footer-h);
   z-index: 0;
 }
 
@@ -1725,7 +1759,7 @@ body.grid-active .tc-advanced {
 
 #animation,
 #icesat2 {
-  height: 100vh;
+  height: calc(100vh - var(--footer-h));
   display: flex;
   flex-direction: column;
   padding: calc(var(--header-h) + 10px) 16px 10px;

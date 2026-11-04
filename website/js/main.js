@@ -11,6 +11,9 @@ import { decodeSel, encodeSel } from "./slot.js";
 import { calendarOpen } from "./timecontrol.js";
 import { Viewer } from "./viewer.js";
 
+// Footer copyright year, kept current (index.html has the year of the last edit).
+document.getElementById("copyright-year").textContent = new Date().getFullYear();
+
 const TABS = ["viewer", "grid", "animation", "icesat2"]; // the last are location-specific tools (location.js TOOLS)
 
 // Selections in the URL hash: "<dataset>/<product>[@<time>[..<end>]][;option=value...]"
