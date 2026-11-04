@@ -33,7 +33,7 @@
   --serif: YaleNew, Georgia, "Times New Roman", serif;
   --sans: "Mallory Compact", Mallory, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-family: var(--sans);
-  font-size: 15px;
+  font-size: 93.75%; /* 15px at the browser's default 16px, and follows the reader's font-size setting (WCAG 1.4.4) */
   color: var(--ink);
   background: var(--bg);
 }
@@ -107,7 +107,7 @@ a {
   gap: 8px;
   margin: 0;
   font-family: var(--serif);
-  font-size: 28px;
+  font-size: 1.8667rem;
   font-weight: 400;
   white-space: nowrap;
 }
@@ -134,7 +134,7 @@ a {
   padding: 10px 8px 0;
   border-bottom: 3px solid transparent;
   cursor: pointer;
-  font-size: 19px;
+  font-size: 1.2667rem;
 }
 
 .tabs button:hover {
@@ -167,7 +167,7 @@ a {
 
 .ps-icon {
   padding: 0 2px 0 12px;
-  font-size: 17px;
+  font-size: 1.1333rem;
 }
 
 .ps-input {
@@ -177,7 +177,7 @@ a {
   border: 0;
   background: transparent;
   color: #fff;
-  font-size: 15px;
+  font-size: 1rem;
   outline: none;
 }
 
@@ -206,12 +206,13 @@ a {
 }
 
 .ps-clear {
+  min-height: 24px;
   visibility: hidden;
   border: 0;
   background: none;
   color: #fff;
   padding: 0 12px 0 4px;
-  font-size: 18px;
+  font-size: 1.2rem;
   cursor: pointer;
 }
 
@@ -267,7 +268,7 @@ a {
 .tools-note {
   padding: 6px 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8667rem;
 }
 
 /* ---------- location-specific tools menu ---------- */
@@ -283,7 +284,7 @@ a {
   border-radius: 18px;
   background: transparent;
   color: #fff;
-  font-size: 15px;
+  font-size: 1rem;
   cursor: pointer;
 }
 
@@ -303,7 +304,7 @@ a {
 .tools-head {
   padding: 6px 8px 2px;
   color: var(--yale-blue);
-  font-size: 12px;
+  font-size: 0.8rem;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -320,7 +321,7 @@ a {
 
 .tools-where {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.8rem;
 }
 
 main {
@@ -345,7 +346,7 @@ main {
   white-space: nowrap;
   background: var(--yale-blue);
   color: #fff;
-  font-size: 13px;
+  font-size: 0.8667rem;
 }
 
 /* Underlined; the underline goes on hover/focus, as YaleSites' "underline-with-icon" links */
@@ -435,9 +436,11 @@ main {
 }
 
 .icon-btn {
+  min-width: 28px;
+  min-height: 24px; /* targets of at least 24 x 24 px (WCAG 2.5.8) */
   padding: 4px 8px;
   line-height: 1;
-  font-size: 12px;
+  font-size: 0.8rem;
 }
 
 .field {
@@ -489,7 +492,7 @@ main {
   height: 22px;
   border-radius: 2px;
   font-weight: 500;
-  font-size: 13px;
+  font-size: 0.8667rem;
   color: #fff;
   flex: none;
 }
@@ -541,7 +544,7 @@ main {
 }
 
 .pb-path {
-  font-size: 11px;
+  font-size: 0.8rem;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -597,7 +600,7 @@ main {
   border: 0;
   background: none;
   padding: 5px 6px 3px calc(6px + var(--depth) * 16px);
-  font-size: 12px;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--muted);
   text-transform: none;
@@ -607,7 +610,7 @@ main {
 
 .pk-group[style*="--depth:0"] {
   color: var(--yale-blue);
-  font-size: 12px;
+  font-size: 0.8rem;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -616,7 +619,7 @@ main {
 
 .pk-caret {
   width: 12px;
-  font-size: 10px;
+  font-size: 0.6667rem;
 }
 
 .pk-item {
@@ -669,7 +672,7 @@ main {
 .axis {
   position: relative;
   overflow: hidden;
-  font-size: 11px;
+  font-size: 0.8rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -739,7 +742,7 @@ main {
   padding: 4px 8px 6px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.85);
-  font-size: 12px;
+  font-size: 0.8rem;
   font-weight: 500;
   line-height: 1;
   pointer-events: none;
@@ -778,7 +781,7 @@ main {
   border-radius: 12px;
   background: rgba(0, 53, 107, 0.9);
   color: #fff;
-  font-size: 12px;
+  font-size: 0.8rem;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -795,7 +798,7 @@ main {
   border-radius: 6px;
   background: var(--panel);
   border: 1px solid var(--accent);
-  font-size: 13px;
+  font-size: 0.8667rem;
   font-weight: 500;
 }
 
@@ -847,7 +850,7 @@ main {
 
 .title {
   font-family: var(--serif);
-  font-size: 24px;
+  font-size: 1.6rem;
   font-weight: 400;
   margin: 0;
   line-height: 1.2;
@@ -855,7 +858,7 @@ main {
 
 .subtitle {
   white-space: pre-line;
-  font-size: 14px;
+  font-size: 0.9333rem;
   color: var(--gray-700);
   margin-top: 2px;
 }
@@ -866,7 +869,7 @@ main {
   grid-template-columns: minmax(11.5em, max-content) auto;
   column-gap: 16px;
   align-items: baseline;
-  font-size: 14px;
+  font-size: 0.9333rem;
   color: var(--gray-700);
   margin-top: 2px;
 }
@@ -893,7 +896,7 @@ main {
 }
 
 .view-line {
-  font-size: 12px;
+  font-size: 0.8rem;
   color: var(--muted);
   margin-top: 2px;
 }
@@ -945,7 +948,7 @@ main {
   height: 32px;
   border: 0;
   background: rgba(255, 255, 255, 0.92);
-  font-size: 18px;
+  font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
 }
@@ -1000,7 +1003,7 @@ main {
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 0.7333rem;
   color: #333;
   white-space: nowrap;
 }
@@ -1018,7 +1021,7 @@ main {
 }
 
 .cb-label {
-  font-size: 13px;
+  font-size: 0.8667rem;
   font-weight: 500;
   margin-bottom: 3px;
 }
@@ -1053,7 +1056,7 @@ main {
 .cb-ticks {
   position: relative;
   margin: 0 12px;
-  font-size: 11px;
+  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1082,7 +1085,7 @@ main {
 }
 
 .legend {
-  font-size: 12px;
+  font-size: 0.8rem;
 }
 
 .lg-title {
@@ -1111,7 +1114,7 @@ main {
 }
 
 .source {
-  font-size: 11px;
+  font-size: 0.8rem;
   color: var(--muted);
   align-self: flex-end;
 }
@@ -1143,7 +1146,7 @@ main {
   background: #fff4d6;
   border: 1px solid #ffd55c;
   color: #6b4e00;
-  font-size: 13px;
+  font-size: 0.8667rem;
 }
 
 .grid-slots {
@@ -1177,7 +1180,7 @@ main {
 .drag-grip {
   display: none;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 1.0667rem;
   cursor: grab;
 }
 
@@ -1187,15 +1190,15 @@ main {
 }
 
 .slot-title .title {
-  font-size: 18px;
+  font-size: 1.2rem;
 }
 
 .slot-title .subtitle {
-  font-size: 12px;
+  font-size: 0.8rem;
 }
 
 .slot-title .view-line {
-  font-size: 11px;
+  font-size: 0.8rem;
 }
 
 .slot-frame {
@@ -1225,7 +1228,7 @@ main {
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 1.0667rem;
   font-weight: 500;
   cursor: pointer;
 }
@@ -1236,7 +1239,7 @@ main {
 }
 
 .add-image .plus {
-  font-size: 26px;
+  font-size: 1.7333rem;
   font-weight: 400;
 }
 
@@ -1250,7 +1253,7 @@ main {
 }
 
 .slot .scalebar {
-  font-size: 11px;
+  font-size: 0.8rem;
   left: 6px;
   bottom: 6px;
 }
@@ -1349,7 +1352,7 @@ body.grid-active .axis {
   border-radius: 14px;
   background: rgba(0, 53, 107, 0.85);
   color: #fff;
-  font-size: 13px;
+  font-size: 0.8667rem;
   font-weight: 500;
 }
 
@@ -1417,7 +1420,7 @@ body.grid-active .axis {
 
 .cred-intro,
 .cred-help {
-  font-size: 13px;
+  font-size: 0.8667rem;
   color: var(--gray-700);
   margin: 4px 0 10px;
 }
@@ -1437,7 +1440,7 @@ body.grid-active .axis {
 .cred-for {
   font-weight: 400;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8667rem;
 }
 
 .cred-row {
@@ -1452,7 +1455,7 @@ body.grid-active .axis {
   border: 1px solid var(--control-border);
   border-radius: 2px;
   font-family: ui-monospace, monospace;
-  font-size: 13px;
+  font-size: 0.8667rem;
 }
 
 .cred-remember {
@@ -1460,7 +1463,7 @@ body.grid-active .axis {
   align-items: center;
   gap: 6px;
   margin-top: 6px;
-  font-size: 13px;
+  font-size: 0.8667rem;
 }
 
 .cred-actions {
@@ -1484,7 +1487,7 @@ body.grid-active .axis {
 .req-icon {
   display: inline-block;
   margin-right: 5px;
-  font-size: 12px;
+  font-size: 0.8rem;
 }
 
 .req-icon.cloud {
@@ -1521,18 +1524,18 @@ body.grid-active .axis {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 8px;
-  font-size: 14px;
+  font-size: 0.9333rem;
 }
 
 .time-control.compact {
   padding-left: 10px;
-  font-size: 12px;
+  font-size: 0.8rem;
   gap: 4px 6px;
 }
 
 .tc-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.8rem;
 }
 
 .tc-date,
@@ -1572,7 +1575,7 @@ body.grid-active .axis {
 
 .tc-latest {
   padding: 3px 8px;
-  font-size: 12px;
+  font-size: 0.8rem;
 }
 
 .tc-latest.active {
@@ -1585,7 +1588,7 @@ body.grid-active .axis {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 0.8rem;
   color: var(--gray-700);
 }
 
@@ -1610,7 +1613,7 @@ body.grid-active .axis {
 }
 
 .tc-status {
-  font-size: 12px;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
@@ -1639,7 +1642,7 @@ body.grid-active .axis {
 }
 
 .tc-help {
-  font-size: 12px;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
@@ -1652,7 +1655,7 @@ body.grid-active .axis {
   border: 1px solid var(--gray-300);
   border-radius: 2px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
-  font-size: 13px;
+  font-size: 0.8667rem;
 }
 
 .cal-head {
@@ -1682,7 +1685,7 @@ body.grid-active .axis {
 }
 
 .cal-grid > span {
-  font-size: 11px;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
@@ -1750,7 +1753,7 @@ body.grid-active .axis {
 }
 
 .cal-key {
-  font-size: 11px;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
@@ -1786,7 +1789,7 @@ body.grid-active .axis {
   background: rgba(255, 255, 255, 0.95);
   border-left: 4px solid var(--accent);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  font-size: 14px;
+  font-size: 0.9333rem;
   line-height: 1.35;
   pointer-events: auto;
 }
@@ -1807,7 +1810,7 @@ body.grid-active .axis {
 }
 
 .notice-icon {
-  font-size: 18px;
+  font-size: 1.2rem;
 }
 
 .notice-btn {
@@ -1816,7 +1819,7 @@ body.grid-active .axis {
 }
 
 .slot .notice {
-  font-size: 12px;
+  font-size: 0.8rem;
   padding: 6px 10px;
 }
 
@@ -1858,12 +1861,12 @@ body.grid-active .tc-advanced {
 }
 
 .anim-count {
-  font-size: 13px;
+  font-size: 0.8667rem;
   color: var(--muted);
 }
 
 .anim-size {
-  font-size: 11px;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
@@ -1897,7 +1900,7 @@ body.grid-active .tc-advanced {
   position: relative;
   display: block;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: 0.8rem;
   line-height: 20px;
   white-space: nowrap;
 }
@@ -1919,7 +1922,7 @@ body.grid-active .tc-advanced {
 .anim-timeline .play {
   width: 40px;
   height: 32px;
-  font-size: 14px;
+  font-size: 0.9333rem;
 }
 
 .anim-slider-wrap {
@@ -1996,7 +1999,7 @@ body.grid-active .tc-advanced {
   border-radius: 2px;
   background: var(--panel);
   text-align: left;
-  font-size: 12px;
+  font-size: 0.8rem;
   cursor: pointer;
 }
 
@@ -2063,7 +2066,7 @@ body.grid-active .tc-advanced {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 18px;
-  font-size: 13px;
+  font-size: 0.8667rem;
 }
 
 .is2-plot {
@@ -2087,7 +2090,7 @@ body.grid-active .tc-advanced {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font-size: 13px;
+  font-size: 0.8667rem;
 }
 
 .is2-readout .muted,
@@ -2096,7 +2099,7 @@ body.grid-active .tc-advanced {
 }
 
 .is2-help {
-  font-size: 12px;
+  font-size: 0.8rem;
   margin: 0;
 }
 
@@ -2105,7 +2108,7 @@ body.grid-active .tc-advanced {
 }
 
 .is2-title .title {
-  font-size: 20px;
+  font-size: 1.3333rem;
 }
 
 @media (max-width: 900px) {
@@ -2139,7 +2142,7 @@ body.grid-active .tc-advanced {
   }
 
   .app-header h1 {
-    font-size: 24px;
+    font-size: 1.6rem;
   }
 
   .tabs {
