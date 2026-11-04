@@ -139,7 +139,10 @@ async function main() {
   // #region keyboard
   // ----- keyboard shortcuts -------------------------------------------------
   document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || isOpen() || calendarOpen() || e.target.closest("input, select, textarea, dialog")) return;
+    // Not while typing, or when the focused control has its own use for the key (Space presses a
+    // button, arrows move a slider or pan a map).
+    if (e.ctrlKey || e.metaKey || e.altKey || isOpen() || calendarOpen()) return;
+    if (e.target.closest("input, select, textarea, dialog, button, a, canvas, [role=slider], [role=tab], [contenteditable]")) return;
     if (tab === "viewer" && e.key === "[") viewer.step("a", -1);
     else if (tab === "viewer" && e.key === "]") viewer.step("a", 1);
     else if (tab === "viewer" && e.key === ",") viewer.stepTime("a", -1);
