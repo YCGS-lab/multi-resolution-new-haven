@@ -217,11 +217,16 @@ export class Viewer {
     });
     this.handle.addEventListener("pointermove", (e) => dragging && move(e));
     this.handle.addEventListener("pointerup", () => (dragging = false));
+    // Slider keys (ARIA APG): arrows 2%, Page Up/Down 10%, Home/End the edges.
+    const STEPS = { ArrowLeft: -0.02, ArrowDown: -0.02, ArrowRight: 0.02, ArrowUp: 0.02, PageDown: -0.1, PageUp: 0.1 };
     this.handle.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        this.swipe = Math.min(1, Math.max(0, this.swipe + (e.key === "ArrowLeft" ? -0.02 : 0.02)));
-        this.update();
-      }
+      if (e.key in STEPS) this.swipe += STEPS[e.key];
+      else if (e.key === "Home") this.swipe = 0;
+      else if (e.key === "End") this.swipe = 1;
+      else return;
+      e.preventDefault();
+      this.swipe = Math.min(1, Math.max(0, this.swipe));
+      this.update();
     });
   }
   // #endregion swipe-handle
@@ -313,7 +318,12 @@ export class Viewer {
 
     const swipe = this.compare && this.mode === "swipe";
     this.handle.hidden = !swipe;
-    if (swipe) this.handle.style.left = `${this.swipe * w}px`;
+    if (swipe) {
+      this.handle.style.left = `${this.swipe * w}px`;
+      const pct = Math.round(this.swipe * 100);
+      this.handle.setAttribute("aria-valuenow", pct);
+      this.handle.setAttribute("aria-valuetext", `${pct}%: A to the left, B to the right`);
+    }
     this.mapEl.classList.toggle("spy", this.compare && this.mode === "spy");
 
     // Titles and keys (HTML), only rebuilt when the selection changes.
