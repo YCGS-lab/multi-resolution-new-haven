@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.8 (2026-11-04)
+
+- NAIP:
+  - the title shows when and where the imagery in view was flown, e.g. "2023, flown
+    5 Jul – 11 Jul 2023 (CT)", with one range per state across a state line;
+  - "Native resolution" gives its resolution (0.3 m, 0.6 m, 1 m; per state where they
+    differ), in the viewer, grid and animation;
+  - the Connecticut-only note is gone. The years offered follow the area in view, as
+    before: each state is flown on its own cycle.
+- Failed tiles:
+  - "N tiles failed to load. Click to retry" requests only the failed tiles again, for
+    image-service and local COG tiles alike;
+  - failed tiles are hatched in red;
+  - a failed ERA5 (Zarr) read no longer re-requests itself endlessly.
+- Empty areas told apart: inside a scene but no data (clouds, water, fill) shows gray dots
+  on white, for products whose date search gives scene footprints (Planetary Computer
+  STAC, NASA CMR); "no scene" stays plain gray; failed tiles are hatched. A key under each
+  map explains them.
+- Animation:
+  - no blink between frames: the frame on screen stays underneath until the next has
+    loaded;
+  - step buttons |◀ ▶|.
+- Live tiles are never requested below a product's minimum zoom (NAIP in a 2-column grid
+  got HTTP 400).
+- Benchmarks of v0.7 against v0.8 live: `docs/benchmarks/2026-11-04.md`.
+
 ## 0.7 (2026-11-04)
 
 - Footer with Yale's required links, as on geospatial.yale.edu: Accessibility at Yale (Yale
