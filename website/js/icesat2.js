@@ -319,8 +319,13 @@ export class Icesat2 {
     this.arrow.hidden = !inside;
     this.arrow.style.transform = `translate(${x}px, ${y}px) rotate(${heading}deg)`;
     this.arrow.style.setProperty("--line", line.color);
-    this.arrow.setAttribute("aria-valuenow", String(Math.round(this.pos)));
-    this.arrow.setAttribute("aria-valuetext", `${(this.pos / 1000).toFixed(2)} km along track`);
+    // The map arrow and the profile are two sliders for the same position along the track.
+    for (const el of [this.arrow, this.canvas]) {
+      el.setAttribute("aria-valuemin", "0");
+      el.setAttribute("aria-valuemax", String(Math.round(line.length_m)));
+      el.setAttribute("aria-valuenow", String(Math.round(this.pos)));
+      el.setAttribute("aria-valuetext", `${(this.pos / 1000).toFixed(2)} km along track`);
+    }
   }
 
   initArrow() {

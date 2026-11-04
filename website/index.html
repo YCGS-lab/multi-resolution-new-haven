@@ -197,7 +197,7 @@
       <section id="icesat2" class="tab-panel" aria-label="ICESat-2 photon profiles" hidden>
         <div class="is2-body">
           <div class="is2-left">
-            <div class="is2-lines" aria-label="Beam passes"></div>
+            <div class="is2-lines" role="group" aria-label="Beam passes"></div>
             <div class="map-frame is2-map-frame">
               <div class="axis axis-left"></div>
               <div class="map" id="is2-map">
@@ -218,9 +218,10 @@
           </div>
           <div class="is2-right">
             <div class="is2-title"></div>
-            <div class="is2-plot"><canvas id="is2-profile" tabindex="0" aria-label="Photon cross-section: click or drag to move the position; wheel to zoom"></canvas></div>
+            <div class="is2-plot"><canvas id="is2-profile" tabindex="0" role="slider" aria-label="Position along the beam, in the photon cross-section" aria-describedby="is2-readout"
+              aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></canvas></div>
             <div class="is2-under">
-              <span class="is2-readout"></span>
+              <span class="is2-readout" id="is2-readout"></span>
               <button type="button" class="btn subtle" id="is2-zoom-reset" disabled title="Whole line (double-click)">Reset zoom</button>
             </div>
             <div class="legend is2-legend-wrap"><div class="lg-title">ATL08 photon class</div><div class="lg-entries is2-legend" style="--ncol:5"></div></div>

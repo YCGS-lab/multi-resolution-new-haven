@@ -241,7 +241,9 @@ export class TimeControl {
         for (let m = 1; m <= 12; m++) {
           const k = `${y}-${String(m).padStart(2, "0")}`;
           const ok = steps.has(k);
-          html.push(`<button type="button" data-k="${k}" class="${k === cur ? "sel" : ""}" ${ok ? "" : "disabled"}>${keyLabel(k, "month", { short: true }).slice(0, 3)}</button>`);
+          html.push(
+            `<button type="button" data-k="${k}" class="${k === cur ? "sel" : ""}" ${ok ? "" : "disabled"} aria-label="${esc(keyLabel(k, "month"))}"${k === cur ? ` aria-current="date"` : ""}>${keyLabel(k, "month", { short: true }).slice(0, 3)}</button>`,
+          );
         }
         html.push("</div>");
       } else {
@@ -259,7 +261,11 @@ export class TimeControl {
           if (which === "end") ok = k >= minEnd && k <= maxEnd;
           else if (win) ok = true; // a window may start on any day
           const cls = [has ? "has" : "", k === (cur && dayOf(cur)) ? "sel" : "", which === "end" && k >= minEnd && k <= (cur ?? "") ? "inrange" : ""].join(" ");
-          html.push(`<button type="button" data-k="${k}" class="${cls}" ${ok ? "" : "disabled"} title="${has ? "Imagery in view" : "No imagery in view"}">${d}</button>`);
+          const isCur = k === (cur && dayOf(cur));
+          const label = `${d} ${keyLabel(view, "month")}${has ? ", imagery in view" : ""}`; // "20 October 2026, …"
+          html.push(
+            `<button type="button" data-k="${k}" class="${cls}" ${ok ? "" : "disabled"} title="${has ? "Imagery in view" : "No imagery in view"}" aria-label="${esc(label)}"${isCur ? ` aria-current="date"` : ""}>${d}</button>`,
+          );
         }
         html.push("</div>");
       }
@@ -347,6 +353,7 @@ function calendarPopup() {
     el.id = "time-popup";
     el.className = "time-popup";
     el.setAttribute("role", "dialog");
+    el.setAttribute("aria-label", "Choose a date");
     el.hidden = true;
     document.body.append(el);
   }

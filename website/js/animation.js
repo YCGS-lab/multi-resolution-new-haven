@@ -483,6 +483,7 @@ export class Animation {
     el.play.setAttribute("aria-pressed", String(this.playing));
     const t = this.frames[this.index];
     el.date.textContent = t ? (steps?.label(t) ?? keyLabel(t, step)) : "—";
+    el.slider.setAttribute("aria-valuetext", t ? `${el.date.textContent} (frame ${this.index + 1} of ${n})` : "No frames");
     el.count.textContent = !p?.time
       ? "This image has no time dimension"
       : this.slot.loadingSteps
