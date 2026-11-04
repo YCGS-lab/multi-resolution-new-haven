@@ -70,10 +70,10 @@ export class TimeControl {
       ${
         w === "fixed"
           ? `<span class="tc-fixed" title="Pre-built for this timestep only"></span>`
-          : `<button type="button" class="icon-btn tc-prev" title="Previous timestep with data in view">&#9664;</button>
+          : `<button type="button" class="icon-btn tc-prev" title="Previous timestep with data in view" aria-label="Previous date with data in view">&#9664;</button>
              ${w === "list" ? `<select class="tc-list" aria-label="${esc(time.label)}"></select>` : `<button type="button" class="tc-date" aria-haspopup="dialog"></button>`}
              ${sub && w === "calendar" ? `<select class="tc-hour" aria-label="Time of day (UTC)"></select>` : ""}
-             <button type="button" class="icon-btn tc-next" title="Next timestep with data in view">&#9654;</button>
+             <button type="button" class="icon-btn tc-next" title="Next timestep with data in view" aria-label="Next date with data in view">&#9654;</button>
              <button type="button" class="tc-latest btn subtle" title="Follow the latest timestep with data in view">Latest</button>`
       }
       ${filters
@@ -84,7 +84,7 @@ export class TimeControl {
             <output></output></label>`,
         )
         .join("")}
-      ${win ? `<button type="button" class="tc-adv btn subtle" aria-expanded="false">Advanced &#9662;</button>` : ""}
+      ${win ? `<button type="button" class="tc-adv btn subtle" aria-expanded="false">Advanced <span aria-hidden="true">&#9662;</span></button>` : ""}
       <span class="tc-status" aria-live="polite"></span>
       ${
         win
@@ -159,7 +159,7 @@ export class TimeControl {
     if (date) {
       const sub = time.step === "hour" || time.step === "time";
       date.textContent = t ? keyLabel(sub ? dayOf(t) : t, sub ? "day" : time.step) : "No date";
-      date.innerHTML += ' <span class="caret">▾</span>';
+      date.innerHTML += ' <span class="caret" aria-hidden="true">▾</span>';
       date.disabled = !steps;
     }
     const hour = $(".tc-hour");
@@ -190,7 +190,7 @@ export class TimeControl {
     if (date2) {
       date2.hidden = !t2;
       date2.textContent = t2 ? keyLabel(t2, time.step) : "";
-      date2.innerHTML += ' <span class="caret">▾</span>';
+      date2.innerHTML += ' <span class="caret" aria-hidden="true">▾</span>';
     }
     this.el.querySelectorAll("[data-option]").forEach((s) => (s.disabled = !t2));
     const status = $(".tc-status");
@@ -286,12 +286,12 @@ export class TimeControl {
       const years = [];
       for (let y = y1; y >= y0; y--) years.push(`<option ${String(y) === view.slice(0, 4) ? "selected" : ""}>${y}</option>`);
       return `<div class="cal-head">
-        <button type="button" class="icon-btn cal-prev-data" title="Previous ${monthly ? "year" : "month"} with data">&#9198;</button>
-        <button type="button" class="icon-btn cal-prev" title="Previous ${monthly ? "year" : "month"}">&#8249;</button>
+        <button type="button" class="icon-btn cal-prev-data" title="Previous ${monthly ? "year" : "month"} with data" aria-label="Previous ${monthly ? "year" : "month"} with data">&#9198;</button>
+        <button type="button" class="icon-btn cal-prev" title="Previous ${monthly ? "year" : "month"}" aria-label="Previous ${monthly ? "year" : "month"}">&#8249;</button>
         <span class="cal-title">${esc(monthly ? "" : title.replace(/ \d{4}$/, ""))}</span>
         <select class="cal-year" aria-label="Year">${years.join("")}</select>
-        <button type="button" class="icon-btn cal-next" title="Next ${monthly ? "year" : "month"}">&#8250;</button>
-        <button type="button" class="icon-btn cal-next-data" title="Next ${monthly ? "year" : "month"} with data">&#9197;</button>
+        <button type="button" class="icon-btn cal-next" title="Next ${monthly ? "year" : "month"}" aria-label="Next ${monthly ? "year" : "month"}">&#8250;</button>
+        <button type="button" class="icon-btn cal-next-data" title="Next ${monthly ? "year" : "month"} with data" aria-label="Next ${monthly ? "year" : "month"} with data">&#9197;</button>
       </div>`;
     };
     const move = (d) => {

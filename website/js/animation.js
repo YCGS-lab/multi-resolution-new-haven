@@ -479,6 +479,7 @@ export class Animation {
     el.play.disabled = el.prev.disabled = el.next.disabled = n < 2;
     el.play.innerHTML = this.playing ? "&#10074;&#10074;" : "&#9654;";
     el.play.title = this.playing ? "Pause (space)" : "Play (space)";
+    // A toggle button: its name stays "Play"; aria-pressed says whether it is playing.
     el.play.setAttribute("aria-pressed", String(this.playing));
     const t = this.frames[this.index];
     el.date.textContent = t ? (steps?.label(t) ?? keyLabel(t, step)) : "—";

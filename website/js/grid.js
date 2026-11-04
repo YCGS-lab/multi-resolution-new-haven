@@ -208,7 +208,7 @@ export class Grid {
       <div class="slot-head">
         <span class="drag-grip" title="Drag to rearrange" aria-hidden="true">⠿</span>
         <div class="picker-host"></div>
-        <button class="icon-btn clear" title="Remove this image">×</button>
+        <button class="icon-btn clear" title="Remove this image" aria-label="Remove this image">×</button>
       </div>
       <div class="time-host"></div>
       <div class="slot-title"></div>

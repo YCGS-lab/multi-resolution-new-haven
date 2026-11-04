@@ -45,8 +45,8 @@
           <div class="control-group">
             <span class="slot-tag tag-a" hidden>A</span>
             <div class="picker-host" id="picker-a"></div>
-            <button class="icon-btn" id="prev-a" title="Previous image in this group ([)">&#9664;</button>
-            <button class="icon-btn" id="next-a" title="Next image in this group (])">&#9654;</button>
+            <button class="icon-btn" id="prev-a" title="Previous image in this group ([)" aria-label="Previous image in this group">&#9664;</button>
+            <button class="icon-btn" id="next-a" title="Next image in this group (])" aria-label="Next image in this group">&#9654;</button>
           </div>
           <div class="time-host" id="time-a"></div>
           <label class="toggle compare-toggle">
@@ -56,10 +56,10 @@
           <div class="control-group compare-controls" hidden>
             <span class="slot-tag tag-b">B</span>
             <div class="picker-host" id="picker-b"></div>
-            <button class="icon-btn" id="prev-b" title="Previous image in this group">&#9664;</button>
-            <button class="icon-btn" id="next-b" title="Next image in this group">&#9654;</button>
+            <button class="icon-btn" id="prev-b" title="Previous image in this group" aria-label="Previous image in this group (B)">&#9664;</button>
+            <button class="icon-btn" id="next-b" title="Next image in this group" aria-label="Next image in this group (B)">&#9654;</button>
             <button class="btn subtle" id="b-same-as-a" title="Compare through time: B = A's image at its previous date">A, earlier</button>
-            <button class="icon-btn" id="swap-ab" title="Swap A and B">&#8646;</button>
+            <button class="icon-btn" id="swap-ab" title="Swap A and B" aria-label="Swap A and B">&#8646;</button>
             <div class="segmented" id="compare-mode" role="radiogroup" aria-label="Comparison mode">
               <button data-mode="swipe" aria-pressed="true" title="Drag the divider to reveal B">Swipe</button>
               <button data-mode="opacity" aria-pressed="false" title="Fade between A and B">Opacity</button>
@@ -81,9 +81,9 @@
             <div class="map-message" hidden></div>
             <div class="map-notice" hidden aria-live="polite"></div>
             <div class="map-buttons">
-              <button id="viewer-zoom-in" title="Zoom in">+</button>
-              <button id="viewer-zoom-out" title="Zoom out">−</button>
-              <button id="viewer-reset" title="Back to the selected place (0)">⤢</button>
+              <button id="viewer-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+              <button id="viewer-zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+              <button id="viewer-reset" title="Back to the selected place (0)" aria-label="Back to the selected place">⤢</button>
             </div>
           </div>
           <div class="axis-corner"></div>
@@ -158,18 +158,18 @@
             <div class="map-message" hidden></div>
             <div class="map-notice" hidden aria-live="polite"></div>
             <div class="map-buttons">
-              <button id="anim-zoom-in" title="Zoom in">+</button>
-              <button id="anim-zoom-out" title="Zoom out">−</button>
-              <button id="anim-reset" title="Back to the selected place">⤢</button>
+              <button id="anim-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+              <button id="anim-zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+              <button id="anim-reset" title="Back to the selected place" aria-label="Back to the selected place">⤢</button>
             </div>
           </div>
           <div class="axis-corner"></div>
           <div class="axis axis-bottom"></div>
         </div>
         <div class="anim-timeline">
-          <button type="button" class="icon-btn" id="anim-prev" title="Previous frame (←)">&#9664;</button>
-          <button type="button" class="icon-btn play" id="anim-play" title="Play (space)" aria-pressed="false">&#9654;</button>
-          <button type="button" class="icon-btn" id="anim-next" title="Next frame (→)">&#9654;&#9654;</button>
+          <button type="button" class="icon-btn" id="anim-prev" title="Previous frame (←)" aria-label="Previous frame">&#9664;</button>
+          <button type="button" class="icon-btn play" id="anim-play" title="Play (space)" aria-label="Play" aria-pressed="false">&#9654;</button>
+          <button type="button" class="icon-btn" id="anim-next" title="Next frame (→)" aria-label="Next frame">&#9654;&#9654;</button>
           <div class="anim-slider-wrap">
             <input type="range" id="anim-slider" min="0" max="0" value="0" aria-label="Frame" />
             <div class="anim-ticks" aria-hidden="true"></div>
