@@ -491,8 +491,19 @@ class FinerCOGLayer extends COGLayer {
   }
 }
 
-/** Draws a failed tile (content {failed: true}): nothing yet. */
-const FAILED_TILE_MODULE = { name: "cogFailedTile", inject: { "fs:DECKGL_FILTER_COLOR": "discard;" } };
+/**
+ * Failed tiles are hatched in red (the map key's "Failed to load"), unlike the gray of areas
+ * with no imagery: diagonal lines in screen space, so they look the same at any zoom and tile
+ * size. For DECKGL_FILTER_COLOR; tiles.js uses it for image-service tiles too.
+ */
+export { hatchGLSL };
+export const FAILED_HATCH_GLSL = `
+  float stripe = mod(gl_FragCoord.x + gl_FragCoord.y, 16.0 * DEVICE_PIXEL_RATIO);
+  color = stripe < 3.0 * DEVICE_PIXEL_RATIO ? vec4(0.745, 0.118, 0.118, 0.85) : vec4(0.745, 0.118, 0.118, 0.12);`;
+const hatchGLSL = () => FAILED_HATCH_GLSL.replaceAll("DEVICE_PIXEL_RATIO", (window.devicePixelRatio || 1).toFixed(2));
+
+/** Draws a failed tile (content {failed: true}). */
+const FAILED_TILE_MODULE = { name: "cogFailedTile", inject: { "fs:DECKGL_FILTER_COLOR": hatchGLSL() } };
 // #endregion finer-cog-layer
 
 /**

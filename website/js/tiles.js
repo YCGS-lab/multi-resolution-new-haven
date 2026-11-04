@@ -29,7 +29,7 @@
 // layers use longitude / latitude (MapView).
 
 import { BitmapLayer, GeoTIFF, SolidPolygonLayer, TileLayer } from "../vendor/deck-gl-raster.js";
-import { cogLayer } from "./cog.js";
+import { cogLayer, hatchGLSL } from "./cog.js";
 import { credential, env } from "./env.js";
 import { cachedGrid, hourKey, zarrArea, zarrGrids } from "./zarr.js";
 
@@ -696,6 +696,18 @@ function fillUrl(url, ctx) {
  */
 export const FAILED = Object.freeze({ failed: true });
 
+/** A failed tile: a BitmapLayer whose pixels are the red hatching of failed tiles (cog.js). */
+class FailedTileLayer extends BitmapLayer {
+  static layerName = "FailedTileLayer";
+
+  getShaders() {
+    const shaders = super.getShaders();
+    return { ...shaders, inject: { ...shaders.inject, "fs:DECKGL_FILTER_COLOR": hatchGLSL() } };
+  }
+}
+let blank = null;
+const blankImage = () => blank ?? (blank = Object.assign(document.createElement("canvas"), { width: 1, height: 1 }));
+
 function liveTileLayer(id, catalog, tr, { loading, props, extent, smooth = false }) {
   return new TileLayer({
     id,
@@ -722,14 +734,15 @@ function liveTileLayer(id, catalog, tr, { loading, props, extent, smooth = false
     // failed ones (never cached) are requested again.
     updateTriggers: { getTileData: loading?.generation ?? 0 },
     renderSubLayers: (p) =>
-      p.data &&
-      p.data !== FAILED &&
-      new BitmapLayer(p, {
-        data: null,
-        image: p.data,
-        bounds: tileBounds(p.tile.bbox),
-        textureParameters: smooth ? undefined : { minFilter: "nearest", magFilter: "nearest" },
-      }),
+      p.data === FAILED
+        ? new FailedTileLayer(p, { data: null, image: blankImage(), bounds: tileBounds(p.tile.bbox) })
+        : p.data &&
+          new BitmapLayer(p, {
+            data: null,
+            image: p.data,
+            bounds: tileBounds(p.tile.bbox),
+            textureParameters: smooth ? undefined : { minFilter: "nearest", magFilter: "nearest" },
+          }),
     ...props,
   });
 }
