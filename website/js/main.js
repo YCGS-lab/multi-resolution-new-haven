@@ -169,7 +169,7 @@ async function main() {
     // Only while the open tab's panel or its map has focus, not page-wide (WCAG 2.1.4); never while
     // typing, or on a control with its own use for the key (Space presses a button, arrows move a
     // slider; on a map, arrows pan it).
-    if (e.ctrlKey || e.metaKey || e.altKey || isOpen() || calendarOpen()) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || isOpen() || calendarOpen() || !(e.target instanceof Element)) return;
     const panel = document.getElementById(tab);
     const onMap = e.target.matches("canvas") && !e.key.startsWith("Arrow");
     const inPanel = panel.contains(e.target) || e.target.id === "main" || (tab === "grid" && !!e.target.closest("#grid-deck"));
