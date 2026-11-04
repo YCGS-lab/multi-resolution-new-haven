@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.1 (2026-11-04)
+
+- Tiler Lambda versions: only the live one is kept (`tiler_keep_versions`, default 1;
+  was 3). Each SnapStart version's cached snapshot is billed around the clock whether or
+  not it is invoked, so an old version cost as much as the live one. Changing the setting
+  prunes right away; rolling back now means redeploying an earlier ref.
+- SnapStart can be turned off per deployment (`tiler_snap_start`, default on everywhere),
+  for a deployment that is rarely used: its first request after a pause then pays a full
+  cold start instead of ~$8/month per 2 GB of cache. Off sets `apply_on = "None"`
+  explicitly (removing the block left SnapStart on).
+
 ## 0.8 (2026-11-04)
 
 - NAIP:

@@ -33,3 +33,8 @@ output "reserved_concurrency" {
   description = "Cap on concurrent executions (-1: unreserved)"
   value       = aws_lambda_function.this.reserved_concurrent_executions
 }
+
+output "snap_start" {
+  description = "SnapStart apply_on: PublishedVersions or None"
+  value       = aws_lambda_function.this.snap_start[0].apply_on
+}

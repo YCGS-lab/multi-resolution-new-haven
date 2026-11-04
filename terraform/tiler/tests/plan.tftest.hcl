@@ -207,6 +207,22 @@ run "plan" {
     error_message = "Budget backstop: $50, and without alert emails only the kill notification"
   }
   # endregion guard-assert
+
+  assert {
+    condition     = alltrue([for m in [module.nasa, module.noaa, module.ecmwf] : m.snap_start == "PublishedVersions"])
+    error_message = "SnapStart should be on for every deployment by default"
+  }
+}
+
+run "snap_start_off_for_one_deployment" {
+  command = plan
+  variables {
+    snap_start = { nasa = true, noaa = true, ecmwf = false }
+  }
+  assert {
+    condition     = module.ecmwf.snap_start == "None" && module.nasa.snap_start == "PublishedVersions" && module.noaa.snap_start == "PublishedVersions"
+    error_message = "snap_start = false must set apply_on = None (removing the block does not turn SnapStart off), leaving the others on"
+  }
 }
 
 run "guard_extra_apis" {

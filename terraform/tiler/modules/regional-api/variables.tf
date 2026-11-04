@@ -44,8 +44,8 @@ variable "snap_start" {
 
 variable "keep_versions" {
   type        = number
-  description = "Published versions to keep (each SnapStart version is billed for its cached snapshot)"
-  default     = 3
+  description = "Published versions to keep, the live one included (each SnapStart version is billed for its cached snapshot). With 1, rolling back means redeploying an earlier ref"
+  default     = 1
 }
 
 variable "environment" {

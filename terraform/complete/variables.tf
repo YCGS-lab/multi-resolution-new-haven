@@ -58,6 +58,18 @@ variable "tiler_reserved_concurrency" {
   default     = { nasa = 60, noaa = 60, ecmwf = 30 }
 }
 
+variable "tiler_snap_start" {
+  description = "Tiler Lambda SnapStart per regional deployment: fast cold starts, but each version's cached snapshot is billed around the clock (see the tiler module)."
+  type        = map(bool)
+  default     = { nasa = true, noaa = true, ecmwf = true }
+}
+
+variable "tiler_keep_versions" {
+  description = "Published tiler Lambda versions to keep per deployment, the live one included."
+  type        = number
+  default     = 1
+}
+
 variable "tiler_throttling_rate_limit" {
   description = "Tiler API Gateway steady-state requests per second, per deployment."
   type        = number

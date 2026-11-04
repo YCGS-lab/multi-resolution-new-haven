@@ -26,6 +26,22 @@ variable "reserved_concurrency" {
   default     = { nasa = 60, noaa = 60, ecmwf = 30 }
 }
 
+variable "snap_start" {
+  type        = map(bool)
+  description = "Lambda SnapStart per deployment: fast cold starts, but each published version's cached snapshot is billed around the clock (memory x ~$0.0000015 per GB-s, ~$8/month for 2 GB) whether or not it is invoked"
+  default     = { nasa = true, noaa = true, ecmwf = true }
+}
+
+variable "keep_versions" {
+  type        = number
+  description = "Published Lambda versions to keep per deployment, the live one included; older ones are deleted after each deploy. With 1, rolling back means redeploying an earlier ref"
+  default     = 1
+  validation {
+    condition     = var.keep_versions >= 1
+    error_message = "keep_versions must be at least 1 (the live version)."
+  }
+}
+
 variable "throttling_rate_limit" {
   type        = number
   description = "API Gateway steady-state requests per second, per deployment"

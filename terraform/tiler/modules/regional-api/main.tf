@@ -105,7 +105,7 @@ resource "aws_lambda_function" "this" {
   architectures = [var.architecture]
   memory_size   = var.memory_size
   timeout       = var.timeout
-  publish       = true # SnapStart only applies to published versions
+  publish       = true # the alias, SnapStart and version pruning all work on published versions
 
   reserved_concurrent_executions = coalesce(var.reserved_concurrency, -1)
 
@@ -116,11 +116,9 @@ resource "aws_lambda_function" "this" {
     })
   }
 
-  dynamic "snap_start" {
-    for_each = var.snap_start ? [1] : []
-    content {
-      apply_on = "PublishedVersions"
-    }
+  # Explicit "None" when off: dropping the block does not turn SnapStart off.
+  snap_start {
+    apply_on = var.snap_start ? "PublishedVersions" : "None"
   }
 
   logging_config {
@@ -172,8 +170,9 @@ resource "terraform_data" "version_active" {
 
 # region prune-versions
 # Delete old published versions (their SnapStart snapshots are billed while they exist).
+# Runs after the alias moves, and again when keep_versions changes.
 resource "terraform_data" "prune_versions" {
-  triggers_replace = [aws_lambda_alias.live.function_version]
+  triggers_replace = [aws_lambda_alias.live.function_version, var.keep_versions]
 
   provisioner "local-exec" {
     interpreter = ["bash", "-c"]
@@ -189,7 +188,9 @@ resource "terraform_data" "prune_versions" {
         --query 'Versions[?Version!=`$LATEST`].Version' --output text \
         | tr '\t' '\n' | sort -n | awk -v keep="$KEEP" '{v[NR]=$0} END {for (i = 1; i <= NR - keep; i++) print v[i]}' \
         | while read -r v; do
-            [ -n "$v" ] && [ "$v" != "$LIVE" ] && aws lambda delete-function --region "$REGION" --function-name "$FN" --qualifier "$v"
+            if [ -n "$v" ] && [ "$v" != "$LIVE" ]; then
+              aws lambda delete-function --region "$REGION" --function-name "$FN" --qualifier "$v"
+            fi
           done
     EOT
   }

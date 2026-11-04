@@ -100,6 +100,8 @@ module "nasa" {
   image_uri              = "${local.repositories.nasa}:${terraform_data.image["nasa"].output}"
   architecture           = local.architecture
   memory_size            = var.lambda_memory["nasa"]
+  snap_start             = var.snap_start["nasa"]
+  keep_versions          = var.keep_versions
   lookup_cache           = true # CMR granule searches
   reserved_concurrency   = lookup(var.reserved_concurrency, "nasa", null)
   throttling_rate_limit  = var.throttling_rate_limit
@@ -123,6 +125,8 @@ module "noaa" {
   image_uri              = "${local.repositories.noaa}:${terraform_data.image["noaa"].output}"
   architecture           = local.architecture
   memory_size            = var.lambda_memory["noaa"]
+  snap_start             = var.snap_start["noaa"]
+  keep_versions          = var.keep_versions
   lookup_cache           = true # GOES scan listings
   reserved_concurrency   = lookup(var.reserved_concurrency, "noaa", null)
   throttling_rate_limit  = var.throttling_rate_limit
@@ -140,6 +144,8 @@ module "ecmwf" {
   image_uri              = "${local.repositories.ecmwf}:${terraform_data.image["ecmwf"].output}"
   architecture           = local.architecture
   memory_size            = var.lambda_memory["ecmwf"]
+  snap_start             = var.snap_start["ecmwf"]
+  keep_versions          = var.keep_versions
   reserved_concurrency   = lookup(var.reserved_concurrency, "ecmwf", null)
   throttling_rate_limit  = var.throttling_rate_limit
   throttling_burst_limit = var.throttling_burst_limit
