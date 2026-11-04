@@ -192,6 +192,18 @@ a {
   background: rgba(255, 255, 255, 0.12);
 }
 
+/* The input has no outline of its own: the pill shows keyboard focus (WCAG 2.4.7) */
+.place-search:has(.ps-input:focus-visible) {
+  outline: 3px solid var(--blue-light);
+  outline-offset: 2px;
+}
+
+.ps-clear:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+  border-radius: 12px;
+}
+
 .ps-clear {
   visibility: hidden;
   border: 0;
