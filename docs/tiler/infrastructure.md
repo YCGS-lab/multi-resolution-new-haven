@@ -7,12 +7,13 @@ distribution.
 | File | What |
 |---|---|
 | `versions.tf` | Required versions and the provider aliases the caller passes in |
-| `variables.tf` | Name prefix, sizing and limits, CORS, price class, secrets |
+| `variables.tf` | Name prefix, sizing and limits, SnapStart and kept versions, CORS, price class, Origin Shield, secrets, cost guard |
 | `deployments.tf` | ECR repositories, the image tag and build, the three `regional-api` instances |
 | `secrets.tf` | Earthdata and CDS secrets, the CloudFront origin token |
 | `cloudfront.tf` | The distribution ([CloudFront](./cloudfront)) |
-| `outputs.tf` | `url`, `distribution_id`, per-deployment details, one example TileJSON URL per preset |
-| `modules/regional-api/` | Lambda function, `live` alias, version pruning, HTTP API |
+| `guard.tf`, `guard/kill.py` | Traffic alarms, kill switch and budget ([cost guard](./guard)) |
+| `outputs.tf` | `url`, `distribution_id`, per-deployment details (with the lookup table and prune function), `cors_origins`, `guard`, one example TileJSON URL per preset |
+| `modules/regional-api/` | Lambda function, `live` alias, version pruning, HTTP API; with `lookup_cache`, the lookup table, its prune Lambda, IAM roles and EventBridge schedule ([lookup cache](./lookup-cache)) |
 | `modules/ecr/` | One ECR repository |
 | `tests/plan.tftest.hcl` | `tofu test` with mocked providers |
 | `examples/test/` | A complete, tagged test deployment |
@@ -24,9 +25,10 @@ flowchart TD
   end
   subgraph region["per region: nasa / noaa / ecmwf"]
     ecr["ECR repository"] --> push
-    push --> fn["Lambda function<br/>image, arm64, SnapStart, publish"]
+    push --> fn["Lambda function<br/>image, arm64, publish,<br/>SnapStart (default)"]
     sec["secret + version<br/>(nasa: Earthdata, ecmwf: CDS)"] --> fn
-    role["IAM role: logs + GetSecretValue"] --> fn
+    role["IAM role: logs + GetSecretValue<br/>+ lookup table (nasa, noaa)"] --> fn
+    ddb["DynamoDB lookup table<br/>+ weekly prune Lambda (nasa, noaa)"] --> fn
     fn --> alias["alias live → newest version"]
     alias --> prune["delete old versions (local-exec)"]
     alias --> api["HTTP API<br/>$default route, throttling, access logs"]
@@ -52,8 +54,13 @@ flowchart TD
   works without. The caller chooses with the `aws.ecmwf` provider's region;
   `/datasets/{id}/latency` shows whether the choice pays off.
 
-Idle Lambda, API Gateway and Secrets Manager cost little, so the price of
-three regions is mostly complexity, which CloudFront hides behind one URL.
+Idle Lambda and API Gateway cost nothing and the secrets little. The
+main idle cost is SnapStart: each deployment's snapshot is billed around
+the clock (~$27/month for the three at their default memory;
+[SnapStart cost](./lambda#snapstart-hooks)), which `snap_start`
+turns off per deployment and `keep_versions` keeps to one version each.
+Otherwise the price of three regions is mostly complexity, which
+CloudFront hides behind one URL.
 One region reading everything would make NASA reads much slower and pay
 transfer on every uncached tile.
 :::
@@ -92,9 +99,13 @@ tagging this repository and bumping `ref` there.
 
 Most variables are sizing and limits: `lambda_memory` per deployment (3008
 MB for NASA, which mosaics HDF5 granules; 2048 MB for the others),
-optional `reserved_concurrency` caps, API Gateway throttling (100 requests/s
-steady, 200 burst, per region), CORS origins, and the CloudFront price
-class (`PriceClass_100`: North America and Europe).
+`reserved_concurrency` caps (60, 60 and 30 by default, at most ~$17/h;
+[cost guard](./guard#reserved-concurrency)), `snap_start` per deployment
+and `keep_versions` ([below](#version-pruning)), API Gateway throttling
+(100 requests/s steady, 200 burst, per region), CORS origins, the
+CloudFront price class (`PriceClass_100`: North America and Europe) and
+`origin_shield` ([CloudFront](./cloudfront#origins)). `guard` and the
+`guard_*` variables configure the [cost guard](./guard).
 
 ## ECR and the image tag
 
@@ -168,8 +179,10 @@ snapshot) that reads it.
 <<< @/../terraform/tiler/modules/regional-api/main.tf#gdal-env [regional-api/main.tf#gdal-env]
 :::
 
-The role may write to its own log group and read only its own region's
-secret. No S3 permissions: the NOAA bucket is public, the CDS store takes an
+The role may write to its own log group, read only its own region's
+secret and, in the NASA and NOAA deployments, get and put items in its own
+[lookup table](./lookup-cache). No S3 permissions: the NOAA bucket is
+public, the CDS store takes an
 API key, and Earthdata S3 access uses temporary credentials that
 titiler-cmr gets from NASA. The GDAL variables are titiler's and
 titiler-cmr's recommended Lambda settings (no directory listing on open,
@@ -188,13 +201,22 @@ reads through GDAL (HLS, ASTER, CHIRPS), not the xarray backends.
 - **Timeout 30 s,** API Gateway's maximum for HTTP APIs, so a slow tile
   fails at the same time in both.
 - **`reserved_concurrent_executions`:** −1 is unreserved; a cap bounds cost.
+- **SnapStart** on published versions, unless `snap_start` is false for the
+  deployment. Off leaves the block out (the provider reads an explicit
+  `None` back as no block, so it would show a change on every plan); each
+  cold start then runs the init, multi-second imports included, instead of
+  restoring a snapshot.
 - **Logs** as JSON, INFO for the app and WARN for the platform, kept 14 days.
 
 ::: warning Design decision: published versions and a `live` alias
 SnapStart only applies to *published* versions, never to `$LATEST`. Every
 change to the image or configuration publishes a version, `live` is moved
-to it, and API Gateway invokes `live`. A manual rollback is pointing `live`
-at an older version; the next apply moves it back.
+to it, and API Gateway invokes `live` (with SnapStart off too: the alias
+and the pruning work the same). By default only the live version is kept,
+so a rollback is an apply with an earlier `ref`; pointing `live` at an
+older version by hand works only if `keep_versions` was raised before that
+version was replaced, and the next apply moves it back
+([roll back](./operations#roll-back)).
 :::
 
 ::: danger Workaround: wait for the published version
@@ -215,11 +237,13 @@ version from its output. Found by the AWS test deployment
 ::: warning Design decision: delete old versions with a provisioner
 Python SnapStart charges for every cached snapshot, i.e. every published
 version while it exists, and OpenTofu does not delete versions it published
-before. After the alias moves, a `local-exec` script keeps the newest 3
-(`keep_versions`) and deletes the rest, never the one `live` points to
-(`awk` rather than `head -n -N`, for macOS). A failure fails the apply after
-the function was updated; AWS's alternative, a scheduled cleanup function,
-is more moving parts.
+before. After the alias moves, a `local-exec` script keeps the newest
+`keep_versions` (default 1: only the live version; `tiler_keep_versions`
+in `terraform/complete`) and deletes the rest, never the one `live` points
+to (`awk` rather than `head -n -N`, for macOS). It runs again when
+`keep_versions` changes, so lowering it prunes at once. A failure fails
+the apply after the function was updated; AWS's alternative, a scheduled
+cleanup function, is more moving parts.
 :::
 
 ### HTTP API <Badge type="tip" text="standard" />
@@ -291,6 +315,12 @@ environment.
 overridden, so no Docker or AWS calls happen. It checks the CloudFront
 route table generated from `datasets.yaml`
 ([CloudFront](./cloudfront#routes-from-the-catalog)), the default origin,
-the function names, and that restricting CORS adds `Origin` to the cache
-key. A mocked plan proves the configuration is consistent and the derived
+the function names, the Origin Shield regions, the default reserved
+concurrency, the [cost guard](./guard)'s thresholds and budget, and
+SnapStart on by default. Further runs change one variable each:
+`snap_start_off_for_one_deployment`, `guard_extra_apis` (alarms on an
+extra API, and the kill switch stops its function), `guard_off` (no guard
+resources), `origin_shield_off`, and
+`cors_restricted_adds_origin_to_cache_key`. A mocked plan proves the
+configuration is consistent and the derived
 values right, not that AWS accepts them.

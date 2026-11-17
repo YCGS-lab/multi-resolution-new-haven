@@ -119,7 +119,14 @@ Gateway event into an ASGI request, and the response back.
 [Lambda SnapStart](https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html)
 runs the initialization once when a version is published, snapshots the
 memory, and starts new environments from the snapshot. For Python it is
-billed per cached snapshot and per restore.
+billed per restore and per cached snapshot: each published version, around
+the clock, while it exists.
+
+### Reserved concurrency {#reserved-concurrency}
+[Reserved concurrency](https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html)
+caps how many instances of a function run at once and sets that many aside
+from the region's account-wide limit. Requests over the cap are throttled
+without running; a cap of 0 stops the function.
 
 ### API Gateway HTTP API {#api-gateway}
 The [HTTP API](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api.html)
@@ -132,11 +139,34 @@ a *cache behavior* routes a path pattern to an *origin*; the *cache key* is
 the part of a request that identifies a cached response; a *CloudFront
 Function* is a small JavaScript function run at the edge on each request.
 
+### Origin Shield {#origin-shield}
+[Origin Shield](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/origin-shield.html)
+is an extra CloudFront cache layer in one region in front of an origin:
+every edge location that misses asks it, so the origin sees one request
+per object instead of one per regional edge cache.
+
 ### ECR, Secrets Manager {#ecr}
 [ECR](https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html)
 is AWS's container registry; Lambda only runs images from ECR in its own
 region. [Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html)
 stores versioned secrets.
+
+### DynamoDB, TTL {#dynamodb}
+[DynamoDB](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html)
+is AWS's serverless key-value database, billed per request and per GB
+stored. With [TTL](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html)
+on, an item whose expiry attribute (epoch seconds) has passed is deleted
+by DynamoDB itself, usually within a few days and at no cost.
+
+### EventBridge Scheduler {#eventbridge-scheduler}
+[EventBridge Scheduler](https://docs.aws.amazon.com/scheduler/latest/UserGuide/what-is-scheduler.html)
+invokes a target, here a Lambda function, on a cron or rate schedule.
+
+### AWS Budgets {#budgets}
+[AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
+compares the account's costs with a monthly amount and notifies by email
+or SNS when actual or forecast spend crosses a threshold. Billing data
+arrives hours late.
 
 ## OpenTofu
 

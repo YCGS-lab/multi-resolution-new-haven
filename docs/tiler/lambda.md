@@ -2,7 +2,8 @@
 
 `ycgs_titiler.handler.handler` is the function Lambda calls (the image's
 `CMD`). Everything else in the module runs once, at initialization, which
-SnapStart snapshots.
+SnapStart snapshots. SnapStart is on by default and can be turned off per
+deployment (`snap_start`); the init then runs at every cold start.
 
 ```mermaid
 sequenceDiagram
@@ -10,6 +11,7 @@ sequenceDiagram
   participant L as Lambda service
   participant I as Init (handler.py import)
   participant R as Restored environment
+  Note over T,R: with SnapStart on (the default)
   T->>L: new image or environment: publish version N
   L->>I: run init once
   I->>I: read secrets (Secrets Manager)
@@ -66,8 +68,10 @@ PNG, are base64-encoded for API Gateway).
 `snapshot_restore_py` ships with the Lambda Python base images and runs
 registered functions after a restore. Ours empties the open-dataset and
 small-variable caches, the GOES listing caches and the obstore clients:
-they hold connections that were open at snapshot time. boto3 reconnects by
-itself. The `ImportError` branch keeps the module importable outside Lambda.
+they hold connections that were open at snapshot time. It also makes the
+[lookup cache](./lookup-cache) create its DynamoDB client anew
+(`lookups.reset()`). boto3 reconnects by itself. The `ImportError` branch
+keeps the module importable outside Lambda.
 
 ::: warning Design decision: a container image with SnapStart
 Upstream titiler and titiler-cmr deploy zip packages, which to fit Lambda's
@@ -77,10 +81,15 @@ limit) and still gets SnapStart, which AWS supports for images built on the
 Lambda Python 3.12+ base images. SnapStart replaces the multi-second import
 of the geospatial stack with a snapshot restore. Points to check:
 
-- **Cost.** Python SnapStart is billed per cached snapshot (per published
-  version, while it exists) and per restore. The module deletes all but the
-  newest 3 versions after each deploy
-  ([version pruning](./infrastructure#version-pruning)).
+- **Cost.** Python SnapStart is billed per restore and per cached snapshot:
+  each published version, while it exists, around the clock whether it is
+  invoked or not (memory × ~$0.0000015 per GB-s, ~$8/month for 2 GB). The
+  module deletes all but the live version after each deploy
+  (`keep_versions`, default 1;
+  [version pruning](./infrastructure#version-pruning)). For a deployment
+  that is rarely used, `snap_start` (`tiler_snap_start` in
+  `terraform/complete`) turns SnapStart off: no snapshot to pay for, and
+  every cold start runs the multi-second init.
 - **Uniqueness.** Anything random created at init is shared by all restored
   environments. Nothing here generates secrets or IDs at init.
 - **Init time.** Init plus snapshot must finish within the publish timeout.
@@ -107,6 +116,10 @@ version. titiler-cmr is not on PyPI, so it is a git dependency on a tag.
 - **Import check as the last build step** (`from ycgs_titiler.handler
   import handler`): a broken import or an invalid `datasets.yaml` fails the
   build, not the deploy.
+
+The same image also runs the [lookup cache](./lookup-cache)'s weekly prune
+job: a second function in the NASA and NOAA deployments with the command
+`ycgs_titiler.prune.handler` (`image_config`), without SnapStart.
 
 ::: warning Design decision: Python 3.14 on arm64
 Python 3.14 is the newest generally available Lambda Python runtime, and

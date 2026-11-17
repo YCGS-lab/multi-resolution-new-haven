@@ -1,9 +1,9 @@
 # Dataset-specific fixes
 
-GOES, SMAP and Black Marble files don't present coordinates the way titiler
-expects. Instead of pre-converting the data, the openers patch the lazily
-opened dataset (scale coordinates, attach a CRS, build a grid), so every
-dataset is still read from the original files on request.
+GOES, SMAP, Black Marble and VIIRS LST files don't present coordinates the
+way titiler expects. Instead of pre-converting the data, the openers patch
+the lazily opened dataset (scale coordinates, attach a CRS, build a grid),
+so every dataset is still read from the original files on request.
 
 ## GOES fixed grid
 
@@ -50,7 +50,10 @@ it keeps titiler-cmr's Earthdata credentials and its cache. Then:
 1. If the group already has `x` and `y` coordinates, nothing changes.
 2. If it has 1-D `lat` / `lon` variables, it is an
    [HDF-EOS5 lat/lon grid](#hdf-eos5-lat-lon-grids).
-3. Otherwise (and if a group was asked for) it opens the root group too
+3. If its dimensions are `YDim` / `XDim` and the parent group has `XDim` /
+   `YDim` variables, it is an
+   [HDF-EOS5 projected grid](#hdf-eos5-projected-grids).
+4. Otherwise (and if a group was asked for) it opens the root group too
    (cached by titiler-cmr: one extra metadata read per file), renames the
    group's dimensions to `x` / `y` by matching their sizes to the root's
    (covers both real dimension names and h5netcdf's `phony_dim_N`), copies
@@ -124,3 +127,30 @@ checks the same grid against the file's metadata
 ::: code-group
 <<< @/../tiler/tests/test_readers.py#latlon-grid [test_readers.py#latlon-grid]
 :::
+
+## HDF-EOS5 projected grids (VIIRS LST) {#hdf-eos5-projected-grids}
+
+VNP21A1D tiles are HDF-EOS5 grids on the sinusoidal projection. The data
+fields sit in `HDFEOS/GRIDS/VIIRS_Grid_Daily_1km_LST21/Data Fields` on
+dimensions `YDim` / `XDim`; the coordinate values (meters) are the `XDim`
+and `YDim` variables of the parent group, and the CF grid-mapping variable
+(`sinusoidal`) is next to the data. `hdfeos_projected_grid` opens the
+parent group too (one extra metadata read per file) and builds a dataset of
+the `(YDim, XDim)` variables on `y` / `x`, with the CRS from the grid
+mapping.
+
+::: danger Workaround: corners and an undecoded fill value
+- **Corners.** `XDim` / `YDim` give each cell's upper-left corner (the
+  first `XDim` is the grid's `UpperLeftPointMtrs`), so they are shifted by
+  half a step to cell centers, as for Black Marble.
+- **Fill value.** The files give it as `_Fillvalue`, which CF decoding
+  doesn't recognise (it expects `_FillValue`), so fill cells would be
+  read as temperatures. The opener masks them: the stored fill, scaled
+  like the data, becomes NaN. Variables are cast to float32 (the scaled 8- and 16-bit integers
+  fit).
+:::
+
+`test_hdfeos_projected_grid` in `tests/test_readers.py` writes a small
+file with that layout (corner coordinates in the grid group, a sinusoidal
+grid mapping next to the data, a `_Fillvalue` of 0) and checks the cell
+centers, the CRS and the masked cells.

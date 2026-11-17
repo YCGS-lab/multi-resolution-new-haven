@@ -20,7 +20,8 @@ Everything else goes to the NOAA region: `/datasets` and `/datasets/{id}`
 Hand-written routes would let a dataset added in the wrong place silently
 go to a region that is slow for it or lacks its credentials. Generated
 routes declare the region once, next to the dataset. CloudFront allows 25
-cache behaviors per distribution by default; there are 10.
+cache behaviors per distribution by default; there are 11 (`/cmr/*` and
+one per dataset).
 :::
 
 The plan test asserts the generated table:
