@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Developer documentation published to GitHub Pages
+  (<https://ycgs-lab.github.io/multi-resolution-new-haven/>) by a GitHub Actions workflow
+  (`.github/workflows/docs.yml`): pull requests build it (snippet and dead-link checks),
+  pushes to `main` deploy it. New page: Build, deploy, test → Documentation site.
+- Docs and README brought up to date with 0.8.2: the tiler's version pruning and SnapStart
+  settings, lookup cache and cost guard, VIIRS daily LST, live data sources (NAIP, Landsat,
+  NISAR, ERA5-Land, Planet), place search, failed-tile retry and the empty-area key,
+  animation and accessibility changes; `docs/issues.md` statuses updated.
+
 ## 0.8.2 (2026-11-04)
 
 - `tiler_snap_start = false` no longer shows a change (and publishes a new Lambda version)
