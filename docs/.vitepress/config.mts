@@ -1,9 +1,14 @@
 import { defineConfig } from "vitepress";
 import { withMermaid } from "vitepress-plugin-mermaid";
 
-// Developer documentation, viewed locally (`npm run dev` in docs/).
+// Developer documentation: locally with `just docs` (or `npm run dev` in docs/),
+// and published to GitHub Pages by .github/workflows/docs.yml, which sets
+// DOCS_BASE to the Pages path (/<repo>/). See build/docs-site.md.
+const repo = "https://github.com/YCGS-lab/multi-resolution-new-haven";
+
 export default withMermaid(
   defineConfig({
+    base: process.env.DOCS_BASE || "/",
     title: "Bowerbird (New Haven at many resolutions)",
     description: "How the data pipeline and the map viewer work",
     lang: "en-US",
@@ -20,6 +25,8 @@ export default withMermaid(
     themeConfig: {
       outline: { level: [2, 3] },
       search: { provider: "local" },
+      socialLinks: [{ icon: "github", link: repo }],
+      editLink: { pattern: `${repo}/edit/main/docs/:path`, text: "Edit this page on GitHub" },
       nav: [
         { text: "Overview", link: "/" },
         { text: "Data pipeline", link: "/pipeline/" },
@@ -108,6 +115,7 @@ export default withMermaid(
             { text: "Deployment (AWS)", link: "/build/deploy" },
             { text: "Website and tiler together", link: "/build/complete" },
             { text: "Fixtures and benchmark", link: "/build/benchmark" },
+            { text: "Documentation site", link: "/build/docs-site" },
           ],
         },
         {
@@ -120,7 +128,8 @@ export default withMermaid(
             { text: "Basemaps and image services", link: "/comparison/services" },
             { text: "Performance", link: "/comparison/performance" },
             { text: "Migration report (PR write-up)", link: "/deck-gl-raster" },
-            { text: "Benchmark results", link: "/benchmarks/2026-10-10" },
+            { text: "Benchmark results (2026-10-10)", link: "/benchmarks/2026-10-10" },
+            { text: "Benchmark results: v0.7 vs v0.8", link: "/benchmarks/2026-11-04" },
           ],
         },
       ],

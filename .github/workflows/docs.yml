@@ -1,0 +1,81 @@
+# Builds the developer documentation (docs/, VitePress) and publishes it to
+# GitHub Pages. Pages include code from across the repository (`<<< @/../…`
+# snippets), so code changes rebuild the docs too. Pull requests only build
+# (snippet check + VitePress, which fails on dead links); pushes to main deploy.
+#
+# One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "justfile"
+      - "scripts/**"
+      - "terraform/**"
+      - "tiler/**"
+      - "website/**"
+      - ".node-version"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "justfile"
+      - "scripts/**"
+      - "terraform/**"
+      - "tiler/**"
+      - "website/**"
+      - ".node-version"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer run waits rather than cancelling one in progress.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - id: pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+      - run: npm ci
+      # Checks every `<<< file#region` snippet, then builds the site.
+      - run: npm run build
+        env:
+          # Pages serves the site under /<repo>/ (base_path is "/<repo>", or "" with a
+          # custom domain); pull requests, which do not deploy, build at "/".
+          DOCS_BASE: ${{ steps.pages.outputs.base_path }}/
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
