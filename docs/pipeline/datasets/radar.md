@@ -1,8 +1,9 @@
 # Radar (NISAR)
 
 **NISAR L2 GCOV (geocoded polarimetric covariance), L-band, frequency A,
-10 m, 2026-07-17 09:59 UTC.** Scripts: `granule.py` (shared),
-`select_granule.py`, `visualize-remote.py`, `create-cog.py`.
+10 m; the figures use 2026-07-17 09:59 UTC, the website any date.** Scripts:
+`granule.py` (shared), `select_granule.py`, `visualize-remote.py`,
+`website-layers.py`.
 
 NISAR is a NASA–ISRO radar satellite. GCOV gives backscattered power for
 HH and HV polarizations (transmit horizontal, receive horizontal or
@@ -13,7 +14,8 @@ composites and the two single polarizations, all in decibels (dB).
 flowchart LR
   SG["select_granule.py<br/>search, rain, coverage"] -->|"granule.json"| G["granule.py<br/>fetch_covariance()"]
   G --> VR["visualize-remote.py"]
-  G --> CC["create-cog.py"]
+  G -. "collection, variables" .-> WL["website-layers.py"]
+  VR -. "importlib:<br/>channels, composites" .-> WL
   T(("titiler-cmr<br/>openveda.cloud")) --> G
 ```
 

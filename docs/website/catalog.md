@@ -15,7 +15,9 @@ The constructor walks the menu tree once:
 - `items` maps a product id (`"landsat/truecolor"`) to the product. Each
   product gets two extra fields: `path`, the labels of its groups (shown in
   the picker button), and `parent`, its group.
-- `order` lists the ids in menu order; the first one is the default image.
+- `order` lists the ids in menu order. The default image is Landsat true
+  color (`landsat/truecolor`, live, no key needed) if it is built, else the
+  first in `order` (`defaultImage` in `main.js`).
 - `sibling(id, ±1)` steps through a product's group, wrapping around: the
   `[` / `]` keys and the arrow buttons use it.
 - `colorbar(p)` and `attributions(p)` pull a product's key and credits from
@@ -32,7 +34,7 @@ thing to understand when reading the map code.
 | System | Units | Used by |
 |---|---|---|
 | **World** | Web Mercator meters from the center of the Greater New Haven extent, y up; `2^zoom` screen pixels per meter | the app's view state, pan/zoom limits, axes, scale bar, swipe position |
-| **Longitude / latitude** | degrees | deck.gl's `MapView`; image-service tiles, landmarks, background, spy lens |
+| **Longitude / latitude** | degrees | deck.gl's `MapView`; image-service tiles, the place marker, background, spy lens |
 | **deck.gl common space** | Web Mercator scaled to 512 units around the world | deck.gl-raster's COG meshes, so the swipe clip bounds of COG layers |
 
 ::: code-group
@@ -50,7 +52,8 @@ thousands of kilometers), which suits the GPU's 32-bit arithmetic when
 deck.gl draws world coordinates directly. See [Map views](./map-views).
 :::
 
-- `lngLatExtent` is the extent in degrees, for the `extent` of tile layers.
+- `lngLatExtent` is the extent in degrees: the bbox of the Greater New Haven
+  starred place (`location.js`).
 - `worldToCommon(v, axis)` converts a world x or y to common space, for
   clipping COG layers in the swipe comparison
   ([overlay props](./viewer-and-grid#comparison-props-per-coordinate-system)).

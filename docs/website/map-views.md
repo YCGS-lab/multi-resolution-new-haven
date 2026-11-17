@@ -1,8 +1,9 @@
 # Map views
 
-`website/js/mapview.js` holds what the Viewer and the Grid share: view-state
-handling, the selected place's marker, the loading message, and the HTML around a map
-(axes, scale bar, title, colorbar or legend).
+`website/js/mapview.js` holds what the maps share (the Viewer, the Grid, the
+Animation and the ICESat-2 tool all import it): view-state handling, the
+selected place's marker, the loading message, the map's accessible name,
+and the HTML around a map (axes, scale bar, title, colorbar or legend).
 
 ## World view state and deck.gl's MapView <Badge type="warning" text="decision" />
 
@@ -30,7 +31,10 @@ places:
   again, so deck.gl uses the clamped state.
 
 `CONTROLLER` turns off rotation and tilting, which the old orthographic view
-did not have and these flat maps do not need.
+did not have and these flat maps do not need. When the reader's system asks
+for less motion (`prefers-reduced-motion`), `REDUCED_MOTION` also turns off
+the maps' inertia, and the Grid scrolls to a new row without smooth
+scrolling.
 
 ::: warning Trade-off
 The extra conversion is a few lines. In exchange, zoom limits, axes, the
@@ -61,11 +65,18 @@ contiguous US for NAIP and 3DEP, the stored area for pre-built COGs) and
 from which zoom it may be drawn (`min_zoom`, a slippy-map zoom: 12 for the
 CT orthoimagery and lidar, 11 for NAIP, 10 for 3DEP, 9 for Planet and NISAR,
 7 for Landsat, 5 for ERA5-Land, ...), so huge high-resolution mosaics are
-never requested for large areas. Outside its coverage or below its zoom, a
-map draws nothing for the product and says why ("Dataset unavailable here",
-"Zoom in to view this dataset"); when the selected timestep has no data in
-view, "Timestep not available here". See
+never requested for large areas. Outside its coverage, a map draws nothing
+for the product and says why ("Dataset unavailable here"); when the
+selected timestep has no data in view, "Timestep not available here". See
 [Time, live data and credentials](./time#why-an-image-is-not-drawn).
+
+The zoom test allows half a level: "Zoom in to view this dataset" appears
+only below `min_zoom − 0.5` (`slot.js`). Between the two, a live layer's
+`TileLayer` gets `minZoom` and, without a coverage box, the world as its
+`extent`, so deck.gl loads `min_zoom` tiles there instead of coarser ones
+that the service would refuse (NAIP answered HTTP 400 below z11 in a
+2-column grid before 0.8). The animation's pre-loading (`prefetchTiles`)
+clamps its tile zoom to `min_zoom` the same way.
 
 ## Loading state <Badge type="tip" text="standard" />
 
@@ -75,8 +86,13 @@ view, "Timestep not available here". See
 
 Every tile request calls `start()` and `end(error)`. After 250 ms with
 requests pending, "Loading…" appears; failures are counted and reported. The
-delay avoids a flicker on fast loads. COG, ArcGIS and XYZ layers all report
+delay avoids a flicker on fast loads. COG layers, the live tile layers
+(`liveTileLayer`: ArcGIS, Planetary Computer, titiler-cmr, the tiler, and
+XYZ templates with a time or a key, such as Planet) and Zarr reads report
 through it, and the benchmark uses it to detect when a map has settled.
+Plain street-map XYZ layers (`xyzLayers`: OpenStreetMap, Esri, USGS) do
+not: their tiles neither show "Loading…" nor count as failures, and a retry
+does not touch them.
 
 Failures stay counted until a retry: "N tiles failed to load. Click to
 retry" is a button. `retry()` bumps `generation`, which every tile layer
@@ -93,6 +109,20 @@ Three kinds of empty map area look different:
 | Failed to load | red diagonal hatching (screen space) | tiles kept as `FAILED` / `{failed: true}` until a retry |
 | No data in scene (clouds, water, fill) | gray dots on white | the footprints of the scenes drawn (STAC, CMR), under each loaded tile |
 | No scene | the background gray | everything else, and every empty area of products without footprints |
+
+::: code-group
+<<< @/../website/js/cog.js#empty-area-patterns [website/js/cog.js#empty-area-patterns]
+:::
+
+Both patterns are a few lines of GLSL added to a layer's
+`DECKGL_FILTER_COLOR` hook, in screen space (`gl_FragCoord`), so they look
+the same at any zoom and tile size. Failed COG tiles use
+`FAILED_TILE_MODULE` in their render pipeline
+([COG layers](./cog-layers#failed-tiles-and-retries)); failed live tiles are
+a `FailedTileLayer`, and scene footprints a `FootprintLayer`, both in
+`tiles.js` ([Image-service layers](./image-services#live-tile-layers)). The
+footprints come from the date search: Planetary Computer STAC items or NASA
+CMR granules ([Time](./time#which-timesteps-have-data-in-view)).
 
 The key under the map (`keyHTML`) explains them for products with
 footprints.
@@ -112,6 +142,19 @@ or a tiny box), or the catalog's extent when no place is selected.
 The landmark labels of earlier versions (New Haven's, with a Labels toggle)
 are gone: the street maps name places better, everywhere. The figures still
 draw them (`data/landmarks.json`, `render.py`).
+
+## The map's name <Badge type="tip" text="standard" />
+
+::: code-group
+<<< @/../website/js/mapview.js#map-label [website/js/mapview.js#map-label]
+:::
+
+deck.gl's canvas is a tab stop: the arrow keys pan it, `+` and `−` zoom.
+`labelMap` gives it a role and a name from what it shows, as MapLibre does,
+so a screen reader announces the image and its time, the selected place,
+and "Arrow keys pan, plus and minus zoom." The Viewer, the
+Grid (one name for its shared canvas) and the Animation call it on every
+redraw; it only touches the DOM when the name changes.
 
 ## Axes, scale bar and keys <Badge type="tip" text="standard" />
 

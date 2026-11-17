@@ -1,8 +1,10 @@
 # Image-service layers
 
 `website/js/tiles.js` turns a product into deck.gl layers, and implements the
-two kinds of layer that read live services: ArcGIS ImageServers and XYZ map
-tiles.
+layers that read live services: tiled ones (ArcGIS ImageServers, Planetary
+Computer mosaics, titiler-cmr, this repository's tiler, XYZ map tiles) and
+ERA5-Land's Zarr grids. The services themselves, and how a timestep reaches
+them, are on [Time, live data and credentials](./time#live-sources).
 
 ## One deck.gl layer per product layer <Badge type="warning" text="decision" />
 
@@ -17,24 +19,51 @@ comparison settings in the coordinates each kind of layer uses: `"common"`
 for COG layers, `"lnglat"` for the rest. See
 [comparison props](./viewer-and-grid#comparison-props-per-coordinate-system).
 
-## ArcGIS ImageServers
+## Live tile layers <Badge type="warning" text="decision" />
 
-Used by the CT orthoimagery, NAIP, CT lidar and 3DEP. A deck.gl `TileLayer`
-splits the map into 512 × 512-pixel Web Mercator tiles. For each tile it
-asks the service for exactly that box, colors the result on the CPU, and
-draws it as a bitmap.
+Every tiled live source is drawn the same way. A deck.gl `TileLayer` splits
+the map into Web Mercator tiles; for each tile it asks the source for
+exactly that box, colors the result on the CPU, and draws it as a bitmap.
 
 ::: code-group
 <<< @/../website/js/tiles.js#arcgis-layer [website/js/tiles.js#arcgis-layer]
 :::
 
+- **`tileRenderer`** describes a source for one time context: a cache key
+  prefix, the tile size, the deepest tile zoom, and `render(index, signal)`,
+  which returns the tile's image (or `null` when it is empty). There is one
+  per source type: ArcGIS, Planetary Computer mosaics, titiler-cmr, the
+  tiler, and XYZ templates with a time or a key (Planet). The animation's
+  pre-loading (`prefetchTiles`) uses the same renderers.
+- **`liveTileLayer`** wraps a renderer in a `TileLayer`. Every tile goes
+  through the shared tile cache (`cachedTile`: 1500 rendered tiles, least
+  recently used dropped; failed and aborted renders are not kept) and
+  reports to the map's [loading state](./map-views#loading-state).
 - **Tile size and zoom.** 512-pixel tiles, one zoom level finer on high-DPI
   screens (`zoomOffset`), so a tile pixel is about one device pixel. The
   deepest tile zoom is where tile pixels match the source's native size.
   Beyond it, tiles are scaled up (nearest neighbor), not re-requested.
+  Below the product's `min_zoom`, no tiles are requested
+  ([Pan and zoom limits](./map-views#pan-and-zoom-limits)).
 - **Bitmaps** are drawn with nearest-neighbor filtering, so native pixels
   stay sharp blocks.
 - **`maxRequests: 8`** concurrent tile loads, as before the migration.
+- **Failed tiles** are kept as `FAILED` and drawn as a `FailedTileLayer`: a
+  `BitmapLayer` hatched in red by a shader hook. A retry bumps the
+  `getTileData` update trigger; deck.gl reloads the tiles in view, the
+  loaded ones straight from the tile cache.
+- **Scene footprints.** For products whose date search returns footprints
+  (STAC, CMR), the bottom layer draws them under each loaded tile as a
+  `FootprintLayer` (gray dots on white), so "no data in scene" is told
+  apart from "no scene". See [Map views](./map-views#loading-state) for the
+  three looks, and [Viewer, compare and grid](./viewer-and-grid#empty-areas-in-comparisons)
+  for how they behave in comparisons.
+
+## ArcGIS ImageServers
+
+Used by the CT orthoimagery, CT lidar and 3DEP. (NAIP is read from a
+[Planetary Computer mosaic](./time#planetary-computer-mosaics), not an
+ArcGIS service.)
 
 ::: code-group
 <<< @/../website/js/tiles.js#arcgis-request [website/js/tiles.js#arcgis-request]
@@ -72,10 +101,12 @@ and left as NaN.
 <<< @/../website/js/tiles.js#cpu-hillshade [website/js/tiles.js#cpu-hillshade]
 :::
 
-This is the old renderer's coloring code, kept for ArcGIS tiles. It applies
-the [render spec](/pipeline/website-data#render-specs) pixel by pixel in
-JavaScript: expressions (compiled once with `new Function`), stretches,
-colormaps, categorical tables, and hillshades.
+This is the old renderer's coloring code, kept for every raw live source:
+ArcGIS tiles here, and, through `toImage`, the NPY tiles of Planetary
+Computer mosaics, titiler-cmr and the tiler, and ERA5-Land's Zarr grids. It
+applies the [render spec](/pipeline/website-data#render-specs) pixel by
+pixel in JavaScript: expressions (compiled once with `new Function`),
+stretches, colormaps, categorical tables, and hillshades.
 
 ::: warning Design decision: hillshades need a one-pixel border
 A hillshade needs each pixel's neighbors. When the spec computes one
@@ -84,7 +115,7 @@ pixel larger on each side (`pad = 1`). The border is cropped after coloring.
 Shading is then seamless across tile edges.
 :::
 
-::: warning Not migrated: GPU coloring for ArcGIS tiles
+::: warning Not migrated: GPU coloring for live tiles
 These tiles are still colored on the main thread. They could use
 deck.gl-raster's `RasterTileLayer` and the same generated shaders as COGs.
 The obstacle is the hillshade border: `RasterTileLayer` maps each tile's
@@ -95,7 +126,11 @@ specs must be made in both.
 
 ## XYZ map tiles
 
-The street maps and the ICESat-2 basemap.
+The street maps (OpenStreetMap, Esri, USGS topo), also the ICESat-2 tool's
+default basemaps. (Its basemap drop-down also offers the CT lidar and CT
+orthoimagery ArcGIS layers, at 2023.) XYZ templates with `{time:...}` or
+`{credential:...}` (Planet basemaps) are live tile layers
+([above](#live-tile-layers)), not these.
 
 ::: code-group
 <<< @/../website/js/tiles.js#xyz-layers [website/js/tiles.js#xyz-layers]
@@ -107,6 +142,9 @@ design size (256 CSS pixels), so the labels stay readable at every zoom.
 They are scaled smoothly, since they contain text. `desaturate` is
 `BitmapLayer`'s own option. Lightening (`255 − (1 − l)(255 − v)`) is the
 same as a white layer of opacity `l` on top, which is how it is drawn.
+
+Unlike the live tile layers, these do not report to the map's loading
+state: no "Loading…", no failure count, no retry.
 
 ::: tip Standard practice
 This is how deck.gl's documentation draws raster map tiles. The old

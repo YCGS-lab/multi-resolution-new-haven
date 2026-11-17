@@ -4,7 +4,8 @@ The tiler renders map tiles on request from scientific raster data that a
 browser cannot read itself: NetCDF and HDF5 granules in NASA's and NOAA's
 S3 buckets, a Zarr store behind an API key, COGs served without CORS
 headers. The [map viewer](/website/time#this-repository-s-tiler) uses it for
-the live, cloud-only datasets (SMAP, Black Marble, GOES LST, CHIRPS); its
+the live, cloud-only datasets (SMAP, Black Marble, VIIRS LST daily, GOES
+LST, CHIRPS); its
 other presets (NISAR, HLS, GOES imagery, ERA5-Land, ASTER) can be used by
 any map client.
 
@@ -33,11 +34,11 @@ GET /datasets/smap-l4/raw/tiles/WebMercatorQuad/6/19/23.npy?datetime=2026-07-30T
 
 | Path | What |
 |---|---|
-| `tiler/src/ycgs_titiler/` | The Python service: `datasets.yaml` (the presets), `presets.py`, `timeres.py`, `router.py`, `readers.py`, `main.py`, `handler.py`, `settings.py` |
+| `tiler/src/ycgs_titiler/` | The Python service: `datasets.yaml` (the presets), `presets.py`, `timeres.py`, `router.py`, `readers.py`, `main.py`, `handler.py`, `settings.py`; the lookup cache: `lookups.py`, `granules.py`, `prune.py`, `prefill.py` |
 | `tiler/tests/` | pytest, on synthetic files (no network, no credentials) |
 | `tiler/Dockerfile`, `pyproject.toml`, `uv.lock` | The Lambda container image |
 | `tiler/serve-local.sh` | Run it locally with your own credentials |
-| `terraform/tiler/` | OpenTofu module: three regional Lambda + HTTP API deployments, image build, secrets, CloudFront |
+| `terraform/tiler/` | OpenTofu module: three regional Lambda + HTTP API deployments, image build, secrets, CloudFront, lookup cache tables, cost guard |
 | `terraform/tiler/examples/test/` | A complete, tagged test deployment of the module |
 | `scripts/aws-tests/tiler.sh`, `tiler-smoke.sh` | Apply the test deployment, smoke-test it through CloudFront, destroy it |
 
@@ -116,7 +117,7 @@ sequenceDiagram
     T->>D: open lazily, read only the needed chunks
     D-->>T: bytes
     T-->>P: PNG / TIFF / NPY
-    P-->>CF: + Cache-Control (1 day if the time is fixed, 60 s for "latest")
+    P-->>CF: + Cache-Control (CloudFront: a year if the time is fixed and settled,<br/>1 day if fixed but recent, 60 s for "latest")
     CF-->>B: tile (and cached)
   end
 ```
@@ -129,12 +130,16 @@ sequenceDiagram
 | [Time resolution](./time) | Turning a requested time into backend parameters, five ways | `timeres.py` |
 | [Request rewriting](./requests) | `/datasets/...` → titiler, the parameter allowlist, caching, TileJSON | `router.py` |
 | [Readers](./readers) | Opening Zarr / NetCDF / HDF5 by URL, credentials, variables and time steps as bands | `readers.py` |
-| [Dataset-specific fixes](./fixes) | GOES fixed grid, SMAP's grouped HDF5, Black Marble's HDF-EOS5 grid | `readers.py` |
+| [Dataset-specific fixes](./fixes) | GOES fixed grid, SMAP's grouped HDF5, Black Marble's and VIIRS LST's HDF-EOS5 grids | `readers.py` |
 | [Application](./app) | FastAPI app, backends, middleware, the CloudFront check | `main.py`, `settings.py` |
 | [Lambda and image](./lambda) | Handler, secrets, SnapStart, container image | `handler.py`, `Dockerfile` |
 | [Infrastructure](./infrastructure) | The OpenTofu module: providers, regional APIs, image build, secrets | `terraform/tiler/` |
 | [CloudFront](./cloudfront) | Routes from the catalog, cache policy, origins | `cloudfront.tf` |
+| [Lookup cache](./lookup-cache) | CMR searches and GOES listings stored in DynamoDB, the weekly prune job, pre-filling | `lookups.py`, `granules.py`, `prune.py`, `prefill.py` |
+| [Cost guard](./guard) | Reserved concurrency, traffic alarms, the kill switch, the budget | `guard.tf`, `guard/kill.py` |
 | [Running and testing](./operations) | Local run, tests, the AWS test, deploying, common changes | `serve-local.sh`, `tests/`, `scripts/aws-tests/` |
+| [Evaluation: tile cache](./tile-cache-evaluation) | Whether to store rendered tiles beyond CloudFront | – |
+| [Evaluation: Icechunk store](./icechunk-evaluation) | Whether to cache the data instead of the images | – |
 
 Terms (CMR, ARCO, SnapStart, ephemeral variables, ...) are in the
 [tiler glossary](./glossary).
@@ -150,7 +155,7 @@ Terms (CMR, ARCO, SnapStart, ephemeral variables, ...) are in the
 | Own multi-variable xarray reader | titiler.xarray reads one variable; GOES composites and ERA5 differences need several bands | Several requests per tile | [Readers](./readers#stacking-into-bands) |
 | Dataset quirks fixed in the opener | Read the original files on request | Pre-convert the data | [Fixes](./fixes) |
 | `/xarray` and `/cog` open allow-listed URLs only | No open proxy; the CDS key only goes to the CDS host | Any URL | [Readers](./readers#the-url-allowlist) |
-| Container image with SnapStart | No 250 MB limit; no multi-second import on cold starts | Upstream's zip with a custom GDAL | [Lambda and image](./lambda) |
+| Container image with SnapStart (on by default, off per deployment) | No 250 MB limit; no multi-second import on cold starts | Upstream's zip with a custom GDAL | [Lambda and image](./lambda) |
 | Secrets as ephemeral variables and write-only attributes | Values never enter state or plan files | Values in state | [Infrastructure](./infrastructure#secrets) |
 | Shared-secret header instead of an authorizer | Only CloudFront should reach the APIs; the data is public | Authorizer, WAF, function URLs + OAC | [Application](./app#edgemiddleware) |
 | CloudFront routes generated from `datasets.yaml` | One source of truth for which region serves a dataset | Hand-written routes | [CloudFront](./cloudfront#routes-from-the-catalog) |

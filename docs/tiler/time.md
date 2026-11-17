@@ -7,7 +7,7 @@ are laid out, so each dataset declares one of five **time kinds** in
 
 | Kind | Data layout | `datetime` becomes | Datasets |
 |---|---|---|---|
-| `granule` | Many files, found through CMR | CMR `temporal` filter (titiler-cmr searches and mosaics) | NISAR, SMAP, HLS, Black Marble |
+| `granule` | Many files, found through CMR | CMR `temporal` filter (titiler-cmr searches and mosaics) | NISAR, SMAP, HLS, Black Marble, VIIRS LST |
 | `dimension` | One store with a time dimension | `sel=time=nearest::T`, a lazy selection | ERA5-Land |
 | `scan` | One file per satellite scan, named by its start time | The S3 URL of the nearest scan | GOES-19 ABI, GOES-19 LST |
 | `template` | One file per step at a predictable URL | That URL | CHIRPS |
@@ -59,7 +59,10 @@ same problem in its [Black Marble download](/pipeline/datasets/water-and-lights#
 
 Listing available times (`/datasets/{id}/times`) queries the CMR granule
 search directly over the catalog's New Haven `aoi`: one HTTPS request, no
-data read.
+data read. Windows that ended more than 7 days ago (settled) go through the
+[lookup cache](./lookup-cache) (kind `cmr-times`), so the same query is
+answered from DynamoDB for 90 days; recent windows, still being ingested,
+are asked every time.
 
 ::: tip
 A client that already knows the granule can pass `granule_ur` and omit
@@ -98,8 +101,10 @@ GOES-19 writes one NetCDF file per product, mode and scan under
   hours) and takes the newest scan. Such responses are not *pinned* and are
   cached for 60 s only ([caching](./requests#caching)).
 - **Caching:** listings of hours that ended more than 15 minutes ago never
-  change, so they are cached for the life of the container; more recent
-  hours for 30 s.
+  change, so they are cached for the life of the container and in the
+  [lookup cache](./lookup-cache) (kind `goes-hour`, 90 days), which a new
+  execution environment reads instead of listing again; more recent hours
+  for 30 s.
 
 ::: warning Design decision: list S3 instead of keeping an index
 The scan time could be computed from the scan schedule, but scans shift by

@@ -15,6 +15,7 @@ vendor:
   cd scripts/website/vendor && npm ci && npm run build
 
 # Developer documentation (VitePress) at http://localhost:5173/
+# (published at https://ycgs-lab.github.io/multi-resolution-new-haven/ by .github/workflows/docs.yml)
 docs:
   cd docs && npm ci && npm run dev
 

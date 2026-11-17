@@ -29,7 +29,9 @@ width follows from the 16:9 shape.
 
 ::: warning Design decision: one projection, fixed grids
 - **Web Mercator (EPSG:3857) everywhere.** It is the projection of web maps,
-  so the website never reprojects. The cost is a scale factor:
+  so the website never reprojects its pre-built COGs (only ERA5-Land's
+  lon/lat Zarr grid is drawn from another projection, by the browser). The
+  cost is a scale factor:
   `merc_scale = 1 / cos(lat)` Mercator meters per ground meter (1.33 here).
   Every conversion between "ground meters" and grid units goes through it.
   It is nearly constant across a 12 km view.
@@ -71,8 +73,10 @@ really is. Nearest neighbor is the only choice that keeps pixel footprints.
 
 ## Grids for the website <Badge type="warning" text="decision" />
 
-The website shows one extent, Greater New Haven, at any zoom, so its data
-are stored on grids over that extent (`scripts/common/web.py`). A `Grid` is
+The website's pre-built COGs cover one extent, Greater New Haven, at any
+zoom, so they are stored on grids over that extent (`scripts/common/web.py`).
+Live layers (image services, tiles, Zarr) cover the US or the world and are
+not stored at all. A `Grid` is
 defined by its ground pixel size at the extent center:
 
 ::: code-group
@@ -85,7 +89,8 @@ therefore identical, whichever dataset made them.
 
 ### Fine grids for the website
 
-Data coarser than 30 m (VIIRS, GOES, SMAP, CHIRPS, ERA5-Land, PRISM, ASTER)
+Data coarser than 30 m (VIIRS LST, VIIRS Black Marble, GOES, SMAP, CHIRPS,
+PRISM, ASTER)
 are not stored at their native size:
 
 ::: code-group

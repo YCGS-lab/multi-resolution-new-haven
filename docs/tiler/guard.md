@@ -70,6 +70,20 @@ The alarms sum the CloudFront metrics of the tiler's distribution and
 metrics are only in us-east-1, so the guard lives there (the module checks
 that its default provider is us-east-1).
 
+::: code-group
+<<< @/../terraform/tiler/variables.tf#guard-variables [variables.tf#guard-variables]
+<<< @/../terraform/tiler/guard.tf#guard-alarms [guard.tf#guard-alarms]
+<<< @/../terraform/tiler/guard.tf#guard-budget [guard.tf#guard-budget]
+:::
+
+Each threshold is per hour in the variables and per 5-minute period in
+the alarm; the kill alarms need every period of `guard_kill_minutes` above
+it. The plan test checks the defaults:
+
+::: code-group
+<<< @/../terraform/tiler/tests/plan.tftest.hcl#guard-assert [tests/plan.tftest.hcl#guard-assert]
+:::
+
 ::: warning Design decision: alarms on usage, a budget only as backstop
 Billing data reaches Budgets hours late (often 8-24 h), which at a flood's
 rate is a large bill before it fires. CloudFront's metrics arrive within
@@ -82,7 +96,8 @@ slow leak that never crosses an hourly threshold.
 This is a linked account in an AWS Organization, which can't use
 cost-allocation tags unless the management account activates them. So by
 default the budget filters by service (CloudFront, Lambda, API Gateway,
-DynamoDB) **account-wide**: every deployment of this app, and anything
+DynamoDB, and in `terraform/complete` also Amazon Location Service)
+**account-wide**: every deployment of this app, and anything
 else in the account using those services. With the `Service` tag activated,
 set `guard_budget_filters = { TagKeyValue = ["user:Service$<name>-tiler", ...] }`
 for a per-deployment budget.
@@ -116,5 +131,7 @@ go to the same addresses directly.
 ### Cost
 
 Under $1/month: three alarms at $0.10 per metric per month (each sums two
-distributions' metrics: ~$0.60), the kill Lambda only when it runs, and SNS
-and the budget within their free tiers.
+distributions' metrics: ~$0.60), two more on the place search's API in
+`terraform/complete` with `places` on (`warn-api`, `kill-api`: ~$0.80 in
+all), the kill Lambda only when it runs, and SNS and the budget within
+their free tiers.

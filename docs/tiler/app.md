@@ -11,6 +11,9 @@ variables set by OpenTofu decide what each copy does:
 | `YCGS_SECRET_ARNS` | Earthdata secret | – | CDS secret |
 | `TITILER_CMR_EARTHDATA_S3_DIRECT_ACCESS` | `TRUE` | – | – |
 | `YCGS_ORIGIN_VERIFY` | shared CloudFront secret | same | same |
+| `YCGS_CORS_ORIGINS`, `TITILER_CMR_CORS_ORIGINS` | `cors_origins`, comma-separated (ours, titiler-cmr's) | same | same |
+| `YCGS_LOOKUP_TABLE` | DynamoDB table of the [lookup cache](./lookup-cache) | its own table | – |
+| `YCGS_SECRET_VERSION` | Earthdata secret version (not read: a new value publishes a new version) | – | CDS secret version |
 
 titiler-cmr is not even imported outside the NASA region.
 
@@ -118,6 +121,11 @@ headers functions may set; it is only trusted when the secret matched.
 titiler-cmr's whole app is mounted under `/cmr`, with its routes, OpenAPI
 docs and middleware as upstream wrote them, plus:
 
+- **Cached granule searches.** The `/xarray` and `/rasterio` factories
+  (and the extra one below) get `CachedCMRBackend` instead of titiler-cmr's
+  backend: it searches CMR once per parent tile, through the
+  [lookup cache](./lookup-cache), and picks each tile's granules from that
+  list.
 - **An extra factory at `/xarray-grouped`**: titiler-cmr's
   `CMRTilerFactory` with `GroupedXarrayGranuleReader`
   ([fixes](./fixes#grouped-hdf5)) and the dependencies of titiler-cmr's own

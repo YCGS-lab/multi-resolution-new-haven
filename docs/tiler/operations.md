@@ -42,6 +42,9 @@ uv run ruff check . && uv run ruff format --check .
 
 cd terraform/tiler
 tofu init && tofu test        # plan with mocked providers
+
+cd terraform/complete
+tofu init && tofu test        # the same for the tiler + website stack
 ```
 
 - **`test_presets.py`** resolves every render of the real `datasets.yaml`
@@ -53,7 +56,17 @@ tofu init && tofu test        # plan with mocked providers
   allowlist and the CDS key's scope.
 - **`test_app.py`** exercises the whole app through FastAPI's `TestClient`
   ([application](./app#tests)).
-- **`tests/plan.tftest.hcl`**: see [plan tests](./infrastructure#plan-tests).
+- **`test_lookups.py`** and **`test_prefill.py`** cover the
+  [lookup cache](./lookup-cache): stored and recomputed entries, the
+  parent-tile granule search, GOES hours, the prune job, and pre-fill keys
+  that match real tile requests.
+- **`test_guard_kill.py`** runs the [cost guard](./guard)'s kill switch
+  (`terraform/tiler/guard/kill.py`) and **`test_places.py`** the website's
+  place search (`terraform/places/handler.py`), both with boto3 stubbed.
+- **`terraform/tiler/tests/plan.tftest.hcl`**: see
+  [plan tests](./infrastructure#plan-tests).
+  `terraform/complete/tests/plan.tftest.hcl` checks the wiring of the
+  complete stack ([`terraform/complete`](/build/complete)).
 
 `conftest.py` allows `file:///` URLs through the reader's allowlist and
 writes the synthetic files: an hourly Zarr store shaped like the ERA5-Land
@@ -64,6 +77,7 @@ ARCO store and a two-variable NetCDF.
 ```sh
 scripts/aws-tests/tiler.sh            # apply, smoke test, destroy, sweep (~45 min)
 scripts/aws-tests/tiler.sh --keep     # keep it, e.g. to point the website at it
+scripts/aws-tests/destroy.sh tiler-<run-id>   # later: destroy a kept run, then sweep
 ```
 
 `tiler.sh` applies `terraform/tiler/examples/test` (the module with
@@ -123,7 +137,15 @@ it ([secrets](./infrastructure#secrets)).
 
 ### Roll back
 
-Point `live` at a previous published version (the 3 newest are kept):
+By default only the live version exists (`keep_versions = 1`), so roll
+back by applying the previous tag: set the earlier `ref` and apply. If
+that image is still among the 10 each ECR repository keeps, nothing is
+rebuilt.
+
+To be able to switch back faster, raise `keep_versions` (`tiler_keep_versions`
+in `terraform/complete`) *before* the deploy you may want to undo; each
+kept SnapStart version is billed for its snapshot. Then point `live` at the
+older version:
 
 ```sh
 aws lambda update-alias --function-name <name>-nasa --name live --function-version N
@@ -140,8 +162,16 @@ corrected, purge it in this order, so CloudFront doesn't refill from a
 stale granule list:
 
 1. **Lookup cache** (CMR and GOES datasets): run the prune job of the
-   dataset's deployment. It recomputes every settled entry and deletes the
-   ones whose result changed ([lookup cache](./lookup-cache#invalidation-and-the-prune-job)).
+   dataset's deployment (`prune_function` in `tofu output deployments`):
+
+   ```sh
+   aws lambda invoke --region <region> --function-name <prune_function> --cli-read-timeout 900 out.json
+   ```
+
+   It runs for up to 15 minutes (hence the read timeout: the CLI would
+   otherwise retry after 60 s), recomputes every settled entry and deletes
+   the ones whose result changed
+   ([lookup cache](./lookup-cache#invalidation-and-the-prune-job)).
 2. **CloudFront**: invalidate the dataset's path, which drops every time
    and render of it at the edges and in Origin Shield:
 

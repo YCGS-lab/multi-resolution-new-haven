@@ -103,10 +103,10 @@ since 2013.** Scripts: `select_scene.py`, `scene.py`, `download.py`,
 flowchart LR
   SS["select_scene.py"] -->|"scene.json"| D["download.py<br/>L1 pan, AWS"]
   SS --> VR["visualize-remote.py<br/>L2 via Planetary Computer"]
-  SS --> CC["create-cog.py"]
+  SS --> CC["create-cog.py<br/>pan COG"]
   D -->|"pan .tif"| V["visualize.py"]
   D --> CC
-  VR -. "importlib:<br/>bands, composites" .-> CC
+  VR -. "importlib:<br/>bands, composites" .-> WL["website-layers.py<br/>live L2"]
 ```
 
 `scene.py` holds the dataset name and loads `scene.json`, the shared state

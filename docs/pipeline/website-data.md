@@ -3,12 +3,17 @@
 The website draws every image itself from **data plus instructions**:
 
 - **Sources**: where the values come from. A local COG written by
-  `create-cog.py`, an ArcGIS ImageServer, or XYZ map tiles.
+  `create-cog.py`, or a live service: an ArcGIS ImageServer, XYZ map tiles,
+  a Planetary Computer mosaic, NASA data through titiler-cmr, a preset of
+  this repository's [tiler](/tiler/), or an ARCO Zarr store.
 - **Render specs**: how to color the values (band combination, value range,
   colormap, shading).
 
 Each dataset script writes both into `website/image-data/<dataset>.json`
-(plus the `.tif` for a COG). `build_catalog.py` then merges all the JSON
+(plus the `.tif` for a COG). Where a dataset is read live, its pre-built
+Greater New Haven snapshot gets its own name: `<dataset>-prebuilt.json`
+(CHIRPS, GOES LST, SMAP, VIIRS LST, Black Marble), or `landsat-pan.json`
+for the Landsat panchromatic band. `build_catalog.py` then merges all the JSON
 files into `website/catalog.json`, the only file the website loads at start.
 The helpers are in `scripts/common/web.py`.
 
@@ -17,24 +22,26 @@ flowchart TB
   CC["create-cog.py"] -->|"write_cog()"| Tif[("&lt;dataset&gt;.tif")]
   CC -->|"write_spec()"| Json[("&lt;dataset&gt;.json<br/>sources + products")]
   WL["website-layers.py"] -->|"write_spec()"| Json
-  Json --> BC["build_catalog.py<br/>menu TREE"] --> Cat[("catalog.json<br/>extent, landmarks, sources, tree")]
+  Json --> BC["build_catalog.py<br/>menu TREE"] --> Cat[("catalog.json<br/>crs, extent, sources, tree")]
   Cat --> Site["website"]
   Tif -.->|"range requests"| Site
 ```
 
 ::: warning Design decision: values in the files, colors in the browser
-The COGs hold physical values (°C, meters, reflectance, dB), not colors.
-Colors are declared in JSON and applied in the browser. Why:
-- **One file, many products.** The Landsat COG has seven bands; five products
-  (true color, two false-color composites, urban, temperature) are different
-  render specs over the same file. NISAR's ratio channel is computed from its
-  two stored bands.
+The COGs, and most live sources, hold physical values (°C, meters,
+reflectance, dB), not colors. Colors are declared in JSON and applied in the
+browser. Why:
+- **One source, many products.** Landsat's five Level-2 products (true
+  color, two false-color composites, urban, temperature) are different render
+  specs over the same live Planetary Computer source. NISAR's dB bands and
+  their ratio are computed in the browser from the raw HHHH and HVHV values
+  that titiler-cmr returns.
 - **The key matches the image.** The colorbar and legend are drawn from the
   same spec that colors the pixels.
 
 **Cost:** the browser must implement every render-spec feature. Today it does
 so twice: on the GPU for COGs ([COG layers](/website/cog-layers)) and on the
-CPU for ArcGIS services ([Image-service layers](/website/image-services)).
+CPU for live tiles and grids ([Image-service layers](/website/image-services)).
 :::
 
 ## Writing COGs
@@ -48,7 +55,7 @@ Three kinds, each compressed for what it holds:
 | `kind` | Data | Compression | Overviews | No data |
 |---|---|---|---|---|
 | `float` | measurements, float32 | [LERC](/guide/glossary#lerc) + DEFLATE with a per-dataset maximum error | average | −9999 |
-| `jpeg` | 8-bit RGB imagery (Planet) | JPEG, quality 90, band-interleaved | average | none |
+| `jpeg` | 8-bit RGB imagery (only the [benchmark](/build/benchmark) fixture) | JPEG, quality 90, band-interleaved | average | none |
 | `categorical` | uint8 class codes | DEFLATE (lossless) | mode (most common class) | 0 by default, or none |
 
 All are 512 × 512-pixel tiles on a [website grid](./views-and-grids#grids-for-the-website),
@@ -74,7 +81,8 @@ with lossless compression.
   YCbCr JPEGs to RGB. deck.gl-raster decodes JPEGs with the browser's image
   decoder, which handles YCbCr. A pixel-interleaved YCbCr JPEG COG would be
   smaller and need one decode per tile instead of three. This is worth doing
-  now that geotiff.js is gone, but it is not done yet.
+  now that geotiff.js is gone, but it is not done yet. Only the benchmark
+  fixture writes JPEG COGs today.
 - **Band names must be JavaScript identifiers** (`assert` in `write_cog`),
   because band expressions refer to them by name.
 :::
@@ -94,8 +102,22 @@ requests finer tiles. For ArcGIS sources, `raw=True` asks for float32 values
 with a `scale` factor (e.g. US survey feet to meters) and a `nodata` value.
 `raw=False` takes the server's 8-bit rendering, with `band_ids` choosing the
 red, green and blue bands (CIR = bands 3, 0, 1). XYZ sources are
-`smooth=True`: map tiles contain text, so they are scaled smoothly instead of
-showing pixel blocks.
+`smooth=True` by default: map tiles contain text, so they are scaled smoothly
+instead of showing pixel blocks (Planet's imagery tiles are `smooth=False`).
+
+Four more kinds read data for the selected timestep: a Planetary Computer
+mosaic (Landsat, NAIP), NASA collections through titiler-cmr (NISAR),
+presets of this repository's [tiler](/tiler/) (SMAP, Black Marble, GOES LST,
+VIIRS LST, CHIRPS), and an ARCO Zarr store read in the browser (ERA5-Land).
+Except for NAIP's 8-bit images, they return raw values, colored by the same
+render specs:
+
+::: code-group
+<<< @/../scripts/common/web.py#pc-mosaic-source [scripts/common/web.py#pc-mosaic-source]
+<<< @/../scripts/common/web.py#titiler-cmr-source [scripts/common/web.py#titiler-cmr-source]
+<<< @/../scripts/common/web.py#tiler-source [scripts/common/web.py#tiler-source]
+<<< @/../scripts/common/web.py#arco-zarr-source [scripts/common/web.py#arco-zarr-source]
+:::
 
 ## Render specs
 
@@ -175,7 +197,6 @@ missing from `TREE` appear under "Other". The output:
 <<< @/../scripts/website/build_catalog.py#catalog-json [scripts/website/build_catalog.py#catalog-json]
 :::
 
-`catalog.json` holds the extent of the Greater New Haven view, the landmarks
-(for the Labels toggle), every source, and the tree with each product's
-layers inlined. The website reads nothing else at start-up. See
+`catalog.json` holds the CRS, the extent of the Greater New Haven view,
+every source, and the tree with each product's layers inlined. The website reads nothing else at start-up. See
 [Catalog and coordinates](/website/catalog).

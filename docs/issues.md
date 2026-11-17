@@ -15,7 +15,9 @@ Each entry gives:
   it, *earlier* if it was already in commit `bd8e191`.
 - **Where**: files and functions rather than line numbers, which drift.
 
-Apart from the first two entries, nothing here has been fixed.
+The summary marks what has changed since: **fixed** and **obsolete**
+entries need nothing more; **partly** or **mostly fixed** ones say what
+remains. All others are open.
 
 ## Summary
 
@@ -30,21 +32,21 @@ Apart from the first two entries, nothing here has been fixed.
 | [7](#terraform-state) | README, justfile and Terraform disagree about where the state lives | deploy | medium | earlier |
 | [8](#texture-leak) | Tile textures are not freed when a COG layer is removed | viewer | medium | migration |
 | [9](#spec-edge-cases) | Bad numbers in a render spec hang the tab or break the shader | viewer | medium | both |
-| [10](#errors-stop-rendering) | One failing product stops all map updates; failures are silent | viewer | medium | both |
+| [10](#errors-stop-rendering) | One failing product stops all map updates; failures are silent | viewer | medium | both, **partly fixed** |
 | [11](#loading-counter) | The grid's loading counter goes negative after a product change | viewer | medium | earlier |
 | [12](#url-validation) | URL values (`cols`, `mode`) are not validated | viewer | medium | earlier |
 | [13](#reloads) | Hidden layers are dropped and reloaded from scratch | viewer | medium | migration (cost) |
 | [14](#nisar-rain) | NISAR "driest acquisition" undercounts rain early in the window | datasets | medium | earlier |
 | [15](#partial-files) | Interrupted runs leave partial files that later runs treat as done | pipeline | medium | earlier |
 | [16](#unpinned-python) | Python dependencies are not pinned | pipeline | medium | earlier |
-| [17](#no-tests) | No tests and no CI | all | medium | earlier |
+| [17](#no-tests) | No tests and no CI | all | medium | earlier, **partly fixed** |
 | [18](#perf-followups) | Performance follow-ups from the migration | viewer | medium | migration |
-| [19](#planet-gaps) | Missing Planet tiles become black pixels | datasets | low | earlier |
+| [19](#planet-gaps) | Missing Planet tiles became black pixels | datasets | low | earlier, **obsolete** |
 | [20](#stale-facts) | Hard-coded dates and versions will go stale | datasets | low | earlier |
 | [21](#duplication) | Duplicated code and constants | all | low | earlier |
 | [22](#dead-code) | Dead code and unneeded exports | all | low | both |
 | [23](#security-hardening) | Security hardening (CloudFront headers, HTML escaping) | deploy, viewer | low | earlier |
-| [24](#accessibility) | Accessibility gaps | viewer | low–medium | earlier |
+| [24](#accessibility) | Accessibility gaps | viewer | low–medium | earlier, **mostly fixed** |
 | [25](#small-bugs) | Smaller bugs | all | low | both |
 
 ## Fixed
@@ -211,7 +213,7 @@ checked against a reference; outputs still to be regenerated
   `vmin > 0` for log, `gamma > 0`. Reject bad specs in
   `build_catalog.py`, so they never reach the browser.
 
-### 10. One failing product stops all map updates; failures are silent {#errors-stop-rendering}
+### 10. One failing product stops all map updates; failures are silent (partly fixed) {#errors-stop-rendering}
 
 **Severity** medium · **Origin** both
 
@@ -225,6 +227,12 @@ checked against a reference; outputs still to be regenerated
     retried: the map stays empty with no message.
   - Neither `Deck` sets `onError` or handles `webglcontextlost`.
   - `main()` catches only the catalog load.
+- **Fixed (0.8):** failed tiles are counted, hatched in red and announced
+  ("N tiles failed to load. Click to retry"), and the button requests only
+  the failed tiles again, for image-service and local COG tiles alike.
+- **Still open:** everything listed under Problem. `render()` has no
+  `try`/`catch`, a COG that fails to open is only `console.error`ed, and
+  there is no `onError` or `webglcontextlost` handler.
 - **Fix:** catch errors per product and show them in that map's message
   element. Drop failed COG entries so they are retried. Route deck.gl and
   WebGL errors to `fatal()`.
@@ -315,17 +323,24 @@ checked against a reference; outputs still to be regenerated
 - **Fix:** add `[tool.uv] exclude-newer = "<date>"` to each header, or
   commit `uv lock --script` lock files.
 
-### 17. No tests and no CI {#no-tests}
+### 17. No tests and no CI (partly fixed) {#no-tests}
 
 **Severity** medium · **Origin** earlier
 
-- **Problem:** there is no `.github/` and no test suite. The renderer
+- **Problem:** there was no `.github/` and no test suite. The renderer
   was checked against screenshots by hand ([Fixtures and
   benchmark](/build/benchmark)).
+- **Done since:**
+  - the tiler has pytest tests (`tiler/tests/`);
+  - `terraform/tiler` and `terraform/complete` have `tofu test` plan tests
+    (`tests/plan.tftest.hcl`);
+  - `.github/workflows/docs.yml` builds the docs on every pull request,
+    which runs the snippet check ([Docs site](/build/docs-site)).
+- **Still open:** no CI runs the tests, and the pipeline and viewer have
+  none.
 - **Fix:** a CI job running:
   - ruff;
-  - `node docs/scripts/check-snippets.mjs`;
-  - `terraform validate`;
+  - the tiler's pytest tests and the `tofu test` plan tests;
   - small pytest tests of view and grid alignment, hillshade direction
     (which would have caught [2](#hillshade-direction) earlier).
 
@@ -352,22 +367,24 @@ and on [Performance](/comparison/performance):
   `bench.mjs` on hardware.
 - **JPEG COGs are band-interleaved** for geotiff.js, which is no longer
   used. Pixel-interleaved YCbCr would be smaller and need one decode per
-  tile instead of three ([Website data](/pipeline/website-data)).
+  tile instead of three ([Website data](/pipeline/website-data)). Only
+  the benchmark's JPEG fixture is affected now: Planet, the one JPEG COG
+  dataset, is read live.
 - **Report the three upstream bugs** to deck.gl-raster (multi-band LERC,
   edge clipping, overview choice), so the workarounds in `cog.js` can go
   ([migration report](/deck-gl-raster#upstream-issues-found)).
 
 ## Low
 
-### 19. Missing Planet tiles become black pixels {#planet-gaps}
+### 19. Missing Planet tiles became black pixels (obsolete) {#planet-gaps}
 
-- **Where:** `scripts/planet/create-cog.py`; `scripts/common/web.py`
-  `write_cog(kind="jpeg")`.
+- **Where:** `scripts/planet/create-cog.py` (removed);
+  `scripts/common/web.py` `write_cog(kind="jpeg")`.
 - **Problem:** `fetch_xyz` returns alpha 0 for missing tiles. The script
-  drops alpha and writes a JPEG COG with no mask, so gaps show as black.
-  It only prints the fraction.
-- **Fix:** fail when the fraction is above zero, or write an internal mask
-  and honor it in the renderer.
+  dropped alpha and wrote a JPEG COG with no mask, so gaps showed as black.
+  It only printed the fraction.
+- **Obsolete:** the website now reads Planet's tiles live
+  (`planet/website-layers.py`), and there is no `create-cog.py` for Planet.
 
 ### 20. Hard-coded dates and versions will go stale {#stale-facts}
 
@@ -390,17 +407,17 @@ and on [Performance](/comparison/performance):
     `download.py` silently leaves them on old files. CHIRPS and SMAP
     already import `output_path` from `download`; use that pattern
     everywhere.
-  - The NAIP scripts share `acquisition_dates()` and the service
-    constants, and NAIP and CT ortho share `fetch_bands`. The ArcGIS
-    `website-layers.py` scripts re-declare `SERVICE`, `NATIVE_M` and other
-    constants.
+  - The NAIP and CT ortho figure scripts (`visualize-remote.py`) share
+    `fetch_bands`. The 3DEP and CT lidar `website-layers.py` scripts
+    re-declare the service URLs (`SERVICE`, `BASE`) of their figure
+    scripts.
   - GOES and VIIRS LST copy the quality-mask overlay code.
   - `render.reproject_to_view` and `web.reproject` differ only in the
     target grid.
   - The Web Mercator world width (`2π × 6378137`) is defined in
     `remote.py` and again inline in `web.py`.
-- **Viewer:** hex-color parsing exists three times, `esc` twice, and the
-  Web Mercator math in both `tiles.js` and `catalog.js`.
+- **Viewer:** hex-color parsing exists three times, `esc` seven times, and
+  the Web Mercator math in both `tiles.js` and `catalog.js`.
 - **Fix:** move the shared pieces into `scripts/common/` and a small
   `website/js/util.js`.
 
@@ -411,8 +428,8 @@ and on [Performance](/comparison/performance):
   PNGs need `.convert("RGBA")`.
 - The vendored bundle exports `CreateTexture`, which nothing uses
   ([Vendored bundle](/build/vendor)).
-- Exported but used only in their own module: `MAX_ZOOM`, `fitZoom`,
-  `hexToRgba` (`mapview.js`), `renderArcgisTile` (`tiles.js`), `close`
+- Exported but used only in their own module: `MAX_ZOOM`, `fitZoom`
+  (`mapview.js`), `renderArcgisTile` (`tiles.js`), `close`
   (`picker.js`). Unused fields: `Catalog.data`, `Catalog.extentTitle`, and
   the `promise` field of `geotiff()`'s cache entries in `cog.js`.
 - `landsat/select_scene.py` imports numpy without using it.
@@ -433,17 +450,21 @@ are, so they are defense in depth:
     error quotes the response, so an HTML error page ends up parsed as
     markup.
 
-### 24. Accessibility gaps {#accessibility}
+### 24. Accessibility gaps (mostly fixed) {#accessibility}
 
-- The tabs lack `aria-controls` and arrow-key navigation.
-- The compare-mode buttons form a `radiogroup` but use `aria-pressed`
-  rather than `role=radio`/`aria-checked`.
-- The swipe slider has no `aria-valuenow`.
-- The picker button has no `aria-expanded`.
-- `.map-message` is not a live region.
-- Icon-only buttons (◀ ▶ + − ⤢ ×) rely on `title` and need `aria-label`.
-- Rearranging the grid works only with mouse drag and drop. Add move
-  buttons or keyboard shortcuts (medium for keyboard users).
+Fixed in 0.7 ([Accessibility](/website/accessibility)):
+
+- The tabs have `aria-controls` and arrow-key navigation.
+- The compare-mode buttons are `role=radio` with `aria-checked`.
+- The swipe slider has `aria-valuenow`, updated as it moves.
+- The picker button has `aria-expanded`.
+- Map notices, tile failures and animation loading are announced through
+  `role=status` regions.
+- Icon-only buttons have names.
+- The grid can be rearranged with Earlier / Later buttons.
+
+Still open:
+
 - There is no `hashchange` listener, so editing the URL of an open tab does
   nothing.
 
@@ -488,9 +509,10 @@ are, so they are defense in depth:
   lz4); ECMWF calls tokenised ARCO access a beta service that may be rate
   limited.
 - **Cloud-only datasets need the tiler deployed:** SMAP, Black Marble, GOES
-  LST and CHIRPS call `env.services.tiler` ([Tiler](/tiler/)), which is
-  `null` in the committed `env.json` until the production tiler
-  (ycgs-aws-infra `stacks/titiler`) is applied and its URL filled in.
+  LST, VIIRS LST and CHIRPS call `env.services.tiler` ([Tiler](/tiler/)),
+  which is `null` in the committed `env.json`. `terraform/complete` fills it
+  in for the deployed site ([Complete deployment](/build/complete));
+  locally these datasets are disabled.
 - **Scene cloud cover is scene-wide:** the Landsat "max cloud cover" filter
   uses `eo:cloud_cover`, so a 3%-cloudy scene can be white over New Haven.
   Per-pixel QA masking is not possible through the mosaic API (an

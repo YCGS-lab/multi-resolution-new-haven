@@ -43,8 +43,10 @@ rendered tile by URL, so the search is repeated whenever the URL is new:
 - another tile of the same image (panning, zooming);
 - another render of the same granules (HLS true color, CIR, NDVI; the six
   NISAR composites): a different URL, the same search;
-- the same view a day later (CloudFront's 1-day TTL) or from another
-  edge location.
+- the same view a day later (CloudFront kept fixed-time tiles a day; since
+  then settled ones are kept a year, [caching](./requests#caching)) or
+  from another edge location (now mostly served by Origin Shield's shared
+  copy, [CloudFront](./cloudfront#origins)).
 
 ## Design: one search per parent tile
 
@@ -98,8 +100,11 @@ it is a few lines.
 At this project's traffic the cache costs cents a month and saves about as
 much in Lambda time: the gain is latency and reliability, not money.
 
-Complexity: three small modules (~350 lines with tests), one table, one
-scheduled function per region. The only coupling to titiler-cmr is
+Complexity, as estimated: three small modules (~350 lines with tests),
+one table, one scheduled function per region. As built, `lookups.py`,
+`granules.py` and `prune.py` are ~490 lines with ~210 lines of tests;
+`prefill.py` (~290 lines, ~120 of tests) came later. The only coupling to
+titiler-cmr is
 subclassing its `CMRBackend` (set as each factory's `backend`). A cache
 failure is logged and the request searches CMR as before.
 
@@ -147,6 +152,10 @@ Entries expire after:
 items itself (within a day or two), and readers ignore expired items
 before then.
 
+::: code-group
+<<< @/../tiler/src/ycgs_titiler/lookups.py#policy [lookups.py#policy]
+:::
+
 A settled entry can still go stale: a granule reprocessed (new version),
 replaced or withdrawn, as happens with provisional products like NISAR's.
 The weekly job (`ycgs_titiler.prune.handler`, the tiler image with another
@@ -156,6 +165,10 @@ stores the new one. It also deletes expired entries and entries of a kind
 this version doesn't know, and leaves short-lived entries to expire. A
 recompute that fails keeps the entry. It stops recomputing a minute before
 Lambda's 15-minute limit; the rest wait a week.
+
+::: code-group
+<<< @/../tiler/tests/test_lookups.py#prune [tests/test_lookups.py#prune]
+:::
 
 ::: warning Design decision: a scheduled Lambda, not AWS Batch
 AWS Batch needs a compute environment, a job queue and a job definition,
@@ -193,6 +206,10 @@ other. A test (`test_prefill_keys_match_tile_requests`) sends tile requests
 for every CMR dataset and render through the app and checks that each
 stored key is one the pre-fill computes.
 
+::: code-group
+<<< @/../tiler/src/ycgs_titiler/prefill.py#queries [prefill.py#queries]
+:::
+
 ```sh
 # the nasa deployment's table (us-west-2): tofu output deployments -> nasa.lookup_table
 just prefill-lookups --table <table> --dry-run                     # times and entry counts only
@@ -211,8 +228,13 @@ times a day (SMAP) has thousands of entries a year. DynamoDB writes cost
 ::: code-group
 <<< @/../tiler/src/ycgs_titiler/lookups.py#lookup [lookups.py#lookup]
 <<< @/../tiler/src/ycgs_titiler/granules.py#cached-backend [granules.py#cached-backend]
+<<< @/../tiler/src/ycgs_titiler/granules.py#parent-tile [granules.py#parent-tile]
 <<< @/../tiler/src/ycgs_titiler/granules.py#select [granules.py#select]
 :::
+
+`parent_tile` gives the zoom-8 tile containing a request, or for a
+request larger than one (zooms below 8, or one crossing a tile edge) the
+smallest tile containing it.
 
 `lookups.cached(kind, query, ttl)` returns the stored result of a lookup,
 or computes and stores it. Each kind registers its function, so the prune

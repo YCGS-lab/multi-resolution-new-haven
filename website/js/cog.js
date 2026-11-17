@@ -490,7 +490,9 @@ class FinerCOGLayer extends COGLayer {
     });
   }
 }
+// #endregion finer-cog-layer
 
+// #region empty-area-patterns
 /**
  * Failed tiles are hatched in red (the map key's "Failed to load"), unlike the gray of areas
  * with no imagery: diagonal lines in screen space, so they look the same at any zoom and tile
@@ -519,7 +521,7 @@ const hatchGLSL = (alpha = "color.a") =>
 
 /** Draws a failed tile (content {failed: true}). */
 const FAILED_TILE_MODULE = { name: "cogFailedTile", inject: { "fs:DECKGL_FILTER_COLOR": hatchGLSL("1.0") } };
-// #endregion finer-cog-layer
+// #endregion empty-area-patterns
 
 /**
  * The deck.gl layer for one product layer on a COG source, or null while the

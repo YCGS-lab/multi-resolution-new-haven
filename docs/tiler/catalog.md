@@ -141,6 +141,23 @@ The files have no x/y coordinates, only 1-D `lat` / `lon` arrays giving cell
 corners. The grouped backend turns them into a grid
 ([HDF-EOS5 lat/lon grids](./fixes#hdf-eos5-lat-lon-grids)).
 
+### VIIRS LST daily {#viirs-lst}
+
+VNP21A1D: daily daytime land surface temperature on the 1 km sinusoidal
+grid, 10 × 10° HDF-EOS5 tiles from LP DAAC. A date selects that day's
+tiles (`align: day`); cloudy cells have no value. `celsius` converts from
+kelvin. The website requests `raw` for its live VIIRS LST layer; the
+pipeline's pre-built [VIIRS LST](/pipeline/datasets/temperature#viirs-lst)
+is one VNP21 swath, the same algorithm.
+
+::: code-group
+<<< @/../tiler/src/ycgs_titiler/datasets.yaml#viirs-lst [datasets.yaml#viirs-lst]
+:::
+
+The grid's coordinates are in the parent group, as cell corners, and the
+fill value is not in a form xarray decodes. The grouped backend handles
+both ([HDF-EOS5 projected grids](./fixes#hdf-eos5-projected-grids)).
+
 ### ASTER GDEM {#aster}
 
 One time-less collection of 1 × 1° GeoTIFF tiles, read by titiler-cmr's

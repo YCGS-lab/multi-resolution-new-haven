@@ -36,9 +36,24 @@ With Compare on, image B is drawn over image A in one of three ways:
 
 Layer order: gray no-data background, A, then (for swipe and spy) a second
 background clipped like B, then B, then the lens ring and the place marker.
-The ⇄ button swaps A and B, products and times (`Viewer.swap`).
+The ⇆ button swaps A and B, products and times (`Viewer.swap`).
 B's own background keeps A from showing through B's no-data pixels inside
 the swipe or the lens.
+
+### Empty areas in comparisons
+
+The "no data in scene" dots and the red hatching of failed tiles
+([Map views](./map-views#loading-state)) follow the comparison like the
+imagery:
+
+- **Footprints** are drawn under a product's bottom layer only, and not for
+  B in Opacity mode: where B has no data, A shows through, rather than a
+  white fill that washes A out.
+- **Shader hooks are appended, not replaced.** `FailedTileLayer` and
+  `FootprintLayer` add their GLSL to `DECKGL_FILTER_COLOR` after what is
+  there (`withColorFilter` in `tiles.js`), so `ClipExtension`'s swipe and
+  `MaskExtension`'s lens still apply. Both patterns keep the layer's alpha,
+  so they fade with B in Opacity mode.
 
 ### Comparison props per coordinate system <Badge type="warning" text="decision" />
 
@@ -70,7 +85,11 @@ pointer or moved with the arrow keys:
 
 Each slot has its own image picker, title, axes and key (HTML), and
 shares one view state with the other slots. Rows can be added. A Rearrange
-mode lets the user drag images between slots (HTML drag and drop):
+mode lets the user drag images between slots (HTML drag and drop), or move
+an image with the **Earlier** / **Later** buttons on each slot, without
+dragging (WCAG 2.1.1, 2.5.7). `Grid.move` swaps the slot with its
+neighbor, keeps focus on the button, and announces the move ("Moved … to
+slot 3.") in a status region:
 
 ::: code-group
 <<< @/../website/js/grid.js#grid-drag [website/js/grid.js#grid-drag]

@@ -114,7 +114,9 @@ coarse. `FinerCOGLayer` corrects it:
 <<< @/../website/js/cog.js#finer-cog-layer [website/js/cog.js#finer-cog-layer]
 :::
 
-On the impervious-surface COG at the full extent, both versions now read
+(Its `reloadAll` override, added in 0.8, is for retrying failed tiles; see
+[COG layers](/website/cog-layers#failed-tiles-and-retries).) On the
+impervious-surface COG at the full extent, both versions now read
 the 10.65 m overview. Before the fix, the new version read 21.3 m, and thin
 roads vanished from the image.
 

@@ -1,8 +1,8 @@
 # Accessibility: audit and plan
 
-Status: **fixed on branch `accessibility`, pending review and a screen-reader pass**
+Status: **fixed and released in 0.7; a screen-reader pass and a WAVE scan are still to do**
 (audit and fixes of 2026-11-04). Every numbered item below has its own commit; see
-[Status of the fixes](#status-of-the-fixes).
+[Status of the fixes](#status-of-the-fixes) and [Still to do](#still-to-do).
 
 ## What Yale requires
 
@@ -34,8 +34,8 @@ and [Procedure 1605 PR.01](https://your.yale.edu/policies-procedures/procedures/
 
 ## Status of the fixes
 
-All 24 items are done, one commit each on `accessibility` (`9173119` … `1f07f58`). Where
-the fix differs from the plan below:
+All 24 items are done, one commit each (`9173119` … `1f07f58`), merged into `main` and
+released in 0.7. Where the fix differs from the plan below:
 
 - **2:** the map canvases are announced as `role=region` with
   `aria-roledescription="map"` and a label naming the image, date and place, as MapLibre
@@ -95,7 +95,7 @@ the fix differs from the plan below:
 ## Findings and fixes
 
 Severity: **H** blocks a task for some users or clearly fails a criterion; **M** is a partial
-failure or makes a task harder; **L** is minor or advisory. Each numbered item would be one
+failure or makes a task harder; **L** is minor or advisory. Each numbered item is one
 commit.
 
 ### Phase 1: blockers (H)

@@ -185,7 +185,9 @@ COG meshes also need `clipByInstance: false`:
 :::
 
 The background and landmarks moved from world coordinates to
-longitude/latitude, since `MapView` positions are geographic:
+longitude/latitude, since `MapView` positions are geographic. (The landmark
+labels were removed in 0.6; the selected place's marker is drawn the same
+way.)
 
 ::: code-group
 ```js [website/js/mapview.js @ bd8e191, lines 57–65]

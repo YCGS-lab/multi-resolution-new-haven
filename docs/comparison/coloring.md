@@ -6,7 +6,8 @@ The render specs did not change. How they are applied did.
 
 Every tile of every COG layer went through `colorize`: a loop over the
 pixels of the window, building an RGBA array. That function still exists,
-unchanged, for ArcGIS tiles:
+unchanged, for the raw tiles of every live source (ArcGIS, Planetary
+Computer mosaics, titiler-cmr, the tiler) and the Zarr grids:
 
 ::: code-group
 <<< @/../website/js/tiles.js#cpu-colorize [website/js/tiles.js#cpu-colorize]
@@ -73,7 +74,7 @@ function crop(rgba, w, m, cw, ch) {
 `compile` writes a shader module per render spec. The same four render
 types, side by side with the CPU version:
 
-| Render type | CPU (`colorize`, still used for ArcGIS) | GPU (generated module) |
+| Render type | CPU (`colorize`, still used for live sources) | GPU (generated module) |
 |---|---|---|
 | identity | copy RGBA; desaturate/lighten per pixel | `vec4 c = v`; same formula in GLSL |
 | rgb | `values()` per channel (expressions via `new Function`), `normalizer`, clamp, scale to 0–255 | expressions translated to GLSL; same normalization inlined |
@@ -117,7 +118,8 @@ specs, so `cog.js` generates its own:
 
 ### What stayed
 
-- **ArcGIS tiles** are still colored by `colorize` on the CPU, including
+- **Live tiles** (ArcGIS, Planetary Computer, titiler-cmr, the tiler) and
+  Zarr grids are still colored by `colorize` on the CPU, including
   hillshades computed in the browser for the lidar and 3DEP DEMs. The
   render specs therefore have two implementations, which must be kept in
   step. See [Image-service layers](/website/image-services#cpu-coloring).

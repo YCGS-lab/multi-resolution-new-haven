@@ -67,7 +67,32 @@ the test example:
 :::
 
 Then deploy `website/` with the `deploy_commands` output, as for the site
-module alone; `env.json` is already in place.
+module alone; `env.json` is already in place. Besides the site module's
+outputs, `tiler_url`, `places_url` (null with `places = false`) and `env`
+give the wired URLs, `tiler_deployments` each region's function, API
+endpoint and lookup table, and `tiler_guard` the cost guard's alert topic,
+kill switch and budget.
+
+### Settings
+
+The tiler, place search and cost guard are set through prefixed variables,
+passed on to their modules (`variables.tf`):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `tiler_lambda_memory` | `{ nasa = 3008, noaa = 2048, ecmwf = 2048 }` | Lambda memory (MB) per regional deployment; CPU scales with it |
+| `tiler_reserved_concurrency` | `{ nasa = 60, noaa = 60, ecmwf = 30 }` | Cap on concurrent executions: ~$17/h with every instance busy ([Cost guard](/tiler/guard#reserved-concurrency)) |
+| `tiler_snap_start` | `true` for all three | SnapStart per deployment. Each published version's snapshot is billed around the clock (~$8/month per 2 GB), used or not; turn it off for a rarely used deployment, whose first request after a pause then pays a full cold start. Give all three keys |
+| `tiler_keep_versions` | `1` | Published Lambda versions kept per deployment, the live one included. With 1, rolling back means redeploying an earlier ref ([Version pruning](/tiler/infrastructure#version-pruning)) |
+| `tiler_throttling_rate_limit`, `tiler_throttling_burst_limit` | `100`, `200` | API Gateway requests per second and burst, per deployment |
+| `tiler_origin_shield` | `true` | CloudFront Origin Shield in front of each region ([CloudFront](/tiler/cloudfront)) |
+| `tiler_image_platform` | `"linux/arm64"` | Docker platform of the Lambda image |
+| `places` | `true` | Deploy the place search |
+| `places_throttling_rate_limit`, `places_throttling_burst_limit` | `5`, `10` | Place searches per second for all users together, and burst; bounds the Places bill ([Cost](/website/search#cost)) |
+| `guard` | `true` | The cost guard: traffic alarms, kill switch, budget ([Cost guard](/tiler/guard)) |
+| `alert_emails` | `[]` | Addresses for warnings, kill reports and budget alerts |
+| `guard_budget_usd` | `50` | Monthly budget backstop (USD): email at 80% spent or forecast 100%, kill at 100%; `null`: no budget |
+| `guard_budget_filters` | the app's services, account-wide | Budget cost filters |
 
 ## Tests
 
@@ -80,6 +105,11 @@ wiring:
 <<< @/../terraform/complete/tests/plan.tftest.hcl#wiring-asserts [tests/plan.tftest.hcl#wiring-asserts]
 :::
 
+The same run checks that the cost guard is on and `env.json` points
+`services.places` at the place search; a second run, `no_places`, checks
+that `places = false` creates no place search and sets `services.places` to
+null.
+
 `scripts/aws-tests/complete.sh` deploys the test example in AWS (every
 resource named `ycgs-test-all-<run id>` and tagged `ycgs:purpose=test`),
 deploys `website/` with the site's deploy user and role, and checks:
@@ -88,7 +118,9 @@ deploys `website/` with the site's deploy user and role, and checks:
   settings, survives the deploy, and is not cached;
 - the tiler answers CORS for the website's origin and `extra_cors_origins`,
   and for no other;
-- the website ([the site test's checks](./deploy)) and the tiler
+- `env.json`'s `services.places` is this place search, which allows the
+  website's origin, refuses others, and suggests New Haven for "New Haven";
+- the website ([the site test's checks](./deploy#test)) and the tiler
   (`tiler-smoke.sh`).
 
 Then it destroys everything and sweeps, like the other

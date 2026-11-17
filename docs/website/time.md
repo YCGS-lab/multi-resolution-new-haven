@@ -45,6 +45,7 @@ browser every product has `time`, `requires`, `coverage` and `min_zoom`.
 | ERA5-Land | hour | the ARCO Zarr store's time axis (1950 to ~5 days ago) | calendar + hour | — | — | CDS key |
 | NISAR GCOV | day | CMR | calendar | yes | — | — |
 | SMAP L4 (live) | time (3-hourly) | CMR | calendar + time | — | — | cloud |
+| VIIRS LST daily (live) | day | CMR | calendar | — | — | cloud |
 | Black Marble (live) | year | CMR | drop-down | — | — | cloud |
 | GOES LST (live) | hour | every hour since 2025-04-07, to 1 h ago (range) | calendar + hour | — | — | cloud |
 | CHIRPS (live) | day | every day since 2000, to 45 days ago (range) | calendar | — | — | cloud |
@@ -149,8 +150,8 @@ with an "Enter API key" button for locked datasets:
   dataset's limit) and how the images in between are combined: latest,
   median or average pixel. The images are mosaicked by the tiler.
 - **Filters** inline, e.g. max cloud cover.
-- Hidden while the image cannot be shown at all (locked, cloud only,
-  outside its coverage).
+- Hidden while the image cannot be shown at all (any `blocker()`: locked,
+  cloud only, outside its coverage, or zoomed out below its `min_zoom`).
 
 <<< @/../website/js/timecontrol.js#calendar
 
@@ -326,7 +327,10 @@ most 120). **Load imagery** fetches and renders every frame's tiles for the
 area in view into the tile cache (six requests at a time, with a progress
 bar), as Worldview does; ERA5 frames are read from the Zarr store run by run.
 The slider jumps between frames; Play steps through them at 0.5-3 frames
-per second, looping or not (space: play / pause, ← →: step). The last fully
+per second, looping or not; the |◀ and ▶| buttons step one frame (keys:
+space plays / pauses, ← → step). The title shows each frame's label, with
+the flight dates and the native resolution for NAIP, as in the Viewer
+(`slot.stepLabel(t)`, `slot.nativeLabel(t)`). The last fully
 loaded frame stays underneath the current one until it has loaded, so
 frames never flash to gray. Both use one layer id prefix (an id is the
 prefix, product and frame key): the layer that drew frame A is the same
@@ -362,3 +366,12 @@ point on the track, dragging (or clicking) in the profile moves the line;
 each moves the other. The wheel zooms the profile, double-click shows the
 whole line. Below the plot: the position, coordinates, and the ground and
 canopy-top heights from the photons within ±15 m.
+
+- **Keyboard.** The arrow and the profile are both sliders (`role=slider`,
+  tab stops): the arrow keys move the position 50 m (500 m with Shift).
+- **Photon classes.** The legend's entries are toggle buttons
+  (`aria-pressed`): each ATL08 class can be shown or hidden.
+- **Basemap.** A drop-down (`BASEMAPS` in `icesat2.js`): the USGS topo map
+  (default), OpenStreetMap, and the CT lidar surface elevation and CT
+  orthoimagery of 2023 (ArcGIS services). A basemap other than the default
+  is kept in the URL (`beam=2@3500@ct-ortho-2023`).

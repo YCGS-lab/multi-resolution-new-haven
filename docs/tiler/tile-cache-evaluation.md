@@ -15,6 +15,13 @@ first make CloudFront keep fixed-time tiles for a year and add Origin
 Shield (configuration only); if revisits still miss, add an S3 tile store
 behind CloudFront as the primary origin with the tiler as failover.
 
+::: tip Status
+The first step is built: tiles for settled times are kept a year in
+CloudFront (`s-maxage=31536000`, a day in browsers;
+[caching](./requests#caching)), and Origin Shield is on
+([CloudFront](./cloudfront#origins)). The S3 tile store is not built.
+:::
+
 ## What happens today (measured 2026-10-19, dev deployment)
 
 The website asks the tiler for each dataset's `raw` render as a 512 x 512
@@ -135,10 +142,15 @@ makes every edge location share one copy, which removes case 3 and most of
 case 1. Eviction (case 2) remains: CloudFront doesn't promise to keep
 anything. Both are a few lines in `settings.py` and `cloudfront.tf`.
 
+Built that way, with two differences: a time counts as fixed for a year
+only once its data are *settled* (`settled_after_days` per dataset;
+[catalog](./catalog#schema)), and `max-age` stays a day without
+`immutable`, because browser caches can't be purged.
+
 ## Recommendation
 
 1. Long `Cache-Control` for fixed-time preset responses, and Origin
-   Shield. Measure the CloudFront hit rate (CloudFront's cache statistics)
+   Shield (done). Measure the CloudFront hit rate (CloudFront's cache statistics)
    for a few weeks.
 2. If revisits still miss, add the S3 tile store as CloudFront's primary
    origin with the tiler as failover, storing rendered images.

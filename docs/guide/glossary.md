@@ -131,7 +131,8 @@ numbers) uploaded to the GPU that shaders can read.
 
 **SpatioTemporal Asset Catalog**: a standard JSON API for searching
 satellite scenes by place, time and properties. Used here for Landsat
-(Microsoft Planetary Computer and USGS).
+(Microsoft Planetary Computer and USGS), and by the website to list the
+Landsat dates and NAIP years over the area in view (`avail_stac`).
 
 ### Swath
 
@@ -150,8 +151,9 @@ column/row `x`, `y` (**XYZ tiles**).
 EPSG:3857, the projection of web maps. Coordinates are meters on a sphere
 that are stretched away from the equator: at New Haven's latitude (41.3° N)
 one Web Mercator meter is about 0.75 ground meters (1 / cos 41.3°). All of
-this project's maps, figures and website COGs use it, so nothing is ever
-reprojected in the browser.
+this project's maps, figures and website COGs use it, so the pre-built COGs
+are never reprojected in the browser. (The browser does draw ERA5-Land's
+lon/lat Zarr grid itself.)
 
 ### World coordinates
 

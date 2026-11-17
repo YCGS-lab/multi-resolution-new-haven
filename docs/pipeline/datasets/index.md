@@ -7,34 +7,37 @@ which product and date, how it is read, and what had to be worked around.
 
 ## All datasets
 
+The dates are those of the figures (and of the pre-built snapshots); the
+website reads most datasets live, for any date the source has.
+
 | Dataset | Native resolution | Date | Source | Website reads | Credentials | Page |
 |---|---|---|---|---|---|---|
-| `ct-ortho-2023` | 7.6 cm | spring 2023 | CT ECO Ortho_2023 ImageServer | live service | none | [Optical](./optical#ct-orthoimagery-2023) |
-| `naip` | 0.3 m | July 2023 | CT ECO NAIP_2023 ImageServer | live service | none | [Optical](./optical#naip) |
-| `planet` | 4.8 m | July 2026 | Planet monthly basemap tiles | local JPEG COG | Planet key | [Optical](./optical#planet) |
-| `landsat` | 30 m (pan 15 m, thermal 100 m) | 2024-08-27 | Planetary Computer (L2), AWS (L1 pan) | local COGs | AWS key (pan) | [Optical](./optical#landsat-8) |
-| `viirs-lst` | 750 m swath | 2026-06-03 | NASA VNP21 | local COG | Earthdata | [Temperature](./temperature#viirs-lst) |
+| `ct-ortho` (figures: `ct-ortho-2023`) | 7.6 cm (2023) | spring 2023 | CT ECO orthoimagery ImageServers | live service, 1934–2023 | none | [Optical](./optical#ct-orthoimagery) |
+| `naip` | 0.3–1 m | July 2023 | CT ECO NAIP_2023 (figures), Planetary Computer (website) | live mosaic, 2010 on | none | [Optical](./optical#naip) |
+| `planet` | 4.8 m | July 2026 | Planet monthly basemap tiles | live tiles | Planet key (on the website, the user's own) | [Optical](./optical#planet) |
+| `landsat` | 30 m (pan 15 m, thermal 100 m) | 2024-08-27 | Planetary Computer (L2), AWS (L1 pan) | live L2 mosaic + local pan COG | AWS key (pan) | [Optical](./optical#landsat-8) |
+| `viirs-lst` | 750 m swath (website: 1 km daily grid) | 2026-06-03 | NASA VNP21 (website: VNP21A1D) | tiler (live, cloud) + local COG snapshot | Earthdata | [Temperature](./temperature#viirs-lst) |
 | `goes-lst` | 2 km (2.1 × 3.1 km here) | 2026-06-03 | NOAA GOES-19 on AWS | tiler (live, cloud) + local COG snapshot | none | [Temperature](./temperature#goes-lst) |
-| `era5-land` | 0.1° | 2026-07-20, 4 times | Copernicus CDS | local COG | CDS key | [Temperature](./temperature#era5-land) |
+| `era5-land` | 0.1° | 2026-07-20, 4 times | Copernicus CDS (website: ECMWF ARCO Zarr) | live Zarr | CDS key (on the website, the user's own) | [Temperature](./temperature#era5-land) |
 | `prism` | 800 m | July 2026 | PRISM web service | local COG | none | [Temperature](./temperature#prism) |
 | `smap` | 9 km | 2026-07-30 | NASA SPL4SMGP | tiler (live, cloud) + local COG snapshot | Earthdata | [Water and lights](./water-and-lights#smap) |
 | `chirps` | 0.05° | 2026-07-29 | CHIRPS v3 (UCSB) | tiler (live, cloud) + local COG snapshot | none | [Water and lights](./water-and-lights#chirps) |
 | `viirs-nightlights` | 15″ (~350 × 460 m) | 2025 | NASA Black Marble VNP46A4 | tiler (live, cloud) + local COG snapshot | Earthdata | [Water and lights](./water-and-lights#viirs-black-marble) |
-| `ct-lidar-2023` | 0.6 m (DSM 0.9 m) | spring 2023 | CT ECO elevation ImageServers | live service | none | [Elevation](./elevation#ct-lidar-2023) |
+| `ct-lidar` (figures: `ct-lidar-2023`) | 0.6 m (DSM 0.9 m) | spring 2023 | CT ECO elevation ImageServers | live service, 2016 and 2023 | none | [Elevation](./elevation#ct-lidar) |
 | `3dep` | ~1 m | best available | USGS 3DEP ImageServer | live service | none | [Elevation](./elevation#usgs-3dep) |
 | `aster-dem` | 1″ (~30 m) | 2000–2013 | NASA ASTGTM v003 | local COG | Earthdata | [Elevation](./elevation#aster-gdem) |
 | `icesat2` | 20 m segments, photons | 2019–2026 | SlideRule Earth | local COG + OSM | none | [Vegetation](./vegetation-and-land-cover#icesat-2) |
 | `ct-impervious-2023` | vector polygons (0.5 m raster) | 2023 | CT GIS Office FeatureServer | local COG | none | [Vegetation](./vegetation-and-land-cover#ct-impervious-surface-2023) |
-| `nisar-gcov` | 10 m | 2026-07-17 | NISAR L2 GCOV via titiler-cmr | local COG | Earthdata | [Radar](./radar) |
+| `nisar-gcov` | 10 m | 2026-07-17 | NISAR L2 GCOV via titiler-cmr | live via titiler-cmr | Earthdata (figures) | [Radar](./radar) |
 | `streetmap` | map tiles | current | OSM, Esri, USGS topo | live tiles | none | [Maps and landmarks](./maps-and-landmarks#street-maps) |
-| `landmarks` | 4 points | | OSM Nominatim | in `catalog.json` | none | [Maps and landmarks](./maps-and-landmarks#landmarks) |
+| `landmarks` | 4 points | | OSM Nominatim | not used (figures only) | none | [Maps and landmarks](./maps-and-landmarks#landmarks) |
 
 ## Patterns across datasets
 
 ::: warning Design decision: chosen dates, not latest data
-Each dataset shows one carefully chosen scene or day. The choice is
-documented in the code (docstring or constants) and sometimes made by a
-script:
+Each figure, and each pre-built website snapshot, shows one carefully
+chosen scene or day. The choice is documented in the code (docstring or
+constants) and sometimes made by a script:
 - Landsat: newest clear summer scene.
 - NISAR: driest ascending pass.
 - ERA5-Land: the clearest day of summer.
