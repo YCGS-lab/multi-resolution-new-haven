@@ -62,7 +62,8 @@ To check the published layout locally:
 
 ```sh
 cd docs
-DOCS_BASE=/multi-resolution-new-haven/ npm run build
+export DOCS_BASE=/multi-resolution-new-haven/   # preview reads the config too
+npm run build
 npx vitepress preview         # http://localhost:4173/multi-resolution-new-haven/
 ```
 
