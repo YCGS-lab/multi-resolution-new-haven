@@ -139,8 +139,8 @@ geotiff.js's `readRasters`. Now that geotiff.js is gone, the bundled
 
 The ArcGIS request and its CPU coloring are unchanged, apart from the tile
 box. The old code got it from `OrthographicView` tiles in world meters; the
-new code converts `MapView` tiles' longitude/latitude to Web Mercator
-(`mercX`, `mercY`). Compare the old product layer:
+new code computes it in Web Mercator meters from the `MapView` tile's
+index (`tileBox(x, y, z)`). Compare the old product layer:
 
 ::: code-group
 ```js [website/js/tiles.js @ bd8e191, lines 536–580]
@@ -192,7 +192,8 @@ export function productLayer(id, catalog, product, { loading, props = {} } = {})
 ```
 :::
 
-with the new ArcGIS layer:
+with the new layer, now shared by every tiled live source
+(`liveTileLayer`; see [Image-service layers](/website/image-services#live-tile-layers)):
 
 ::: code-group
 <<< @/../website/js/tiles.js#arcgis-layer [website/js/tiles.js#arcgis-layer]

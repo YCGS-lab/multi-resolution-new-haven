@@ -6,17 +6,22 @@ DOM code, so this page is short.
 
 ## Start-up <Badge type="tip" text="standard" />
 
-`main.js` loads the catalog and shows a message with instructions if the
-catalog is missing or empty. It then creates the Viewer and the Grid,
-restores the state from the URL, and shows the right tab.
+`main.js` first loads `env.json` and sets up the credentials dialog
+([Where the website runs, and credentials](./time#where-the-website-runs-and-credentials)).
+It then loads the catalog and shows a message with instructions if the
+catalog is missing or empty. It reads the selected place from the URL
+(`Place`, [Place search](./search)), creates the Viewer, the Grid, the
+Animation and the ICESat-2 tool, restores the state from the URL, and shows
+the right tab.
 
 ::: code-group
 <<< @/../website/js/main.js#cog-opened [website/js/main.js#cog-opened]
 :::
 
 COG layers appear once their file's header has been read
-([Opening COGs](./cog-layers#opening-cogs)). This listener redraws both maps
-when that happens.
+([Opening COGs](./cog-layers#opening-cogs)). The first listener redraws the
+Viewer, the Grid and the Animation when that happens; the second refreshes
+every map when an API key is entered or cleared.
 
 ## State in the URL <Badge type="warning" text="decision" />
 
@@ -35,7 +40,7 @@ bookmarked or shared:
 | `a`, `b`, `mode` | Viewer image A, comparison image B, and mode (swipe, opacity, spy) |
 | `cols`, `g` | Grid columns and the images in its slots, `\|`-separated, empty for empty slots |
 | `anim`, `from`, `to` | Animation tab: image and date range |
-| `beam` | ICESat-2 tool: sample line and position along it (`2@3500`) |
+| `beam` | ICESat-2 tool: `<line>@<pos>[@<basemap>]`, the sample line, the position along it in meters, and the basemap unless the default (`2@3500@ct-ortho-2023`) |
 
 Images carry their time: `landsat/truecolor@2026-06-01..2026-08-31;px=median;cc=30`
 (timestep, optional end of a window, options and filters that differ from
@@ -55,11 +60,17 @@ place is, and the maps open on it.
 <<< @/../website/js/main.js#keyboard [website/js/main.js#keyboard]
 :::
 
-`[` and `]` step through image A's group, `,` and `.`
-step image A to the previous / next timestep with data in view, and `0`
-goes back to the selected place (or Greater New Haven); in the animation tab, space plays / pauses and ← → step
-frames. Shortcuts are ignored while typing in a field or while the picker,
-a calendar or the credentials dialog is open.
+In the Viewer, `[` and `]` step through image A's group, and `,` and `.`
+step image A to the previous / next timestep with data in view. In the
+Viewer and the Grid, `0` goes back to the selected place (or Greater New
+Haven). In the Animation tab, space plays / pauses and ← → step frames.
+
+The shortcuts are single keys, so they act only while the open tab's panel
+or one of its maps has focus, not page-wide (WCAG 2.1.4). They are ignored
+while typing in a field, on a control with its own use for the key (a
+button, link, slider or tab), and while the picker or a calendar is open.
+On a map, the arrow keys pan it. The footer's **Keyboard shortcuts** button
+opens a dialog that lists them (`index.html`, `#shortcuts-dialog`).
 
 ## The image picker <Badge type="tip" text="standard" />
 
@@ -70,11 +81,12 @@ a shared popup with a search box and a collapsible tree.
 <<< @/../website/js/picker.js#picker-tree [website/js/picker.js#picker-tree]
 :::
 
-Search matches every word against the product's label, title, groups and
-id. While searching, all groups are open, and groups without matches are
-hidden. Collapsed groups are remembered across pickers. Arrow keys move
-between items, Enter picks the first match, and Escape or a click outside
-closes the popup. Catalog text is escaped before it goes into `innerHTML`.
+Search matches every word against the product's label, title, menu title,
+groups and id. While searching, all groups are open, and groups without
+matches are hidden. Collapsed groups are remembered across pickers. Arrow
+keys move between items, Enter picks the first match, and Escape, a click
+outside or tabbing out closes the popup. Catalog text is escaped before it
+goes into `innerHTML`.
 
 Products whose coverage (`coverage.bbox`) misses the map in view are dimmed,
 with a ⌖ and "No data in view: covers …" as the tooltip; a group whose items
@@ -91,10 +103,14 @@ labeled "pre-built, Greater New Haven" (`TREE` in
 
 ## Markup and styles <Badge type="tip" text="standard" />
 
-`index.html` holds the static layout: header, tabs, viewer controls, the
-grid toolbar, the grid canvas and the picker popup. It loads the Yale
-webfonts, the stylesheet, and one module script; the modules import the
-vendored bundle themselves.
+`index.html` holds the static layout: a skip link to the main content; the
+header with the Bowerbird name, the tabs, the place search, the location
+tools menu and the Credentials button; the panels of the Viewer, the Grid,
+the Animation and the ICESat-2 tool; the footer (the Keyboard shortcuts
+button and Yale's required links; `main.js` sets the copyright year); the
+grid canvas; the picker popup; and the Keyboard shortcuts and Credentials
+dialogs. It loads the Yale webfonts, the stylesheet, and one module script;
+the modules import the vendored bundles themselves.
 
 ::: code-group
 <<< @/../website/index.html#head-scripts [website/index.html#head-scripts]

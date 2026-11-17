@@ -63,9 +63,10 @@ website/
     deck-gl-raster.js           deck.gl 9.4 + deck.gl-raster 0.8.1, one ES module
     geotiff-worker.js           tile decoder worker (LERC, DEFLATE, JPEG, ...)
     lerc-wasm.wasm              LERC decoder
-    versions.json               every package version in the bundle
+    zarrita.js                  Zarr reading (zarrita and its codecs), loaded on first use
+    versions.json               every package version in the bundles
   js/cog.js                     COG layers: tile upload + render spec → GLSL
-  js/tiles.js                   per product layer: COGLayer, ArcGIS or XYZ TileLayer
+  js/tiles.js                   per product layer: COGLayer, live TileLayer, XYZ TileLayer or Zarr grid
   js/mapview.js                 view-state conversion, compare-mode props
 ```
 
@@ -76,17 +77,22 @@ website/
   `package.json` + `package-lock.json`) bundles deck.gl and deck.gl-raster
   into `website/vendor/`, which is committed so the site still needs no build
   step to serve or deploy. The decoder worker and the LERC wasm are separate
-  files the bundle loads by URL.
+  files the bundle loads by URL. zarrita (ERA5-Land's Zarr stores) is a
+  separate bundle, `zarrita.js`, which `zarr.js` imports only when a Zarr
+  layer is first shown.
 - **MapView.** The maps now use deck.gl's `MapView`. The pan/zoom limits,
   axes, scale bar and URL state keep working in "world" coordinates (EPSG:3857
   meters from the extent center, `2^zoom` px per meter);
   `toDeckViewState` / `fromDeckViewState` in `mapview.js` convert at the
   deck.gl boundary (MapView zoom = world zoom + log2(40075016.7 / 512)).
-  Other layers (landmarks, background, spy lens) use longitude / latitude.
+  Other layers (the place marker, background, spy lens) use longitude / latitude.
 - **One deck.gl layer per product layer.** Previously each product was one
   `TileLayer` whose tiles composited all its layers on the CPU. Now a COG
-  layer is a `COGLayer`, an ArcGIS layer a `TileLayer` of CPU-colored bitmaps,
-  and an XYZ layer a plain `TileLayer` of map tiles; deck.gl composites them.
+  layer is a `COGLayer`; a layer on a live source (ArcGIS, `pc-mosaic`,
+  `titiler-cmr`, `tiler`, or an XYZ template with a time or a key) a
+  `TileLayer` of CPU-colored bitmaps; a street-map XYZ layer a plain
+  `TileLayer` of map tiles; and a `zarr` layer one `BitmapLayer` of the
+  hour's grid. deck.gl composites them.
 - **COG layers** (`cog.js`):
   - One `GeoTIFF` per URL (`GeoTIFF.fromUrl`, with a request limiter: 6 per
     origin, 24 when the page came over HTTP/2 or 3)
@@ -158,10 +164,12 @@ deck.gl-raster provides the reading and tiling; the rest is ours:
   COGs.
 - **EPSG:3857 definition.** The default `epsgResolver` fetches projections
   from epsg.io at runtime; `cog.js` resolves EPSG:3857 locally.
-- **ArcGIS ImageServer layers** (CT orthoimagery, NAIP, CT lidar, 3DEP) still
+- **ArcGIS ImageServer layers** (CT orthoimagery, CT lidar, 3DEP) still
   go through the CPU renderer in `tiles.js` (`exportImage` per tile, colored
   on the CPU, including the hillshades computed from the lidar / 3DEP
-  elevations). They could move to deck.gl-raster's `RasterTileLayer` with a
+  elevations), as do the raw tiles of the other live sources (Planetary
+  Computer mosaics such as Landsat and NAIP, titiler-cmr, the tiler) and the
+  Zarr grids. They could move to deck.gl-raster's `RasterTileLayer` with a
   Web Mercator tileset and the same shader modules; a GPU hillshade needs a
   one-pixel border around each tile, which `RasterTileLayer`'s tile-to-texture
   mapping does not provide yet.
@@ -327,7 +335,13 @@ migration:
    `fs:DECKGL_FILTER_COLOR` with `geometry.uv`, and pipelines compared by module
    name; and, for `FinerCOGLayer`, that `COGLayer.renderLayers()` returns a
    `TileLayer` whose `TilesetClass` is a `RasterTileset2D` with a
-   `getPixelRatio` field (it throws if that field is gone). Check whether the
+   `getPixelRatio` field (it throws if that field is gone), that
+   `TileLayer.clone({TilesetClass, updateTriggers})` takes effect, and, for
+   its `reloadAll` override (retrying only failed tiles), that deck.gl's
+   `Tileset2D` calls `reloadAll()` when the `getTileData` update trigger
+   changes, keeps its tiles in the private `_cache` map, and has
+   `tile.setNeedsReload()`; and that a failed tile's content
+   (`{failed: true, width, height}`) still reaches `renderTile`. Check whether the
    upstream issues above are fixed: then the workarounds (`bandArrays` /
    `clip`, `FinerCOGLayer`) can go; for (3), compare which overview each
    version reads, e.g. by logging `image.width` in `getTileData`. Also check
@@ -359,7 +373,7 @@ migration:
    ```
 
    Look through the products at http://localhost:8000/ next to
-   http://localhost:8001/website/ (each render type, the compare modes, the
+   http://localhost:8001/ (each render type, the compare modes, the
    grid, deep zoom) and watch the console for errors. Then run the benchmark:
 
    ```sh
@@ -371,7 +385,12 @@ migration:
    ```
 
    `--products` picks the COG products (default: Landsat true color, the
-   impervious classes and the fixtures; leave out what you have not built),
+   impervious classes and the fixtures; leave out what you have not built).
+   Landsat true color is now a live Planetary Computer mosaic, not a COG, so
+   it no longer exercises the COG path: pass `--products` without it (e.g.
+   with `landsat-pan/pan`, the one Landsat COG). The `switch` scenario (five
+   Landsat products) and the Landsat slot of `grid` are fixed in `bench.mjs`
+   and are now live too; the results above predate that.
    `--only REGEX` runs some scenarios, and `CHROME=/path/to/chrome` points at
    another Chromium. Compare with [benchmarks/](benchmarks/2026-10-10.md); a full run takes
    about 40 minutes.

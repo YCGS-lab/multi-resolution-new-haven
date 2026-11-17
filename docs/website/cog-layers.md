@@ -33,11 +33,15 @@ textures) and `renderTile` (return the shader modules that color it).
   to upload, the texture kind, the shader module, and an optional lookup
   table ([below](#render-spec-to-glsl)).
 - **`getTileData`**: wraps the tile load with the map's
-  [loading state](./map-views#loading-state). It returns `null` on failure
-  (and on abort, when deck.gl cancels a tile that scrolled out of view), so
-  one bad tile does not break the layer.
-- **`renderTile`**: always the same single module, given this tile's
-  textures.
+  [loading state](./map-views#loading-state). It returns `null` on abort
+  (deck.gl cancels a tile that scrolled out of view) and for a tile without
+  any data. A failed load returns `{failed: true, width, height}`, so one
+  bad tile does not break the layer and is drawn as failed
+  ([below](#failed-tiles-and-retries)).
+- **`renderTile`**: the compiled spec's module, given this tile's textures;
+  for a failed tile, `FAILED_TILE_MODULE`.
+- **`retryGeneration`**: the loading state's retry count
+  ([below](#failed-tiles-and-retries)).
 - **`refinementStrategy: "no-overlap"`**: while finer tiles load, coarser
   ones are not drawn underneath. Products with transparent pixels (sparse
   points, no-data areas) would otherwise show stale coarse pixels through
@@ -54,15 +58,16 @@ textures) and `renderTile` (return the shader modules that color it).
 :::
 
 One `GeoTIFF` (the parsed header) per URL, shared by every layer that uses
-the file. The five Landsat products and any grid slots showing them all use
-one header. `COGLayer` accepts a URL or an opened `GeoTIFF`. Passing the URL
-would be simpler, but each layer would then fetch and parse the header
-again.
+the file. The two impervious-surface products (classes, and impervious or
+not) and any grid slots showing them all use one header. `COGLayer` accepts
+a URL or an opened `GeoTIFF`. Passing the URL would be simpler, but each
+layer would then fetch and parse the header again.
 
 Opening is asynchronous, but deck.gl layers are created synchronously on
 every render. While a file is opening, `cogLayer` returns `null` and the
 product is drawn without that layer. When the header arrives,
-`onCogOpened` listeners redraw: `main.js` registers the Viewer and the Grid.
+`onCogOpened` listeners redraw: `main.js` registers the Viewer, the Grid
+and the Animation.
 
 ## Workers and request limits <Badge type="warning" text="decision" />
 
@@ -142,8 +147,8 @@ data as −9999, and LERC is lossy, so the source test is loose: below
 GDAL writes a multi-band, pixel-interleaved LERC tile as one LERC blob with
 the bands as "depth". The `lerc` decoder returns one array holding every band
 in turn. deck.gl-raster labels it band-separate with a single band, while
-`count` says 7 (Landsat). `bandArrays` splits it. For the same reason the
-library's own edge-tile clipping (`boundless: false`) would clip only the
+`count` says 2 (ASTER: elevation and hillshade). `bandArrays` splits it. For
+the same reason the library's own edge-tile clipping (`boundless: false`) would clip only the
 first band's rows. So tiles are fetched unclipped (`boundless: true`), and
 `clip` cuts each band to the part inside the image.
 :::
@@ -297,6 +302,24 @@ device-pixel ratio) is doubled. This reaches into a private field. It
 throws a clear error if the field disappears in an update; see
 [Updating deck.gl-raster](/deck-gl-raster#updating-deck-gl-raster).
 :::
+
+## Failed tiles and retries
+
+A tile that fails to load stays in deck.gl's tile cache as
+`{failed: true, width, height}` (the mesh needs the tile's size).
+`renderTile` gives it `FAILED_TILE_MODULE`, which hatches it in red, as
+failed image-service tiles are ([empty-area looks](./map-views#loading-state)).
+
+"N tiles failed to load. Click to retry" bumps the loading state's
+`generation`, which `cogLayer` passes as `retryGeneration`.
+`FinerCOGLayer` (above) makes it the `getTileData` update trigger of the
+`TileLayer` it clones. deck.gl answers a changed trigger with the tileset's
+`reloadAll()`, which reloads every tile in view; the `FinerTileset`
+override reloads only the tiles whose content is failed
+(`tile.setNeedsReload()`), so loaded COG tiles are not fetched and decoded
+again. Like `getPixelRatio`, it reaches into a private field, the
+tileset's `_cache`; see
+[Updating deck.gl-raster](/deck-gl-raster#updating-deck-gl-raster).
 
 ## What is not supported
 

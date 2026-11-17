@@ -5,6 +5,9 @@ versions served side by side from the same data, medians of 3 runs, without
 and with 40 ms of added latency per request. The full tables, with every
 run, are in [benchmarks/2026-10-10](/benchmarks/2026-10-10). The
 [migration report](/deck-gl-raster#performance) has the original discussion.
+Later releases are compared live, against the deployed site:
+[benchmarks/2026-11-04](/benchmarks/2026-11-04) (v0.7 against v0.8: live
+Landsat and NAIP, and the impervious-surface COG).
 
 ::: danger No GPU
 The test machine had no GPU. WebGL ran in software (SwiftShader), which
