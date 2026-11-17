@@ -27,7 +27,7 @@ flowchart TB
 | `visualize.py` | Read `data/`, write the figures | datasets with a download |
 | `visualize-remote.py` | Read straight from a service, write the figures | image services, Landsat L2, NISAR, Planet |
 | `create-cog.py` | Write a COG and its render spec to `website/image-data/` | data the website reads locally |
-| `website-layers.py` | Write only a render spec that points the website at a live service | ct-ortho-2023, naip, ct-lidar-2023, 3dep, streetmap |
+| `website-layers.py` | Write only a render spec that points the website at a live service | 3dep, chirps, ct-lidar, ct-ortho, era5-land, goes-lst, landsat, naip, nisar-gcov, planet, smap, streetmap, viirs-lst, viirs-nightlights |
 
 All scripts begin the same way. A typical small one:
 
@@ -44,12 +44,14 @@ All scripts begin the same way. A typical small one:
 :::
 
 ::: warning Design decision: figures and website share one definition
-`create-cog.py` imports its colormap, value range, source text and data
-reader from the same folder's `visualize.py` (or `download.py`). The figure
+`create-cog.py` and `website-layers.py` import their colormap, value range,
+source text and data reader from the same folder's `visualize.py` (or
+`download.py`). The figure
 and the website version of a product therefore always use the same colors.
-Where a create script needs a file with a hyphen in its name
-(`visualize-remote.py`), it loads it with `importlib`. The cost: running
-`create-cog.py` imports the plotting code too.
+Where a script needs a file with a hyphen in its name
+(`visualize-remote.py`, for Landsat's and NISAR's `website-layers.py`), it
+loads it with `importlib`. The cost: running `create-cog.py` or
+`website-layers.py` imports the plotting code too.
 :::
 
 ## Shared code (`scripts/common/`)

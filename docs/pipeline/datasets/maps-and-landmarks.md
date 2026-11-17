@@ -37,8 +37,10 @@ policy asks. It does not import `scripts/common/`.
 
 The landmarks appear:
 - on every labeled figure (`render.add_landmarks`);
-- in `catalog.json` for the website's Labels toggle (`build_catalog.py`);
 - as the reference point in `chirps/find_rainy_days.py`.
+
+The website no longer shows them: its Labels toggle was removed in 0.6, and
+`catalog.json` has no landmarks.
 
 Sterling Memorial Library's label is placed left of its marker, to avoid
 overlapping labels (`_LABEL_LEFT` in `render.py`).

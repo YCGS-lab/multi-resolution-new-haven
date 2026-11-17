@@ -80,3 +80,7 @@ npm ci
 npm run dev        # http://localhost:5173/
 npm run build      # check snippets, then build to docs/.vitepress/dist/
 ```
+
+The published copy, rebuilt from `main` by GitHub Actions, is at
+<https://ycgs-lab.github.io/multi-resolution-new-haven/> (see
+[Docs site](/build/docs-site)).

@@ -55,7 +55,7 @@ script, run with `uv run`. For each dataset:
 3. **Prepare website data**: write a [Cloud-Optimized GeoTIFF](/guide/glossary#cog)
    of the real values (temperatures, elevations, reflectances) and a JSON
    *render spec* that says how to color them. Datasets that the website reads
-   live from an image service write only the JSON.
+   live from a service write only the JSON.
 4. `build_catalog.py` gathers all the JSON into `website/catalog.json`, the
    website's image menu.
 
@@ -70,9 +70,13 @@ by tile:
 - **Local COGs** are read and drawn by [deck.gl-raster](/guide/glossary#deck-gl-raster).
   Each render spec is compiled into a GPU [shader](/guide/glossary#shader),
   so coloring runs on the graphics card.
-- **ArcGIS image services** (orthophotos, NAIP, lidar, 3DEP) are requested
-  tile by tile and colored in the browser's main thread.
-- **Street-map tiles** are drawn as they come.
+- **Live services** are requested tile by tile and colored in the
+  browser's main thread: ArcGIS image services (CT orthophotos, lidar,
+  3DEP), Planetary Computer mosaics (NAIP, Landsat), titiler-cmr (NISAR) and
+  this project's tiler (below).
+- **ERA5-Land** is read from ECMWF's Zarr store, only the chunks in view,
+  and drawn as one grid.
+- **Street-map and Planet tiles** are drawn as they come.
 
 → [Map viewer overview](/website/)
 
@@ -83,7 +87,8 @@ buckets, GOES NetCDF scans, COGs served without CORS headers. A
 [titiler](https://developmentseed.org/titiler/) deployment in `tiler/`
 renders them on request, from three AWS regions next to the data behind one
 CloudFront URL (OpenTofu module in `terraform/tiler/`). The website uses it
-for its live, cloud-only datasets (SMAP, Black Marble, GOES LST, CHIRPS).
+for its live, cloud-only datasets (SMAP, Black Marble, GOES LST, VIIRS
+LST, CHIRPS).
 
 → [Tiler overview](/tiler/)
 
@@ -93,6 +98,8 @@ for its live, cloud-only datasets (SMAP, Black Marble, GOES LST, CHIRPS).
   which is committed.
 - `just serve` runs the site locally (Caddy).
 - Terraform puts it on Amazon S3 behind CloudFront.
+- GitHub Actions publishes these docs to
+  [GitHub Pages](https://ycgs-lab.github.io/multi-resolution-new-haven/).
 - A fixtures script and a headless-browser benchmark check the renderer
   without credentials.
 
@@ -111,8 +118,9 @@ does itself, and how performance changed.
 
 Problems and possible improvements found while writing these docs,
 ranked by severity and marked as introduced by the migration or older.
-The most serious open one: `just preview` serves the whole repository,
-credentials included, to the network.
+The most serious open ones: `just deploy` can delete COGs from the bucket,
+with no versioning to recover them, and after a benchmark run its test
+fixtures end up in the menu and the deployed site.
 
 → [Issues and improvements](/issues)
 
@@ -124,7 +132,7 @@ implemented.
 | Decision | Why | Where |
 |---|---|---|
 | Every map is drawn on fixed [Web Mercator](/guide/glossary#web-mercator) grids; coarse data are resampled with nearest neighbor, never smoothed | Native pixels stay visible as blocks with their true footprint, which is the point of the project | [Views and grids](/pipeline/views-and-grids) |
-| Website data are stored as physical values; colors are declared in a JSON render spec and applied in the browser | One COG serves several products (Landsat: 5 composites from one file), and the colorbar comes from the same spec as the colors | [Website data](/pipeline/website-data) |
+| Website data are stored as physical values; colors are declared in a JSON render spec and applied in the browser | One source serves several products (Landsat: 5 products from one live source), and the colorbar comes from the same spec as the colors | [Website data](/pipeline/website-data) |
 | Coarse data are stored on a grid of ~30 m or finer | Each native pixel keeps its footprint to within 15 m after reprojection | [Views and grids](/pipeline/views-and-grids#fine-grids-for-the-website) |
 | Large public image services are read live, not copied | No 45-gigapixel copies; the services already tile and resample | [Image-service layers](/website/image-services) |
 | COGs are read and drawn by deck.gl-raster, with shaders generated from the render specs | Decoding moves to workers and coloring to the GPU; edges land exactly on the geotransform | [COG layers](/website/cog-layers) |
@@ -145,6 +153,10 @@ implemented.
 | `terraform/aws/` | Hosting infrastructure |
 | `tiler/` | The tiler service (Python, Lambda image) ([tiler](/tiler/)) |
 | `terraform/tiler/` | The tiler's infrastructure (OpenTofu module) |
+| `terraform/places/` | The place search API (Lambda behind an HTTP API) |
+| `terraform/complete/` | One deployment of everything: site, tiler, place search ([complete deployment](/build/complete)) |
 | `scripts/aws-tests/` | Tests that create and destroy real AWS resources |
-| `justfile` | `just download`, `just build`, `just vendor`, `just deploy`, `just serve` |
-| `docs/` | This documentation (VitePress): `npm run dev` in `docs/` |
+| `justfile` | `just download`, `build`, `vendor`, `docs`, `deploy`, `serve`, `prefill-lookups`, `is2` |
+| `.github/workflows/` | `docs.yml`: builds the docs on pull requests, publishes them to GitHub Pages from `main` |
+| `docs/` | This documentation (VitePress): `just docs` or `npm run dev` in `docs/`; published on [GitHub Pages](/build/docs-site) |
+| `CHANGELOG.md` | Changes by version |

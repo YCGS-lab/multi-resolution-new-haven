@@ -133,8 +133,9 @@ The dataset is cloud-only; the pre-built 18:01 scan works locally.
 ## ERA5-Land
 
 **Hourly 2 m air temperature, 0.1°, 2026-07-20 at sunrise, solar noon,
-sunset and the middle of the night.** Scripts: `select_day.py`, `timing.py`,
-`download.py`, `visualize.py`, `create-cog.py`.
+sunset and the middle of the night (figures); any hour since 1950 on the
+website.** Scripts: `select_day.py`, `timing.py`, `download.py`,
+`visualize.py`, `website-layers.py`.
 
 ::: code-group
 <<< @/../scripts/era5-land/select_day.py#clear-day-ranking [scripts/era5-land/select_day.py#clear-day-ranking]
