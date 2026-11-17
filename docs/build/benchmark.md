@@ -5,7 +5,7 @@ credentials, and compares two versions of the site.
 
 ## Fixtures
 
-`fixtures.py` writes COGs that exercise every render path the real datasets
+`fixtures.py` writes COGs that exercise the render paths the real datasets
 use, from sources that need no credentials (NAIP, 3DEP, synthetic points):
 
 | Product | Exercises | Stands in for |
@@ -16,6 +16,13 @@ use, from sources that need no credentials (NAIP, 3DEP, synthetic points):
 | `fixtures/classes` | uint8 DEFLATE, `categorical` | CT impervious surface |
 | `fixtures/tracks` | sparse points, `dilate_px`, over a desaturated basemap | ICESat-2 |
 | `fixtures/expr` | `rgb` with band expressions (`log10`, `max`, ratios) | NISAR |
+
+`fixtures/expr` is written only if `website/image-data/landsat.json` exists
+(from `scripts/landsat/website-layers.py`, no credentials needed), and uses
+its source. Since Landsat Level-2 is read live from the Planetary Computer,
+this fixture runs its expressions in JavaScript on live tiles
+(`tiles.js`), not in the COG layer's shader (`cog.js`), so no fixture
+covers NISAR's COG expression path.
 
 ::: code-group
 <<< @/../scripts/website/benchmark/fixtures.py#sparse-tracks [scripts/website/benchmark/fixtures.py#sparse-tracks]
@@ -37,7 +44,7 @@ serve the same `catalog.json` and `image-data/`.
 
 ```sh
 cd scripts/website/benchmark && npm ci
-node bench.mjs --runs 3 --out local.json before=http://localhost:8001/website/ after=http://localhost:8000/website/
+node bench.mjs --runs 3 --out local.json before=http://localhost:8001/ after=http://localhost:8000/
 node bench.mjs --runs 3 --latency 40 --out latency40.json before=... after=...
 node report.mjs local.json latency40.json      # Markdown tables
 ```
@@ -48,8 +55,14 @@ node report.mjs local.json latency40.json      # Markdown tables
 | `load:<product>` | page load to a finished map, full extent |
 | `zoom:<product>` | four 2× zoom-ins, each until settled |
 | `pan:<product>` | a 3 s drag at 8×: frame times |
-| `switch` | stepping through five Landsat products on one COG |
-| `grid` | a 2 × 2 grid of four COG products |
+| `switch` | stepping through five Landsat products on one source |
+| `grid` | a 2 × 2 grid: Landsat, two fixtures and PRISM |
+
+The default products (`--products`) are `landsat/truecolor`,
+`ct-impervious-2023/classes`, `fixtures/jpeg`, `fixtures/dem` and
+`fixtures/tracks`. Landsat is now read live from the Planetary Computer, so
+`landsat/truecolor` and `switch` measure live tiles over the network and
+make no COG requests; the other products exercise the COG path.
 
 Each run uses a fresh browser, so nothing is cached between runs. Reported:
 time to settle, the number and bytes of requests to `image-data/`,
@@ -88,4 +101,5 @@ GPU (`CHROME=/path/to/chrome`) before drawing conclusions about frame rates.
 
 Results of the migration's runs, with every run's numbers:
 [benchmarks/2026-10-10](/benchmarks/2026-10-10), summarized in
-[Performance](/comparison/performance).
+[Performance](/comparison/performance). v0.7 against v0.8, both deployed
+behind CloudFront: [benchmarks/2026-11-04](/benchmarks/2026-11-04).

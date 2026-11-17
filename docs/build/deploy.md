@@ -1,8 +1,10 @@
 # Deployment (AWS)
 
-`terraform/aws/` creates the hosting: a private S3 bucket holding a copy of
-`website/`, served by CloudFront over HTTPS, and a deploy identity that can
-do nothing but update the site. It works with Terraform or OpenTofu.
+`terraform/aws/` creates the hosting of the map viewer, Bowerbird: a
+private S3 bucket holding a copy of `website/`, served by CloudFront over
+HTTPS, and a deploy identity that can do nothing but update the site. It
+works with Terraform or OpenTofu. These docs are published separately, to
+GitHub Pages ([Documentation site](./docs-site)).
 
 To deploy it together with the [tiler](/tiler/), with the website's
 `env.json` pointing at it, use [`terraform/complete`](./complete): it calls
@@ -66,3 +68,31 @@ state bucket and runs them. `aws s3 sync --delete` uploads `website/`
 (including `image-data/`, `catalog.json` and `vendor/`) with
 `Cache-Control: public, max-age=300`. The invalidation then clears
 CloudFront's cache.
+
+## Test
+
+```sh
+scripts/aws-tests/site.sh            # apply, deploy, check, destroy, sweep (~30 min)
+scripts/aws-tests/site.sh --keep     # keep it; destroy later with destroy.sh
+```
+
+`site.sh` applies `terraform/aws/examples/test` (every resource named
+`ycgs-test-site-<run id>` and tagged `ycgs:purpose=test` with a delete-after
+date, state under `.aws-tests/`), deploys `website/` exactly as documented
+(the deploy user's key assumes the deploy role, then `deploy_commands`) and
+checks what the viewer relies on:
+
+::: code-group
+<<< @/../scripts/aws-tests/lib.sh#checks [scripts/aws-tests/lib.sh#checks]
+:::
+
+Then it destroys everything, on success or failure, and runs `sweep.sh`.
+
+- **`sweep.sh [run id]`** proves nothing is left: everything tagged
+  `ycgs:purpose=test` in every enabled region, plus a by-name check
+  (`ycgs-test-*`) of what the tagging API misses (IAM, CloudFront functions,
+  cache policies and origin access controls, secrets pending deletion).
+  Read-only; exits 1 if anything is found.
+- **`destroy.sh <kind>-<run id>`** destroys a run whose cleanup failed or
+  was skipped (`--keep`), then sweeps. Without arguments it lists the runs
+  that still have state.

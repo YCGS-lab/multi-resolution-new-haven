@@ -1,7 +1,7 @@
 # Vendored bundle
 
-`website/vendor/` holds deck.gl and deck.gl-raster as files committed to the
-repository, built by `scripts/website/vendor/`:
+`website/vendor/` holds deck.gl, deck.gl-raster and zarrita as files
+committed to the repository, built by `scripts/website/vendor/`:
 
 | File | What |
 |---|---|
@@ -9,7 +9,7 @@ repository, built by `scripts/website/vendor/`:
 | `geotiff-worker.js` | The tile-decoder worker (`@developmentseed/geotiff/pool/worker`) |
 | `zarrita.js` | Zarr reading (zarrita and its blosc / zstd / lz4 / gzip / zlib codecs, ~1.4 MB with the codecs' WebAssembly inlined), from `zarr-entry.js`; a separate bundle so the deck.gl bundle is unchanged, loaded by `zarr.js` only when a Zarr layer is first shown |
 | `lerc-wasm.wasm` | The LERC decoder, loaded by the worker from next to itself |
-| `versions.json` | Every npm package in the bundle, with its version |
+| `versions.json` | Every npm package in `deck-gl-raster.js` and `zarrita.js`, with its version |
 | `*.LEGAL.txt` | License comments extracted by esbuild |
 
 ## What goes in
@@ -19,8 +19,10 @@ repository, built by `scripts/website/vendor/`:
 <<< @/../scripts/website/vendor/zarr-entry.js [scripts/website/vendor/zarr-entry.js]
 :::
 
-The site's modules import only from this entry point. (`CreateTexture` is
-exported but no longer used; it can go at the next rebuild.)
+The site's modules import npm code only from these two entry points
+(`zarr.js` loads `zarrita.js` with a dynamic `import()`). `CreateTexture`
+and `TextLayer` are exported but not used by `website/js`; they can go at
+the next rebuild.
 
 ## How it is built
 
@@ -29,12 +31,13 @@ exported but no longer used; it can go at the next rebuild.)
 <<< @/../scripts/website/vendor/build.mjs#lerc-wasm{js} [scripts/website/vendor/build.mjs#lerc-wasm]
 :::
 
-esbuild bundles the entry point and, separately, the decoder worker.
-`module` is marked external: the `lerc` package imports Node's `module`
+esbuild bundles the entry point and, separately, the decoder worker and
+the Zarr entry point. `module` is marked external: the `lerc` package imports Node's `module`
 only when it runs under Node, never in the browser. The LERC WebAssembly
 file is copied next to the bundles. `lerc` finds it relative to its own
 script's URL, which is the worker's. `versions.json` is written from the
-build's list of input files, so it shows exactly what went into the bundle.
+lists of input files of the deck.gl and Zarr bundles, so it shows exactly
+what went into them.
 
 ```sh
 just vendor            # = cd scripts/website/vendor && npm ci && npm run build
