@@ -63,7 +63,7 @@ locals {
 # (needs docker with buildx and the AWS CLI where tofu runs). Lambda needs a
 # single-platform manifest, hence no provenance/SBOM attestations.
 resource "terraform_data" "image" {
-  for_each = local.repositories
+  for_each = var.packaging == "image" ? local.repositories : {}
 
   input            = local.image_tag
   triggers_replace = [local.image_tag, each.value, var.image_platform]
@@ -91,13 +91,53 @@ resource "terraform_data" "image" {
 }
 # endregion image-build
 
+# region zip-build
+# The zip package (tiler.zip) from the image's `zip` target, once for every
+# region; each regional module uploads it to its own bucket.
+resource "terraform_data" "zip" {
+  count            = var.packaging == "zip" ? 1 : 0
+  input            = abspath("${path.module}/.build/zip-${local.image_tag}")
+  triggers_replace = [local.image_tag, var.image_platform]
+
+  provisioner "local-exec" {
+    working_dir = local.app_dir
+    interpreter = ["bash", "-c"]
+    environment = {
+      OUT      = abspath("${path.module}/.build/zip-${local.image_tag}")
+      PLATFORM = var.image_platform
+    }
+    command = <<-EOT
+      set -euo pipefail
+      [ -f "$OUT/tiler.zip" ] && { echo "$OUT/tiler.zip exists"; exit 0; }
+      docker buildx build --platform "$PLATFORM" --target zip --output "type=local,dest=$OUT" .
+    EOT
+  }
+}
+
+locals {
+  zip_args = var.packaging == "zip" ? {
+    package_type = "Zip"
+    zip_dir      = terraform_data.zip[0].output
+    zip_tag      = local.image_tag
+    } : {
+    package_type = "Image"
+    zip_dir      = null
+    zip_tag      = null
+  }
+  image_uri = { for k, v in local.repositories : k => var.packaging == "image" ? "${v}:${terraform_data.image[k].output}" : null }
+}
+# endregion zip-build
+
 # region nasa
 module "nasa" {
   source    = "./modules/regional-api"
   providers = { aws = aws.nasa }
 
   name                   = "${var.name}-nasa"
-  image_uri              = "${local.repositories.nasa}:${terraform_data.image["nasa"].output}"
+  image_uri              = local.image_uri["nasa"]
+  package_type           = local.zip_args.package_type
+  zip_dir                = local.zip_args.zip_dir
+  zip_tag                = local.zip_args.zip_tag
   architecture           = local.architecture
   memory_size            = var.lambda_memory["nasa"]
   snap_start             = var.snap_start["nasa"]
@@ -122,7 +162,10 @@ module "noaa" {
   providers = { aws = aws.noaa }
 
   name                   = "${var.name}-noaa"
-  image_uri              = "${local.repositories.noaa}:${terraform_data.image["noaa"].output}"
+  image_uri              = local.image_uri["noaa"]
+  package_type           = local.zip_args.package_type
+  zip_dir                = local.zip_args.zip_dir
+  zip_tag                = local.zip_args.zip_tag
   architecture           = local.architecture
   memory_size            = var.lambda_memory["noaa"]
   snap_start             = var.snap_start["noaa"]
@@ -141,7 +184,10 @@ module "ecmwf" {
   providers = { aws = aws.ecmwf }
 
   name                   = "${var.name}-ecmwf"
-  image_uri              = "${local.repositories.ecmwf}:${terraform_data.image["ecmwf"].output}"
+  image_uri              = local.image_uri["ecmwf"]
+  package_type           = local.zip_args.package_type
+  zip_dir                = local.zip_args.zip_dir
+  zip_tag                = local.zip_args.zip_tag
   architecture           = local.architecture
   memory_size            = var.lambda_memory["ecmwf"]
   snap_start             = var.snap_start["ecmwf"]

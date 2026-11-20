@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Tiler Lambdas are zip packages on the managed Python 3.14 runtime (`tiler_packaging`,
+  default `zip`; `image` keeps container images): bytecode only, boto3 from the runtime,
+  dependencies unpacked to `/tmp` at init (`ycgs_titiler.lambda_entry`), uploaded to a
+  per-region `<name>-code-<region>` bucket. Without SnapStart, init takes a predictable
+  3-5 s; container images took 3.5-4.5 s once Lambda had cached them but over 10 s (Lambda's
+  init limit, then 503s at API Gateway's 30 s) right after a deploy or a quiet spell.
+- SnapStart is off by default (`tiler_snap_start`): no snapshot billed around the clock.
+  Deployments that set it explicitly keep their setting.
+- Dropped titiler.xarray's `fs` extra (s3fs, gcsfs, Google Cloud, grpc, aiohttp; 65 MB,
+  never imported).
+
 - Developer documentation published to GitHub Pages
   (<https://ycgs-lab.github.io/multi-resolution-new-haven/>) by a GitHub Actions workflow
   (`.github/workflows/docs.yml`): pull requests build it (snippet and dead-link checks),

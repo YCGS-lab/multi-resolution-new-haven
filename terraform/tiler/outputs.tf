@@ -15,7 +15,8 @@ output "deployments" {
       api_endpoint     = m.api_endpoint
       function_name    = m.function_name
       live_version     = m.live_version
-      image            = "${local.repositories[k]}:${local.image_tag}"
+      image            = var.packaging == "image" ? "${local.repositories[k]}:${local.image_tag}" : null
+      package_type     = m.package_type
       lookup_table     = m.lookup_table
       prune_function   = m.prune_function_name
     }

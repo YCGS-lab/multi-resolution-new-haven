@@ -151,6 +151,11 @@ override_resource {
   values = { output = "testtag" }
 }
 
+override_resource {
+  target = module.tiler.terraform_data.zip
+  values = { output = "/tmp/zip" }
+}
+
 run "wiring" {
   command = plan
 

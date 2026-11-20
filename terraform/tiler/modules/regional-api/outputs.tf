@@ -38,3 +38,7 @@ output "snap_start" {
   description = "SnapStart apply_on: PublishedVersions or None"
   value       = try(aws_lambda_function.this.snap_start[0].apply_on, "None")
 }
+
+output "package_type" {
+  value = var.package_type
+}
