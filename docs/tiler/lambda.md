@@ -1,9 +1,13 @@
-# Lambda handler and image (`handler.py`, `Dockerfile`)
+# Lambda handler and packaging (`handler.py`, `lambda_entry.py`, `Dockerfile`)
 
-`ycgs_titiler.handler.handler` is the function Lambda calls (the image's
-`CMD`). Everything else in the module runs once, at initialization, which
-SnapStart snapshots. SnapStart is on by default and can be turned off per
-deployment (`snap_start`); the init then runs at every cold start.
+The tiler is deployed as a **zip package on Lambda's managed Python 3.14
+runtime** (`packaging = "zip"`, the default; [why](#zip-package)), or as a
+container image (`packaging = "image"`). `ycgs_titiler.lambda_entry.handler`
+(zip) or `ycgs_titiler.handler.handler` (image `CMD`) is the function Lambda
+calls; everything else in `handler.py` runs once, at initialization.
+SnapStart can snapshot that init (`snap_start`), but is **off by default**:
+the zip package initializes in 3-5 s, and a snapshot is billed around the
+clock.
 
 ```mermaid
 sequenceDiagram
@@ -11,7 +15,7 @@ sequenceDiagram
   participant L as Lambda service
   participant I as Init (handler.py import)
   participant R as Restored environment
-  Note over T,R: with SnapStart on (the default)
+  Note over T,R: with SnapStart on (snap_start = true; off by default)
   T->>L: new image or environment: publish version N
   L->>I: run init once
   I->>I: read secrets (Secrets Manager)
@@ -73,7 +77,7 @@ they hold connections that were open at snapshot time. It also makes the
 (`lookups.reset()`). boto3 reconnects by itself. The `ImportError` branch
 keeps the module importable outside Lambda.
 
-::: warning Design decision: a container image with SnapStart
+::: info Earlier design: a container image with SnapStart
 Upstream titiler and titiler-cmr deploy zip packages, which to fit Lambda's
 250 MB limit compile a minimal GDAL, build packages from source and strip
 `.py` files and most of botocore. This image uses standard wheels (10 GB
@@ -94,6 +98,57 @@ of the geospatial stack with a snapshot restore. Points to check:
   environments. Nothing here generates secrets or IDs at init.
 - **Init time.** Init plus snapshot must finish within the publish timeout.
 :::
+
+## Zip package
+
+::: code-group
+<<< @/../tiler/Dockerfile#zip{dockerfile} [Dockerfile#zip]
+<<< @/../tiler/src/ycgs_titiler/lambda_entry.py [lambda_entry.py]
+:::
+
+`docker buildx build --target zip --output type=local,dest=DIR` writes
+`DIR/tiler.zip` (`tiler/package/slim.py`):
+
+- **Bytecode only** (hash-based `.pyc`, no sources), no tests, stubs or C
+  sources; **boto3/botocore left out** (the runtime has them).
+- **Dependencies as `deps.tar.zst`** inside the zip: a Lambda zip may hold
+  250 MB unpacked and the geospatial stack is ~340 MB, so `lambda_entry`
+  unpacks them to `/tmp/deps` once per execution environment (zstd is in
+  Python 3.14's standard library) and then imports the app from local disk.
+  `ephemeral_storage_mb` (default 1024) leaves room.
+- **`libexpat` in `lib/`** (rasterio needs it; the runtime lacks it;
+  `/var/task/lib` is on the runtime's library path).
+- **Byte-identical across builds:** sorted entries, fixed timestamps.
+
+The module builds it once (`terraform_data.zip`, like the image build: needs
+docker with buildx) and each regional deployment uploads it to its own
+`<name>-code-<region>` bucket (zips over 50 MB deploy from S3) under a key
+with the content hash, so new code deploys only when the app changes.
+
+::: warning Design decision: a zip on the managed runtime, SnapStart off
+With container images and SnapStart off, every cold start initialized for
+more than 10 s, Lambda's limit for the init phase: Lambda then runs init
+again inside the request, and API Gateway's 30 s limit often turned that
+into a 503. Importing the app takes 0.5 s on a warm disk; on Lambda the time
+went to loading the ~1 GB image lazily (10,600 files; init reads ~3,400
+Python files and ~190 shared libraries) from a layer that is rarely used and
+rebuilt differently on every deploy, so seldom cached. The managed runtime is
+cached on every Lambda host, and the zip arrives in one piece:
+
+| Per cold start (forced, three runs, three regions) | Container image | Zip package |
+|---|---|---|
+| Init phase | over 10 s (timeout), every time | 3-5 s: unpack 1.4-2.7 s, import 1.5-2.7 s |
+| First tile | 10-30 s, 503s at 30 s | 6.7-13.7 s incl. the first data reads |
+
+Measured in the ycgs-tiler benchmarks (`ycgs-tiler/06-slim`, which also puts a
+small router Lambda in front). With SnapStart off there is no snapshot to pay
+for (~$8/month per 2 GB version); `snap_start` still turns it on per
+deployment.
+:::
+
+The dependencies also lost titiler.xarray's `fs` extra (s3fs, gcsfs and the
+Google Cloud stack, grpc, aiohttp: 65 MB never imported; the readers use
+obstore).
 
 ## The image
 
@@ -117,9 +172,10 @@ version. titiler-cmr is not on PyPI, so it is a git dependency on a tag.
   import handler`): a broken import or an invalid `datasets.yaml` fails the
   build, not the deploy.
 
-The same image also runs the [lookup cache](./lookup-cache)'s weekly prune
-job: a second function in the NASA and NOAA deployments with the command
-`ycgs_titiler.prune.handler` (`image_config`), without SnapStart.
+The same package also runs the [lookup cache](./lookup-cache)'s weekly prune
+job: a second function in the NASA and NOAA deployments with the handler
+`ycgs_titiler.lambda_entry.prune` (zip) or the command
+`ycgs_titiler.prune.handler` (image, `image_config`), without SnapStart.
 
 ::: warning Design decision: Python 3.14 on arm64
 Python 3.14 is the newest generally available Lambda Python runtime, and
