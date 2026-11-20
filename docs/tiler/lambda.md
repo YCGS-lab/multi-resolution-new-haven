@@ -6,8 +6,8 @@ container image (`packaging = "image"`). `ycgs_titiler.lambda_entry.handler`
 (zip) or `ycgs_titiler.handler.handler` (image `CMD`) is the function Lambda
 calls; everything else in `handler.py` runs once, at initialization.
 SnapStart can snapshot that init (`snap_start`), but is **off by default**:
-the zip package initializes in 3-5 s, and a snapshot is billed around the
-clock.
+the zip package initializes in a predictable 3-5 s, and a snapshot is billed
+around the clock.
 
 ```mermaid
 sequenceDiagram
@@ -126,24 +126,32 @@ docker with buildx) and each regional deployment uploads it to its own
 with the content hash, so new code deploys only when the app changes.
 
 ::: warning Design decision: a zip on the managed runtime, SnapStart off
-With container images and SnapStart off, every cold start initialized for
-more than 10 s, Lambda's limit for the init phase: Lambda then runs init
-again inside the request, and API Gateway's 30 s limit often turned that
-into a 503. Importing the app takes 0.5 s on a warm disk; on Lambda the time
-went to loading the ~1 GB image lazily (10,600 files; init reads ~3,400
-Python files and ~190 shared libraries) from a layer that is rarely used and
-rebuilt differently on every deploy, so seldom cached. The managed runtime is
-cached on every Lambda host, and the zip arrives in one piece:
+With container images and SnapStart off, a cold start's cost depends on
+whether Lambda still has the image cached. Right after a deploy, or after a
+quiet spell, init ran past Lambda's 10 s init limit: Lambda then initializes
+again inside the request, and API Gateway's 30 s limit turned some first
+requests into 503s. After an hour or two of traffic, cold starts took
+3.5-4.5 s. (Importing the app takes 0.5 s on a warm disk; the rest is
+loading the ~1 GB image lazily: 10,600 files, of which init reads ~3,400
+Python files and ~190 shared libraries.) The managed runtime is cached on
+every Lambda host and the zip arrives in one piece, so the zip's init is the
+same in both cases:
 
-| Per cold start (forced, three runs, three regions) | Container image | Zip package |
-|---|---|---|
-| Init phase | over 10 s (timeout), every time | 3-5 s: unpack 1.4-2.7 s, import 1.5-2.7 s |
-| First tile | 10-30 s, 503s at 30 s | 6.7-13.7 s incl. the first data reads |
+| Forced cold start (three regions) | Image, just deployed | Image, after use | Zip |
+|---|---|---|---|
+| Init phase | over 10 s (timeout) | within the limit | 3-5 s: unpack 1.4-2.7 s, import 1.5-2.7 s |
+| `/healthz` | 4 s to a 503 at 30 s | 3.5-4.5 s | 1.4-1.8 s plus init* |
+| First tile | 10-30 s, some 503s | 3.6-11 s | 6.7-15 s |
 
-Measured in the ycgs-tiler benchmarks (`ycgs-tiler/06-slim`, which also puts a
-small router Lambda in front). With SnapStart off there is no snapshot to pay
-for (~$8/month per 2 GB version); `snap_start` still turns it on per
-deployment.
+\*Measured behind a router Lambda in the ycgs-tiler benchmarks
+(`ycgs-tiler/06-slim`); the tile times include the router's own cold start
+(about 1 s) and an Invoke hop, which this module doesn't have.
+
+The zip trades a warm image cache's best case (about 1-2 s slower to the
+first tile) for never hitting the init limit, which matters for a lightly
+used site that is redeployed with every change. `packaging = "image"` keeps
+images. With SnapStart off there is no snapshot to pay for (~$8/month per
+2 GB version); `snap_start` still turns it on per deployment.
 :::
 
 The dependencies also lost titiler.xarray's `fs` extra (s3fs, gcsfs and the
