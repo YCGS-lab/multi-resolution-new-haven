@@ -39,7 +39,7 @@ variable "reserved_concurrency" {
 variable "snap_start" {
   type        = bool
   description = "Lambda SnapStart on published versions"
-  default     = true
+  default     = false
 }
 
 variable "keep_versions" {
@@ -88,3 +88,33 @@ variable "lookup_prune_schedule" {
   description = "EventBridge Scheduler expression of the lookup cache's prune job (UTC)"
   default     = "cron(0 7 ? * MON *)"
 }
+
+# region packaging-variables
+variable "package_type" {
+  type        = string
+  description = "Zip (managed python3.14 runtime; zip_dir/zip_tag) or Image (container image_uri)"
+  default     = "Zip"
+  validation {
+    condition     = contains(["Image", "Zip"], var.package_type)
+    error_message = "package_type must be Image or Zip."
+  }
+}
+
+variable "zip_dir" {
+  type        = string
+  description = "Local directory with tiler.zip (the tiler image's `zip` build target)"
+  default     = null
+}
+
+variable "zip_tag" {
+  type        = string
+  description = "Content hash of the zip (part of its S3 key: a new tag deploys new code)"
+  default     = null
+}
+
+variable "ephemeral_storage_mb" {
+  type        = number
+  description = "Zip packages unpack their dependencies to /tmp (about 350 MB)"
+  default     = 1024
+}
+# endregion packaging-variables
