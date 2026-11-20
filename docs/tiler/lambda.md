@@ -140,12 +140,12 @@ same in both cases:
 | Forced cold start (three regions) | Image, just deployed | Image, after use | Zip |
 |---|---|---|---|
 | Init phase | over 10 s (timeout) | within the limit | 3-5 s: unpack 1.4-2.7 s, import 1.5-2.7 s |
-| `/healthz` | 4 s to a 503 at 30 s | 3.5-4.5 s | 1.4-1.8 s plus init* |
-| First tile | 10-30 s, some 503s | 3.6-11 s | 6.7-15 s |
+| `/healthz` | 4 s to a 503 at 30 s | 3.5-4.5 s | not measured alone |
+| First tile | 10-30 s, some 503s | 3.6-11 s | 6.7-15 s* |
 
-\*Measured behind a router Lambda in the ycgs-tiler benchmarks
-(`ycgs-tiler/06-slim`); the tile times include the router's own cold start
-(about 1 s) and an Invoke hop, which this module doesn't have.
+\*Measured in the ycgs-tiler benchmarks (`ycgs-tiler/06-slim`) behind a
+router Lambda: these times include the router's own cold start (about 1 s)
+and an Invoke hop, which this module doesn't have.
 
 The zip trades a warm image cache's best case (about 1-2 s slower to the
 first tile) for never hitting the init limit, which matters for a lightly
