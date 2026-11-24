@@ -128,7 +128,7 @@ with the content hash, so new code deploys only when the app changes.
 ::: warning Design decision: a zip on the managed runtime, SnapStart off
 With container images and SnapStart off, a cold start's cost depends on
 whether Lambda still has the image cached. Right after a deploy, or after a
-quiet spell, init ran past Lambda's 10 s init limit: Lambda then initializes
+quiet spell (five idle days were enough), init ran past Lambda's 10 s init limit: Lambda then initializes
 again inside the request, and API Gateway's 30 s limit turned some first
 requests into 503s. After an hour or two of traffic, cold starts took
 3.5-4.5 s. (Importing the app takes 0.5 s on a warm disk; the rest is
@@ -137,11 +137,11 @@ Python files and ~190 shared libraries.) The managed runtime is cached on
 every Lambda host and the zip arrives in one piece, so the zip's init is the
 same in both cases:
 
-| Forced cold start (three regions) | Image, just deployed | Image, after use | Zip |
-|---|---|---|---|
-| Init phase | over 10 s (timeout) | within the limit | 3-5 s: unpack 1.4-2.7 s, import 1.5-2.7 s |
-| `/healthz` | 4 s to a 503 at 30 s | 3.5-4.5 s | not measured alone |
-| First tile | 10-30 s, some 503s | 3.6-11 s | 6.7-15 s* |
+| Forced cold start (three regions) | Image, just deployed | Image, after use | Image, after 5 idle days | Zip (any of the three) |
+|---|---|---|---|---|
+| Init phase | over 10 s (timeout) | within the limit | 10 s timeouts in 5 of 9 functions | 2.9-5 s: unpack 1.4-2.7 s, import 1.5-3.0 s |
+| First request (`/healthz`) | 4 s to a 503 at 30 s | 3.5-4.5 s | 5-31 s, 3 of 9 were 503s | not measured alone |
+| First tile | 10-30 s, some 503s | 3.6-11 s | | 6.7-20 s* |
 
 \*Measured in the ycgs-tiler benchmarks (`ycgs-tiler/06-slim`) behind a
 router Lambda: these times include the router's own cold start (about 1 s)
