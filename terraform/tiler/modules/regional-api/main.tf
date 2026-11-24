@@ -49,11 +49,11 @@ data "aws_iam_policy_document" "lambda" {
   }
 
   dynamic "statement" {
-    for_each = var.lookup_cache ? [1] : []
+    for_each = var.lookup_cache || var.shared_lookup_table != null ? [1] : []
     content {
       sid       = "LookupCache"
       actions   = ["dynamodb:GetItem", "dynamodb:PutItem"]
-      resources = [aws_dynamodb_table.lookups[0].arn]
+      resources = [var.lookup_cache ? aws_dynamodb_table.lookups[0].arn : var.shared_lookup_table.arn]
     }
   }
 }
@@ -165,7 +165,7 @@ resource "aws_lambda_function" "this" {
   environment {
     variables = merge(local.gdal_env, var.environment, {
       YCGS_SECRET_ARNS  = join(",", var.secret_arns)
-      YCGS_LOOKUP_TABLE = var.lookup_cache ? aws_dynamodb_table.lookups[0].name : ""
+      YCGS_LOOKUP_TABLE = var.lookup_cache ? aws_dynamodb_table.lookups[0].name : try(var.shared_lookup_table.name, "")
     })
   }
 

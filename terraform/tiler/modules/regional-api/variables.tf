@@ -83,6 +83,12 @@ variable "lookup_cache" {
   default     = false
 }
 
+variable "shared_lookup_table" {
+  type        = object({ name = string, arn = string })
+  description = "Another function's lookup cache table to use (function_layout = \"reader\": a deployment's raster function shares its xarray function's table); with lookup_cache = false"
+  default     = null
+}
+
 variable "lookup_prune_schedule" {
   type        = string
   description = "EventBridge Scheduler expression of the lookup cache's prune job (UTC)"
@@ -114,7 +120,7 @@ variable "zip_tag" {
 
 variable "ephemeral_storage_mb" {
   type        = number
-  description = "Zip packages unpack their dependencies to /tmp (about 350 MB)"
-  default     = 1024
+  description = "/tmp of zip-package functions. The zip runs unpacked (no copy in /tmp), so Lambda's default 512 MB suffices; a package built with slim.py --tarball unpacks ~350 MB there and needs 1024"
+  default     = 512
 }
 # endregion packaging-variables

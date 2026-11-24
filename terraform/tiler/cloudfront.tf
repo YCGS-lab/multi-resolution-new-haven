@@ -2,30 +2,50 @@
 # dataset preset (/datasets/{id}/*) goes to the deployment named in
 # tiler/src/ycgs_titiler/datasets.yaml; /cmr/* goes to the NASA deployment;
 # everything else to the NOAA (us-east-1) deployment, which serves the catalog.
+# With function_layout = "reader", a deployment's COG datasets (and /cmr/rasterio/*,
+# /cog/*) go to its raster function instead.
 
 # region routes
 locals {
   catalog = yamldecode(file("${local.app_dir}/src/ycgs_titiler/datasets.yaml"))
 
-  origins = {
-    nasa  = module.nasa.api_domain
-    noaa  = module.noaa.api_domain
-    ecmwf = module.ecmwf.api_domain
-  }
+  origins = merge(
+    {
+      nasa  = module.nasa.api_domain
+      noaa  = module.noaa.api_domain
+      ecmwf = module.ecmwf.api_domain
+    },
+    { for m in module.nasa_raster : "nasa_raster" => m.api_domain },
+    { for m in module.noaa_raster : "noaa_raster" => m.api_domain },
+  )
 
   # Origin Shield in each origin's region, or the nearest one that has it
   # (not every region does: us-west-1 and eu-south-1 don't).
   shield_region_for = { "us-west-1" = "us-west-2", "eu-south-1" = "eu-central-1" }
-  origin_regions = {
-    nasa  = module.nasa.region
-    noaa  = module.noaa.region
-    ecmwf = module.ecmwf.region
-  }
+  origin_regions = merge(
+    {
+      nasa  = module.nasa.region
+      noaa  = module.noaa.region
+      ecmwf = module.ecmwf.region
+    },
+    { for m in module.nasa_raster : "nasa_raster" => m.region },
+    { for m in module.noaa_raster : "noaa_raster" => m.region },
+  )
   shield_regions = { for k, r in local.origin_regions : k => lookup(local.shield_region_for, r, r) }
 
+  # The function serving a dataset: its deployment's, or with function_layout = "reader" the
+  # deployment's raster function for COG backends.
+  dataset_origin = {
+    for id, ds in local.catalog.datasets : id => (
+      local.raster_split[ds.deployment] && contains(local.raster_backends, ds.backend) ? "${ds.deployment}_raster" : ds.deployment
+    )
+  }
+  # In order: CloudFront uses the first pattern that matches.
   routes = concat(
+    local.raster_split["nasa"] ? [{ path = "/cmr/rasterio/*", origin = "nasa_raster" }] : [],
     [{ path = "/cmr/*", origin = "nasa" }],
-    [for id, ds in local.catalog.datasets : { path = "/datasets/${id}/*", origin = ds.deployment }],
+    local.raster_split["noaa"] ? [{ path = "/cog/*", origin = "noaa_raster" }] : [],
+    [for id, ds in local.catalog.datasets : { path = "/datasets/${id}/*", origin = local.dataset_origin[id] }],
   )
 
   cors_any = contains(var.cors_origins, "*")

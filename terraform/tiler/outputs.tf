@@ -10,15 +10,19 @@ output "distribution_id" {
 output "deployments" {
   description = "Regional deployments (API Gateway endpoints reject requests that don't come through CloudFront)"
   value = {
-    for k, m in { nasa = module.nasa, noaa = module.noaa, ecmwf = module.ecmwf } : k => {
-      region           = m.region
-      api_endpoint     = m.api_endpoint
-      function_name    = m.function_name
-      live_version     = m.live_version
-      image            = var.packaging == "image" ? "${local.repositories[k]}:${local.image_tag}" : null
-      package_type     = m.package_type
-      lookup_table     = m.lookup_table
-      prune_function   = m.prune_function_name
+    for k, m in merge(
+      { nasa = module.nasa, noaa = module.noaa, ecmwf = module.ecmwf },
+      { for m in module.nasa_raster : "nasa_raster" => m },
+      { for m in module.noaa_raster : "noaa_raster" => m },
+      ) : k => {
+      region         = m.region
+      api_endpoint   = m.api_endpoint
+      function_name  = m.function_name
+      live_version   = m.live_version
+      image          = var.packaging == "image" ? "${local.repositories[split("_", k)[0]]}:${local.image_tag}" : null
+      package_type   = m.package_type
+      lookup_table   = m.lookup_table
+      prune_function = m.prune_function_name
     }
   }
 }

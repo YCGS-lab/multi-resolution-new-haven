@@ -1,4 +1,4 @@
-# Three regional deployments of the same image, each next to its data:
+# Three regional deployments of the same package, each next to its data:
 #   nasa  (us-west-2)   titiler-cmr: NISAR, SMAP, HLS, Black Marble, ASTER GDEM
 #                       (Earthdata Cloud, direct S3)
 #   noaa  (us-east-1)   GOES-19 ABI imagery and LST (NOAA Open Data), CHIRPS COGs;
@@ -41,13 +41,33 @@ locals {
   # with "//terraform/tiler" downloads the whole repository, so the path resolves.
   app_dir = "${path.module}/../../tiler"
   app_files = sort([
-    for f in setunion(fileset(local.app_dir, "src/**"), ["pyproject.toml", "uv.lock", "Dockerfile"]) :
+    for f in setunion(fileset(local.app_dir, "src/**"), fileset(local.app_dir, "package/**"), ["pyproject.toml", "uv.lock", "Dockerfile"]) :
     f if !strcontains(f, "__pycache__")
   ])
   image_tag = substr(sha256(join("\n", [for f in local.app_files : "${f} ${filesha256("${local.app_dir}/${f}")}"])), 0, 16)
   # endregion image-tag
 
   architecture = var.image_platform == "linux/arm64" ? "arm64" : "x86_64"
+
+  # region reader-layout
+  # function_layout = "reader": in a deployment with both COG (rasterio) and xarray datasets, the
+  # COG backends move to a second function (<deployment>_raster). The deployment's own module
+  # keeps the xarray backends, the lookup cache and the default routes.
+  raster_backends = ["cog", "cmr-rasterio"]
+  backends = {
+    for dep in ["nasa", "noaa", "ecmwf"] : dep => {
+      raster = sort(distinct([for id, ds in local.catalog.datasets : ds.backend if ds.deployment == dep && contains(local.raster_backends, ds.backend)]))
+      xarray = sort(distinct([for id, ds in local.catalog.datasets : ds.backend if ds.deployment == dep && !contains(local.raster_backends, ds.backend)]))
+    }
+  }
+  raster_split = {
+    for dep, b in local.backends : dep => var.function_layout == "reader" && length(b.raster) > 0 && length(b.xarray) > 0
+  }
+  # YCGS_BACKENDS of each deployment's own function (unset: every backend, as before)
+  backends_env = {
+    for dep, split in local.raster_split : dep => split ? { YCGS_BACKENDS = join(",", local.backends[dep].xarray) } : {}
+  }
+  # endregion reader-layout
 
   # region common-env
   common_env = {
@@ -147,12 +167,39 @@ module "nasa" {
   throttling_rate_limit  = var.throttling_rate_limit
   throttling_burst_limit = var.throttling_burst_limit
   secret_arns            = [aws_secretsmanager_secret.earthdata.arn]
-  environment = merge(local.common_env, {
+  environment            = merge(local.common_env, local.nasa_env, local.backends_env["nasa"])
+}
+
+locals {
+  nasa_env = {
     YCGS_FEATURES                          = "cmr"
     TITILER_CMR_EARTHDATA_S3_DIRECT_ACCESS = "TRUE"
     # A new secret version publishes a new Lambda version, which re-reads it.
     YCGS_SECRET_VERSION = aws_secretsmanager_secret_version.earthdata.version_id
-  })
+  }
+}
+
+# The COG (cmr-rasterio) datasets' function with function_layout = "reader".
+module "nasa_raster" {
+  source    = "./modules/regional-api"
+  providers = { aws = aws.nasa }
+  count     = local.raster_split["nasa"] ? 1 : 0
+
+  name                   = "${var.name}-nasa-raster"
+  image_uri              = local.image_uri["nasa"]
+  package_type           = local.zip_args.package_type
+  zip_dir                = local.zip_args.zip_dir
+  zip_tag                = local.zip_args.zip_tag
+  architecture           = local.architecture
+  memory_size            = lookup(var.lambda_memory, "nasa_raster", var.lambda_memory["nasa"])
+  snap_start             = lookup(var.snap_start, "nasa_raster", var.snap_start["nasa"])
+  keep_versions          = var.keep_versions
+  shared_lookup_table    = { name = module.nasa.lookup_table, arn = module.nasa.lookup_table_arn }
+  reserved_concurrency   = lookup(var.reserved_concurrency, "nasa_raster", lookup(var.reserved_concurrency, "nasa", null))
+  throttling_rate_limit  = var.throttling_rate_limit
+  throttling_burst_limit = var.throttling_burst_limit
+  secret_arns            = [aws_secretsmanager_secret.earthdata.arn]
+  environment            = merge(local.common_env, local.nasa_env, { YCGS_BACKENDS = join(",", local.backends["nasa"].raster) })
 }
 # endregion nasa
 
@@ -174,7 +221,29 @@ module "noaa" {
   reserved_concurrency   = lookup(var.reserved_concurrency, "noaa", null)
   throttling_rate_limit  = var.throttling_rate_limit
   throttling_burst_limit = var.throttling_burst_limit
-  environment            = local.common_env
+  environment            = merge(local.common_env, local.backends_env["noaa"])
+}
+
+# The COG datasets' function (CHIRPS; /cog) with function_layout = "reader".
+module "noaa_raster" {
+  source    = "./modules/regional-api"
+  providers = { aws = aws.noaa }
+  count     = local.raster_split["noaa"] ? 1 : 0
+
+  name                   = "${var.name}-noaa-raster"
+  image_uri              = local.image_uri["noaa"]
+  package_type           = local.zip_args.package_type
+  zip_dir                = local.zip_args.zip_dir
+  zip_tag                = local.zip_args.zip_tag
+  architecture           = local.architecture
+  memory_size            = lookup(var.lambda_memory, "noaa_raster", var.lambda_memory["noaa"])
+  snap_start             = lookup(var.snap_start, "noaa_raster", var.snap_start["noaa"])
+  keep_versions          = var.keep_versions
+  shared_lookup_table    = { name = module.noaa.lookup_table, arn = module.noaa.lookup_table_arn }
+  reserved_concurrency   = lookup(var.reserved_concurrency, "noaa_raster", lookup(var.reserved_concurrency, "noaa", null))
+  throttling_rate_limit  = var.throttling_rate_limit
+  throttling_burst_limit = var.throttling_burst_limit
+  environment            = merge(local.common_env, { YCGS_BACKENDS = join(",", local.backends["noaa"].raster) })
 }
 # endregion noaa
 
@@ -196,7 +265,7 @@ module "ecmwf" {
   throttling_rate_limit  = var.throttling_rate_limit
   throttling_burst_limit = var.throttling_burst_limit
   secret_arns            = [aws_secretsmanager_secret.cds.arn]
-  environment = merge(local.common_env, {
+  environment = merge(local.common_env, local.backends_env["ecmwf"], {
     YCGS_SECRET_VERSION = aws_secretsmanager_secret_version.cds.version_id
   })
 }

@@ -21,7 +21,7 @@ data "aws_caller_identity" "current" {}
 locals {
   guard_distributions = concat([aws_cloudfront_distribution.this.id], var.guard_extra_distribution_ids)
   guard_functions = concat(
-    [for m in [module.nasa, module.noaa, module.ecmwf] : { name = m.function_name, region = m.region }],
+    [for m in concat([module.nasa, module.noaa, module.ecmwf], module.nasa_raster, module.noaa_raster) : { name = m.function_name, region = m.region }],
     var.guard_extra_functions,
   )
   guard_apis = var.guard ? var.guard_extra_apis : []

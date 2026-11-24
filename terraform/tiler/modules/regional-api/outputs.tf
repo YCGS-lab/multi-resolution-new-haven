@@ -24,6 +24,11 @@ output "lookup_table" {
   value       = var.lookup_cache ? aws_dynamodb_table.lookups[0].name : null
 }
 
+output "lookup_table_arn" {
+  description = "ARN of the lookup cache table (null without it)"
+  value       = var.lookup_cache ? aws_dynamodb_table.lookups[0].arn : null
+}
+
 output "prune_function_name" {
   description = "Lookup cache prune job (null without the cache)"
   value       = var.lookup_cache ? aws_lambda_function.prune[0].function_name : null

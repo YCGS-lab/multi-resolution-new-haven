@@ -82,6 +82,7 @@ module "tiler" {
   reserved_concurrency   = var.tiler_reserved_concurrency
   snap_start             = var.tiler_snap_start
   packaging              = var.tiler_packaging
+  function_layout        = var.tiler_function_layout
   keep_versions          = var.tiler_keep_versions
   throttling_rate_limit  = var.tiler_throttling_rate_limit
   throttling_burst_limit = var.tiler_throttling_burst_limit

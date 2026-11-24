@@ -70,6 +70,12 @@ variable "tiler_packaging" {
   default     = "zip"
 }
 
+variable "tiler_function_layout" {
+  description = "Tiler functions: \"deployment\" (one per regional deployment) or \"reader\" (COG and xarray datasets in separate functions of a deployment, behind the same CloudFront distribution; see the tiler module)"
+  type        = string
+  default     = "deployment"
+}
+
 variable "tiler_keep_versions" {
   description = "Published tiler Lambda versions to keep per deployment, the live one included."
   type        = number

@@ -294,3 +294,76 @@ run "cors_restricted_adds_origin_to_cache_key" {
     error_message = "Origin must be in the cache key when CORS is restricted"
   }
 }
+
+# function_layout = "reader": COG datasets get their own function in each deployment that also
+# has xarray datasets (nasa: HLS, ASTER; noaa: CHIRPS); ecmwf has only xarray datasets.
+run "reader_layout" {
+  command = plan
+  variables {
+    function_layout = "reader"
+  }
+
+  # region reader-routes-assert
+  assert {
+    condition = {
+      for b in aws_cloudfront_distribution.this.ordered_cache_behavior : b.path_pattern => b.target_origin_id
+      } == {
+      "/cmr/rasterio/*"               = "nasa_raster"
+      "/cmr/*"                        = "nasa"
+      "/cog/*"                        = "noaa_raster"
+      "/datasets/nisar-gcov/*"        = "nasa"
+      "/datasets/smap-l4/*"           = "nasa"
+      "/datasets/hls-l30/*"           = "nasa_raster"
+      "/datasets/goes19-abi/*"        = "noaa"
+      "/datasets/era5-land-t2m/*"     = "ecmwf"
+      "/datasets/viirs-blackmarble/*" = "nasa"
+      "/datasets/viirs-lst-daily/*"   = "nasa"
+      "/datasets/goes19-lst/*"        = "noaa"
+      "/datasets/chirps-daily/*"      = "noaa_raster"
+      "/datasets/aster-gdem/*"        = "nasa_raster"
+    }
+    error_message = "reader layout routes"
+  }
+  # endregion reader-routes-assert
+
+  assert {
+    condition     = [for b in aws_cloudfront_distribution.this.ordered_cache_behavior : b.path_pattern][0] == "/cmr/rasterio/*"
+    error_message = "/cmr/rasterio/* must come before /cmr/*"
+  }
+
+  assert {
+    condition     = length(aws_cloudfront_distribution.this.origin) == 5 && length(module.nasa_raster) == 1 && length(module.noaa_raster) == 1
+    error_message = "five origins: nasa, nasa_raster, noaa, noaa_raster, ecmwf"
+  }
+
+  assert {
+    condition = (
+      module.nasa.function_name == "ycgs-titiler-nasa" && module.nasa_raster[0].function_name == "ycgs-titiler-nasa-raster"
+      && module.noaa_raster[0].function_name == "ycgs-titiler-noaa-raster"
+    )
+    error_message = "raster function names"
+  }
+
+  assert {
+    condition     = length(local.guard_functions) == 5
+    error_message = "the kill switch covers every tiler function"
+  }
+
+  assert {
+    condition = (
+      local.backends_env["nasa"].YCGS_BACKENDS == "cmr-xarray,cmr-xarray-grouped"
+      && local.backends_env["noaa"].YCGS_BACKENDS == "xarray"
+      && length(local.backends_env["ecmwf"]) == 0
+    )
+    error_message = "YCGS_BACKENDS of the xarray functions"
+  }
+}
+
+run "deployment_layout_sets_no_backends" {
+  command = plan
+
+  assert {
+    condition     = alltrue([for d, e in local.backends_env : length(e) == 0]) && length(module.nasa_raster) == 0 && length(module.noaa_raster) == 0
+    error_message = "the default layout leaves YCGS_BACKENDS unset (every backend) and adds no functions"
+  }
+}

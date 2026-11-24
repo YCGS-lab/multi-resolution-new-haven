@@ -26,6 +26,16 @@ variable "reserved_concurrency" {
   default     = { nasa = 60, noaa = 60, ecmwf = 30 }
 }
 
+variable "function_layout" {
+  type        = string
+  description = "\"deployment\": one tiler function per regional deployment, serving all its datasets. \"reader\": a deployment with both kinds of dataset gets two functions behind the same CloudFront distribution, one for Cloud-Optimized GeoTIFFs (backends cog, cmr-rasterio) and one for xarray (NetCDF / HDF5 / Zarr); each imports only its own readers (YCGS_BACKENDS). lambda_memory, reserved_concurrency and snap_start take nasa_raster / noaa_raster keys for the raster functions (default: the deployment's value)"
+  default     = "deployment"
+  validation {
+    condition     = contains(["deployment", "reader"], var.function_layout)
+    error_message = "function_layout must be \"deployment\" or \"reader\"."
+  }
+}
+
 variable "snap_start" {
   type        = map(bool)
   description = "Lambda SnapStart per deployment: fast cold starts, but each published version's cached snapshot is billed around the clock (memory x ~$0.0000015 per GB-s, ~$8/month for 2 GB) whether or not it is invoked"
