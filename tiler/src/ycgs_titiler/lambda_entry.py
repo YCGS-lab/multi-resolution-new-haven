@@ -1,9 +1,11 @@
 """Lambda entry point of the zip package (managed Python runtime, no container image).
 
-The tiler's third-party packages are more than a Lambda zip may hold unpacked
-(250 MB), so they ship as deps.tar.zst inside the zip (package/slim.py) and are
-unpacked to /tmp here, once per execution environment, before the app is
-imported. Imports then read local disk. Timings go to the log as one JSON line.
+The zip runs as it is (package/slim.py keeps it under Lambda's 250 MB limit for
+an unzipped package). A zip built with `slim.py --tarball` instead holds the
+third-party packages as deps.tar.zst; they are unpacked to /tmp here, once per
+execution environment, before the app is imported. PROJ_DATA points at pyproj's
+copy of the PROJ data when rasterio's was left out (`slim.py --share-proj-data`).
+Timings go to the log as one JSON line.
 """
 
 import json
@@ -30,7 +32,13 @@ def _unpack() -> bool:
 
 
 _unpacked = _unpack() if os.path.exists(_DEPS) else False
-sys.path.insert(0, _TARGET)
+if os.path.exists(_DEPS):
+    sys.path.insert(0, _TARGET)
+_site = _TARGET if os.path.exists(_DEPS) else _ROOT
+# One copy of the PROJ data (package/slim.py --share-proj-data): pyproj's, for rasterio's GDAL too.
+_proj = os.path.join(_site, "pyproj", "proj_dir", "share", "proj")
+if not os.path.exists(os.path.join(_site, "rasterio", "proj_data")) and os.path.exists(_proj):
+    os.environ.setdefault("PROJ_DATA", _proj)
 _t1 = time.perf_counter()
 
 from ycgs_titiler.handler import handler  # noqa: F401

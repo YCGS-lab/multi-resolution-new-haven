@@ -8,6 +8,12 @@
   per-region `<name>-code-<region>` bucket. Without SnapStart, init takes a predictable
   3-5 s; container images took 3.5-4.5 s once Lambda had cached them but over 10 s (Lambda's
   init limit, then 503s at API Gateway's 30 s) right after a deploy or a quiet spell.
+- The tiler zip fits Lambda's 250 MB limit unpacked (207 MB on x86_64, an estimated ~220 MB
+  on arm64), so nothing is unpacked to `/tmp` at init (that took 1.4-2.7 s per cold start):
+  shared objects stripped, numpy built without BLAS, one copy of the PROJ data, and what the
+  tiler never loads left out (`tiler/package/trim.txt`). The build checks the zip in a clean
+  runtime image and fails over 250 MB. Tiles are byte-identical. `ephemeral_storage_mb` is back
+  to 512. Measurements and the alternatives tried: Docs → Tiler → Evaluation: zip package size.
 - SnapStart is off by default (`tiler_snap_start`): no snapshot billed around the clock.
   Deployments that set it explicitly keep their setting.
 - Dropped titiler.xarray's `fs` extra (s3fs, gcsfs, Google Cloud, grpc, aiohttp; 65 MB,
