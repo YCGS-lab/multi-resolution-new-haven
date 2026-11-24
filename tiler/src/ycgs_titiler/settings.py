@@ -20,12 +20,24 @@ class Settings(BaseSettings):
     cachecontrol_settled: str = "public, max-age=86400, s-maxage=31536000"
     cachecontrol_pinned: str = "public, max-age=86400"
     cachecontrol_latest: str = "public, max-age=60"
+    # Backends this function serves (datasets.yaml `backend`, comma separated; empty: all).
+    # Endpoints and readers of the others are neither mounted nor imported, so a
+    # function's package can leave out their libraries (one function per reader
+    # type; see docs/tiler/lambda.md).
+    backends: str = ""
     # Comma-separated Secrets Manager ARNs whose JSON key/values become env vars at cold start.
     secret_arns: str = ""
 
     @property
     def feature_set(self) -> set[str]:
         return {f.strip() for f in self.features.split(",") if f.strip()}
+
+    @property
+    def backend_set(self) -> set[str]:
+        """The backends this function serves (all when YCGS_BACKENDS is unset)."""
+        from .presets import BACKEND_PREFIX
+
+        return {b.strip() for b in self.backends.split(",") if b.strip()} or set(BACKEND_PREFIX)
 
 
 # endregion settings

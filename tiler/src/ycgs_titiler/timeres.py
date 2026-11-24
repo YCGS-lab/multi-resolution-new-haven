@@ -8,8 +8,6 @@ import re
 from functools import lru_cache
 
 import httpx2 as httpx
-import obstore
-import obstore.store
 from cachetools import TTLCache
 
 from . import lookups
@@ -141,6 +139,8 @@ _current_hour: TTLCache = TTLCache(maxsize=64, ttl=30)
 
 @lru_cache(maxsize=4)
 def _bucket_store(bucket: str):
+    import obstore.store
+
     from .readers import bucket_region
 
     return obstore.store.S3Store(bucket, config={"region": bucket_region(bucket), "skip_signature": True})
@@ -154,6 +154,8 @@ def _list_complete_hour(bucket: str, prefix: str) -> tuple[str, ...]:
 
 
 def _list(bucket: str, prefix: str) -> tuple[str, ...]:
+    import obstore
+
     out = []
     for batch in obstore.list(_bucket_store(bucket), prefix=prefix):
         out.extend(o["path"] for o in batch)

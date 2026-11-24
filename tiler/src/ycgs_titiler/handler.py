@@ -31,11 +31,13 @@ def load_secrets() -> None:
 load_secrets()
 # endregion load-secrets
 
+import sys
+
 import pyproj
 import rasterio
 from mangum import Mangum
 
-from ycgs_titiler import lookups, readers, timeres
+from ycgs_titiler import lookups, timeres
 from ycgs_titiler.main import app
 
 try:
@@ -64,7 +66,8 @@ try:  # SnapStart runtime hooks (Lambda Python 3.12+ base images)
     @register_after_restore
     def _after_restore():
         # Datasets and listings hold open object-store clients; start fresh.
-        readers.clear_caches()
+        if (readers := sys.modules.get("ycgs_titiler.readers")) is not None:  # not imported by COG-only functions
+            readers.clear_caches()
         timeres.clear_caches()
         lookups.reset()
 except ImportError:  # pragma: no cover - not running on Lambda

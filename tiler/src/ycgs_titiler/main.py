@@ -23,13 +23,13 @@ from titiler.core.factory import ColorMapFactory, TMSFactory
 from titiler.core.factory import TilerFactory as CogTilerFactory
 from titiler.core.middleware import CacheControlMiddleware
 from titiler.xarray.dependencies import SelDimStr
-from titiler.xarray.factory import TilerFactory
 
 from . import presets, timeres
-from .readers import MissingCredentials, MultiVarReader, URLNotAllowed, check_url
+from .presets import CMR_BACKENDS
 from .router import PresetMiddleware
 from .router import router as presets_router
 from .settings import settings
+from .urls import MissingCredentials, URLNotAllowed, check_url
 
 
 # region multivar-params
@@ -106,20 +106,28 @@ def create_app() -> FastAPI:
         {**DEFAULT_STATUS_CODES, URLNotAllowed: 403, MissingCredentials: 503, KeyError: 404, timeres.TimeError: 400},
     )
 
-    xarray = TilerFactory(
-        reader=MultiVarReader,
-        reader_dependency=MultiVarParams,
-        router_prefix="/xarray",
-        add_viewer=True,
-    )
-    app.include_router(xarray.router, prefix="/xarray", tags=["Xarray (Zarr / NetCDF by URL)"])
-    cog = CogTilerFactory(path_dependency=allowed_cog_url, router_prefix="/cog")
-    app.include_router(cog.router, prefix="/cog", tags=["Cloud-Optimized GeoTIFF by URL"])
+    # Only the backends this function serves (YCGS_BACKENDS); the others' libraries aren't imported.
+    backends = settings.backend_set
+    if "xarray" in backends:
+        from titiler.xarray.factory import TilerFactory
+
+        from .readers import MultiVarReader
+
+        xarray = TilerFactory(
+            reader=MultiVarReader,
+            reader_dependency=MultiVarParams,
+            router_prefix="/xarray",
+            add_viewer=True,
+        )
+        app.include_router(xarray.router, prefix="/xarray", tags=["Xarray (Zarr / NetCDF by URL)"])
+    if "cog" in backends:
+        cog = CogTilerFactory(path_dependency=allowed_cog_url, router_prefix="/cog")
+        app.include_router(cog.router, prefix="/cog", tags=["Cloud-Optimized GeoTIFF by URL"])
     app.include_router(presets_router, prefix="/datasets", tags=["Dataset presets"])
     app.include_router(TMSFactory().router, tags=["Tiling Schemes"])
     app.include_router(ColorMapFactory().router, tags=["ColorMaps"])
 
-    if "cmr" in settings.feature_set:
+    if "cmr" in settings.feature_set and backends & CMR_BACKENDS:
         if os.environ.get("TITILER_CMR_EARTHDATA_USERNAME") and os.environ.get("TITILER_CMR_EARTHDATA_PASSWORD"):
             app.mount("/cmr", cmr_app())
         else:
@@ -132,7 +140,12 @@ def create_app() -> FastAPI:
 
     @app.get("/healthz", tags=["Health"])
     def healthz():
-        return {"ok": True, "region": os.environ.get("AWS_REGION"), "features": sorted(settings.feature_set)}
+        return {
+            "ok": True,
+            "region": os.environ.get("AWS_REGION"),
+            "features": sorted(settings.feature_set),
+            "backends": sorted(settings.backend_set),
+        }
 
     @app.get("/", include_in_schema=False)
     def landing():

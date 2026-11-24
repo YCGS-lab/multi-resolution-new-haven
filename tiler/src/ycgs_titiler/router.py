@@ -94,6 +94,13 @@ def lookup(cat: Catalog, ds_id: str, render_name: str | None = None) -> tuple[Da
     return ds, ds.renders[render_name]
 
 
+def served_here(ds_id: str, ds: Dataset) -> None:
+    """Data requests for a dataset whose backend another function serves (YCGS_BACKENDS)
+    are refused: CloudFront routes them to that function."""
+    if ds.backend not in settings.backend_set:
+        raise PresetError(404, f"{ds_id} ({ds.backend}) is served by another function of this deployment")
+
+
 # region request-zoom
 def request_zoom(rest: str, query: dict[str, list[str]]) -> float | None:
     """Zoom level of a tile, or the Web Mercator zoom equivalent to a bbox request's resolution."""
@@ -130,6 +137,7 @@ def resolve(cat: Catalog, ds_id: str, render_name: str, rest: str, query: dict[s
     """Backend path and parameters for a preset data request (blocking: may list S3)."""
     ds, render = lookup(cat, ds_id, render_name)
     assert render is not None
+    served_here(ds_id, ds)
     params: dict[str, Any] = {**ds.params, **ds.zoom_params(request_zoom(rest, query)), **render.params}
 
     # Time -> backend parameters
@@ -323,6 +331,10 @@ def get_times(
     end: Annotated[str | None, Query(description="ISO date/datetime (UTC); default now")] = None,
 ):
     ds, _ = _check(dataset_id)
+    try:
+        served_here(dataset_id, ds)
+    except PresetError as e:
+        raise HTTPException(e.status, e.detail) from e
     try:
         times = timeres.list_times(catalog(), ds, start, end)
     except timeres.TimeError as e:
