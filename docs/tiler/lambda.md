@@ -6,8 +6,8 @@ container image (`packaging = "image"`). `ycgs_titiler.lambda_entry.handler`
 (zip) or `ycgs_titiler.handler.handler` (image `CMD`) is the function Lambda
 calls; everything else in `handler.py` runs once, at initialization.
 SnapStart can snapshot that init (`snap_start`), but is **off by default**:
-the zip package initializes in a predictable 3-5 s, and a snapshot is billed
-around the clock.
+the zip package initializes in a predictable few seconds (importing the
+app; nothing is unpacked), and a snapshot is billed around the clock.
 
 ```mermaid
 sequenceDiagram
@@ -107,18 +107,59 @@ of the geospatial stack with a snapshot restore. Points to check:
 :::
 
 `docker buildx build --target zip --output type=local,dest=DIR` writes
-`DIR/tiler.zip` (`tiler/package/slim.py`):
+`DIR/tiler.zip` (`tiler/package/slim.py`): **207 MB unpacked** on x86_64,
+an estimated 218-224 MB on arm64, whose wheels align their segments to 64 KB
+(Lambda's limit for a zip is 250 MB); 75 MB zipped. It runs as it is:
+nothing is unpacked at init.
 
 - **Bytecode only** (hash-based `.pyc`, no sources), no tests, stubs or C
   sources; **boto3/botocore left out** (the runtime has them).
-- **Dependencies as `deps.tar.zst`** inside the zip: a Lambda zip may hold
-  250 MB unpacked and the geospatial stack is ~340 MB, so `lambda_entry`
-  unpacks them to `/tmp/deps` once per execution environment (zstd is in
-  Python 3.14's standard library) and then imports the app from local disk.
-  `ephemeral_storage_mb` (default 1024) leaves room.
+- **numpy built without BLAS/LAPACK.** The wheel bundles OpenBLAS and
+  gfortran (~25 MB); the tiler does no linear algebra. Built from the
+  locked version's source (`-Dallow-noblas=true`); two minutes, cached.
+- **Shared objects stripped** (`strip --strip-unneeded`): most wheels ship
+  debug symbols, about 70 MB of the stack. A stripped file whose segments
+  the loader would refuse keeps its symbols (binutils breaks libraries
+  auditwheel already patched, such as numpy's OpenBLAS).
+- **One copy of the PROJ data:** rasterio's `proj.db` is pyproj's (same
+  PROJ version, same contents); `lambda_entry` points `PROJ_DATA` at
+  pyproj's.
+- **What the tiler never loads is left out** (`tiler/package/trim.txt`):
+  cramjam, Pillow's AVIF/FreeType/LCMS/WebP plugins and their libraries,
+  numpy's test modules and f2py, extension modules built for other Python
+  versions. Found with an import trace over every dataset preset.
 - **`libexpat` in `lib/`** (rasterio needs it; the runtime lacks it;
   `/var/task/lib` is on the runtime's library path).
+- **Checked in a clean runtime image** (`zipcheck` stage): every shared
+  object loads and the handler imports, or the build fails. `slim.py` also
+  fails the build over 250 MB.
 - **Byte-identical across builds:** sorted entries, fixed timestamps.
+
+`slim.py --tarball` still builds the earlier layout (dependencies as
+`deps.tar.zst`, unpacked to `/tmp` at init by `lambda_entry`; needs
+`ephemeral_storage_mb = 1024`), should the stack outgrow 250 MB.
+
+::: warning Design decision: trim the wheels and rebuild numpy, not GDAL
+How far each change gets, measured locally (x86_64) against a snapshot of
+every preset's data ([report](https://github.com/YCGS-lab/multi-resolution-new-haven/blob/main/tiler/experiments/lambda-size/REPORT.md)):
+
+| Package | Unpacked | Cold start, init |
+|---|---|---|
+| dependencies in `deps.tar.zst` (before) | 325 MB in `/tmp` | unpack 1.2 s + import 2.5 s |
+| wheels trimmed (strip, PROJ data, trim.txt) | 231 MB | import only |
+| + one copy of libraries several wheels bundle (patchelf) | 218 MB | import only |
+| + numpy without BLAS | 194 MB | import only |
+| + GDAL and PROJ from source, only the drivers used | 179 MB | import only |
+| **trimmed wheels + numpy without BLAS** (this build) | **207 MB** | import only |
+
+Every one of them gives byte-identical tiles. The chosen build is the
+smallest change with room to spare (17 % under the limit): trimming alone
+leaves 8 %, and the further steps cost more than they save. Sharing
+libraries between wheels means rewriting their ELF headers, and only works
+where the copies match symbol for symbol (rasterio's PROJ renames its
+symbols, so it can't replace pyproj's). A GDAL build is a 20-minute
+compile whose versions must follow rasterio's.
+:::
 
 The module builds it once (`terraform_data.zip`, like the image build: needs
 docker with buildx) and each regional deployment uploads it to its own
@@ -139,13 +180,15 @@ same in both cases:
 
 | Forced cold start (three regions) | Image, just deployed | Image, after use | Zip |
 |---|---|---|---|
-| Init phase | over 10 s (timeout) | within the limit | 3-5 s: unpack 1.4-2.7 s, import 1.5-2.7 s |
+| Init phase | over 10 s (timeout) | within the limit | 3-5 s: unpack 1.4-2.7 s†, import 1.5-2.7 s |
 | `/healthz` | 4 s to a 503 at 30 s | 3.5-4.5 s | not measured alone |
 | First tile | 10-30 s, some 503s | 3.6-11 s | 6.7-15 s* |
 
 \*Measured in the ycgs-tiler benchmarks (`ycgs-tiler/06-slim`) behind a
 router Lambda: these times include the router's own cold start (about 1 s)
 and an Invoke hop, which this module doesn't have.
+†The zip measured then unpacked its dependencies to `/tmp`; the current
+package fits unpacked and skips that step.
 
 The zip trades a warm image cache's best case (about 1-2 s slower to the
 first tile) for never hitting the init limit, which matters for a lightly
@@ -157,6 +200,60 @@ images. With SnapStart off there is no snapshot to pay for (~$8/month per
 The dependencies also lost titiler.xarray's `fs` extra (s3fs, gcsfs and the
 Google Cloud stack, grpc, aiohttp: 65 MB never imported; the readers use
 obstore).
+
+## Reader layout {#reader-layout}
+
+`function_layout = "reader"` (`tiler_function_layout` in
+`terraform/complete`; default `"deployment"`) splits a deployment that has
+both kinds of dataset into two functions, one per reader type, behind the
+same CloudFront distribution:
+
+| Function | Backends (`YCGS_BACKENDS`) | Datasets and routes |
+|---|---|---|
+| `nasa` | `cmr-xarray`, `cmr-xarray-grouped` | NISAR, SMAP, Black Marble, VIIRS LST; `/cmr/*` |
+| `nasa-raster` | `cmr-rasterio` | HLS, ASTER GDEM; `/cmr/rasterio/*` |
+| `noaa` | `xarray` | GOES ABI and LST; `/xarray/*`; the default route (catalog, `/api.html`, TMS, colormaps) |
+| `noaa-raster` | `cog` | CHIRPS; `/cog/*` |
+| `ecmwf` | `xarray` | ERA5-Land (no COG datasets, so no second function) |
+
+CloudFront routes on the path alone, and the routes still come from
+`datasets.yaml`: a preset's backend decides its function. `/cmr/rasterio/*`
+comes before `/cmr/*`. Tile URLs and cache keys don't change, so the website
+doesn't notice. With `YCGS_BACKENDS` set, each function mounts and imports
+only its own readers, and answers 404 to preset requests of the other type.
+
+::: code-group
+<<< @/../terraform/tiler/cloudfront.tf#routes{hcl} [cloudfront.tf#routes]
+<<< @/../terraform/tiler/deployments.tf#reader-layout{hcl} [deployments.tf#reader-layout]
+:::
+
+What it changes:
+
+- **More cold starts.** A visitor who looks at HLS and then SMAP starts two
+  NASA functions instead of one, and each function's warm instances serve
+  fewer datasets.
+- **Settings per function.** `lambda_memory`, `reserved_concurrency` and
+  `snap_start` take `nasa_raster` / `noaa_raster` keys (default: the
+  deployment's value). The cost guard's kill switch and the `deployments`
+  output include the raster functions.
+- **One lookup cache per region.** The raster function uses its
+  deployment's DynamoDB table (`shared_lookup_table`); the deployment's
+  function keeps the weekly prune job.
+- **`/api.html`** at the default route documents only the `noaa` function's
+  endpoints (presets, `/xarray`); `/cog` is documented by `noaa-raster`'s
+  own copy, reachable only through API Gateway.
+
+::: info Not the way under 250 MB
+Measured with each function's package trimmed to what it imports
+([report](https://github.com/YCGS-lab/multi-resolution-new-haven/blob/main/tiler/experiments/lambda-size/REPORT.md)),
+the split shrinks the functions that need the least: `noaa-raster` to
+152 MB, `ecmwf` to 212 MB. The `nasa` (xarray) function needs nearly the
+whole stack, rasterio included (rio-tiler warps and encodes tiles with
+GDAL for every reader), so it stays at the full package's size. Every
+function therefore deploys the same zip, and the layout is there for
+routing and scaling reasons (separate memory and concurrency per reader
+type), not for size.
+:::
 
 ## The image
 

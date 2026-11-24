@@ -4,10 +4,22 @@
 
 - Tiler Lambdas are zip packages on the managed Python 3.14 runtime (`tiler_packaging`,
   default `zip`; `image` keeps container images): bytecode only, boto3 from the runtime,
-  dependencies unpacked to `/tmp` at init (`ycgs_titiler.lambda_entry`), uploaded to a
-  per-region `<name>-code-<region>` bucket. Without SnapStart, init takes a predictable
-  3-5 s; container images took 3.5-4.5 s once Lambda had cached them but over 10 s (Lambda's
-  init limit, then 503s at API Gateway's 30 s) right after a deploy or a quiet spell.
+  uploaded to a per-region `<name>-code-<region>` bucket. Without SnapStart, init is a
+  predictable few seconds; container images took 3.5-4.5 s once Lambda had cached them but
+  over 10 s (Lambda's init limit, then 503s at API Gateway's 30 s) right after a deploy or a
+  quiet spell.
+- The zip fits Lambda's 250 MB limit unpacked (207 MB on x86_64, an estimated ~220 MB on
+  arm64), so nothing is unpacked to `/tmp` at init (that took 1.4-2.7 s per cold start):
+  shared objects stripped, numpy built without BLAS, one copy of the PROJ data, and what the
+  tiler never loads left out (`tiler/package/trim.txt`). The build checks the zip in a clean
+  runtime image and fails over 250 MB. Tiles are byte-identical; measurements and the
+  alternatives tried (sharing libraries between wheels, GDAL from source, a function per
+  deployment or per reader type) in `tiler/experiments/lambda-size/REPORT.md`.
+  `ephemeral_storage_mb` is back to 512.
+- `tiler_function_layout = "reader"` (default `"deployment"`): each deployment with both
+  kinds of dataset gets a second function for its COG datasets (HLS, ASTER; CHIRPS) behind
+  the same CloudFront distribution, routed by path from `datasets.yaml`. `YCGS_BACKENDS`
+  limits a function to some backends: it mounts and imports only those.
 - SnapStart is off by default (`tiler_snap_start`): no snapshot billed around the clock.
   Deployments that set it explicitly keep their setting.
 - Dropped titiler.xarray's `fs` extra (s3fs, gcsfs, Google Cloud, grpc, aiohttp; 65 MB,

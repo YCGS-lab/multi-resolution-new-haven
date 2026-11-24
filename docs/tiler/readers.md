@@ -71,7 +71,7 @@ tests exercise all of them.
 ### The URL allowlist <Badge type="warning" text="decision" /> {#the-url-allowlist}
 
 ::: code-group
-<<< @/../tiler/src/ycgs_titiler/readers.py#allowlist [readers.py#allowlist]
+<<< @/../tiler/src/ycgs_titiler/urls.py#allowlist [urls.py#allowlist]
 :::
 
 ::: warning Design decision: `/xarray` and `/cog` only open allow-listed URLs

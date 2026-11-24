@@ -14,8 +14,14 @@ variables set by OpenTofu decide what each copy does:
 | `YCGS_CORS_ORIGINS`, `TITILER_CMR_CORS_ORIGINS` | `cors_origins`, comma-separated (ours, titiler-cmr's) | same | same |
 | `YCGS_LOOKUP_TABLE` | DynamoDB table of the [lookup cache](./lookup-cache) | its own table | – |
 | `YCGS_SECRET_VERSION` | Earthdata secret version (not read: a new value publishes a new version) | – | CDS secret version |
+| `YCGS_BACKENDS` | unset (every backend); with `function_layout = "reader"`: `cmr-xarray,cmr-xarray-grouped`, and `cmr-rasterio` in the raster function | unset; with `"reader"`: `xarray`, and `cog` in the raster function | unset |
 
-titiler-cmr is not even imported outside the NASA region.
+titiler-cmr is not even imported outside the NASA region. With
+`YCGS_BACKENDS` set, `create_app()` mounts only those backends' endpoints and
+imports only their readers (a COG-only function never imports xarray, zarr or
+h5py); preset data requests for a dataset whose backend isn't listed answer
+404, since CloudFront sends them to the other function
+([reader layout](./lambda#reader-layout)).
 
 ## Settings <Badge type="tip" text="standard" />
 
