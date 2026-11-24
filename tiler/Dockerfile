@@ -24,18 +24,36 @@ RUN find /asset -type d \( -name tests -o -name test \) -prune -exec rm -rf {} +
 # region zip
 # ---------------------------------------------------------------------------
 # Zip package for Lambda's managed Python runtime (no container image to load
-# lazily: much faster cold starts without SnapStart). Bytecode only, boto3 from
-# the runtime, dependencies as deps.tar.zst unpacked to /tmp at init
-# (ycgs_titiler.lambda_entry; a zip may hold 250 MB unpacked). Byte-identical
-# across builds. `--target zip --output type=local,dest=DIR` -> DIR/tiler.zip.
+# lazily: predictable cold starts without SnapStart), unpacked as it is: under
+# Lambda's 250 MB limit (package/slim.py fails the build otherwise).
+#   `--target zip --output type=local,dest=DIR` -> DIR/tiler.zip
+# - numpy built without BLAS/LAPACK: the wheel bundles OpenBLAS (~25 MB), and the
+#   tiler does no linear algebra;
+# - bytecode only, boto3 from the runtime, shared objects stripped, one copy of
+#   the PROJ data, and what the tiler never loads left out (package/trim.txt);
+# - byte-identical across builds.
+# Measurements: tiler/experiments/lambda-size/REPORT.md.
 FROM builder AS zipbuild
-COPY package/slim.py /build/slim.py
+RUN dnf install -y gcc gcc-c++ binutils && dnf clean all
+RUN rm -rf /asset/numpy /asset/numpy.libs /asset/numpy-*.dist-info \
+ && uv pip install --no-cache --target /asset --no-deps --no-binary numpy \
+      "$(grep '^numpy==' /build/requirements.txt)" \
+      -C setup-args=-Dallow-noblas=true -C setup-args=-Dblas=none -C setup-args=-Dlapack=none
+COPY package/slim.py package/trim.txt /build/
 COPY src/ycgs_titiler /asset/ycgs_titiler
 RUN mkdir -p /asset/lib && cp /usr/lib64/libexpat.so.1 /asset/lib/ \
- && python /build/slim.py /asset /tiler.zip --tarball
+ && python /build/slim.py /asset /tiler.zip --strip --share-proj-data --trim /build/trim.txt
+
+# The zip in a clean runtime: every shared object loads, and the handler imports.
+FROM public.ecr.aws/lambda/python:${PYTHON_VERSION} AS zipcheck
+COPY --from=zipbuild /tiler.zip /tmp/tiler.zip
+RUN cd ${LAMBDA_TASK_ROOT} && python -m zipfile -e /tmp/tiler.zip . \
+ && LD_LIBRARY_PATH=${LAMBDA_TASK_ROOT}/lib python -c "import ctypes, glob; \
+[ctypes.CDLL(p) for p in glob.glob('${LAMBDA_TASK_ROOT}/**/*.so*', recursive=True)]" \
+ && python -c "from ycgs_titiler.lambda_entry import handler, prune; print('zip import OK')"
 
 FROM scratch AS zip
-COPY --from=zipbuild /tiler.zip /
+COPY --from=zipcheck /tmp/tiler.zip /
 # endregion zip
 
 # region final
