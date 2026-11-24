@@ -29,7 +29,7 @@ variable "reserved_concurrency" {
 variable "snap_start" {
   type        = map(bool)
   description = "Lambda SnapStart per deployment: fast cold starts, but each published version's cached snapshot is billed around the clock (memory x ~$0.0000015 per GB-s, ~$8/month for 2 GB) whether or not it is invoked"
-  default     = { nasa = true, noaa = true, ecmwf = true }
+  default     = { nasa = false, noaa = false, ecmwf = false }
 }
 
 variable "keep_versions" {
@@ -193,3 +193,15 @@ variable "guard_budget_filters" {
   default     = { Service = ["Amazon CloudFront", "AWS Lambda", "Amazon API Gateway", "Amazon DynamoDB"] }
 }
 # endregion guard-variables
+
+# region packaging
+variable "packaging" {
+  type        = string
+  description = "zip: zip packages on the managed Python 3.14 runtime (small; cold starts in seconds without SnapStart); image: a container image per region (ECR)"
+  default     = "zip"
+  validation {
+    condition     = contains(["image", "zip"], var.packaging)
+    error_message = "packaging must be zip or image."
+  }
+}
+# endregion packaging

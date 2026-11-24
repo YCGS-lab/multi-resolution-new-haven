@@ -81,6 +81,7 @@ module "tiler" {
   lambda_memory          = var.tiler_lambda_memory
   reserved_concurrency   = var.tiler_reserved_concurrency
   snap_start             = var.tiler_snap_start
+  packaging              = var.tiler_packaging
   keep_versions          = var.tiler_keep_versions
   throttling_rate_limit  = var.tiler_throttling_rate_limit
   throttling_burst_limit = var.tiler_throttling_burst_limit

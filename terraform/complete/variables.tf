@@ -59,9 +59,15 @@ variable "tiler_reserved_concurrency" {
 }
 
 variable "tiler_snap_start" {
-  description = "Tiler Lambda SnapStart per regional deployment: fast cold starts, but each version's cached snapshot is billed around the clock (see the tiler module)."
+  description = "Tiler Lambda SnapStart per regional deployment: fast cold starts, but each version's cached snapshot is billed around the clock (see the tiler module). Off by default: the zip package starts in seconds without it."
   type        = map(bool)
-  default     = { nasa = true, noaa = true, ecmwf = true }
+  default     = { nasa = false, noaa = false, ecmwf = false }
+}
+
+variable "tiler_packaging" {
+  description = "Tiler Lambda packaging: zip (managed Python runtime; default) or image (container images in ECR)"
+  type        = string
+  default     = "zip"
 }
 
 variable "tiler_keep_versions" {

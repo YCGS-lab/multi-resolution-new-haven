@@ -139,6 +139,11 @@ override_resource {
   values = { output = "testtag" }
 }
 
+override_resource {
+  target = terraform_data.zip
+  values = { output = "/tmp/zip" }
+}
+
 run "plan" {
   command = plan
 
@@ -209,19 +214,30 @@ run "plan" {
   # endregion guard-assert
 
   assert {
-    condition     = alltrue([for m in [module.nasa, module.noaa, module.ecmwf] : m.snap_start == "PublishedVersions"])
-    error_message = "SnapStart should be on for every deployment by default"
+    condition     = alltrue([for m in [module.nasa, module.noaa, module.ecmwf] : m.snap_start == "None" && m.package_type == "Zip"])
+    error_message = "By default: zip packages, SnapStart off"
   }
 }
 
-run "snap_start_off_for_one_deployment" {
+run "snap_start_on_for_one_deployment" {
   command = plan
   variables {
-    snap_start = { nasa = true, noaa = true, ecmwf = false }
+    snap_start = { nasa = false, noaa = false, ecmwf = true }
   }
   assert {
-    condition     = module.ecmwf.snap_start == "None" && module.nasa.snap_start == "PublishedVersions" && module.noaa.snap_start == "PublishedVersions"
-    error_message = "snap_start = false should turn SnapStart off for that deployment only"
+    condition     = module.ecmwf.snap_start == "PublishedVersions" && module.nasa.snap_start == "None" && module.noaa.snap_start == "None"
+    error_message = "snap_start = true should turn SnapStart on for that deployment only"
+  }
+}
+
+run "container_images" {
+  command = plan
+  variables {
+    packaging = "image"
+  }
+  assert {
+    condition     = alltrue([for m in [module.nasa, module.noaa, module.ecmwf] : m.package_type == "Image"]) && length(terraform_data.zip) == 0
+    error_message = "packaging = image: container images, no zip build"
   }
 }
 

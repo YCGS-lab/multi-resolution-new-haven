@@ -1,5 +1,6 @@
-# One regional titiler deployment: Lambda (container image, SnapStart, "live"
-# alias) and an API Gateway HTTP API in front of it.
+# One regional titiler deployment: Lambda (zip on the managed Python runtime or
+# a container image; optional SnapStart; "live" alias) and an API Gateway HTTP
+# API in front of it.
 
 terraform {
   required_providers {
@@ -93,6 +94,50 @@ locals {
 # endregion gdal-env
 
 # region lambda
+# region zip-artifacts
+# Zip packages are deployed from S3 (over 50 MB), in the function's region.
+locals {
+  zip = var.package_type == "Zip"
+}
+
+resource "aws_s3_bucket" "artifacts" {
+  #checkov:skip=CKV_AWS_18:Build artifacts; no access logging
+  #checkov:skip=CKV_AWS_144:Rebuilt from source; no replication
+  #checkov:skip=CKV_AWS_145:SSE-S3 is sufficient
+  #checkov:skip=CKV2_AWS_62:No event notifications
+  #checkov:skip=CKV_AWS_21:Keys are content hashes; no versioning
+  #checkov:skip=CKV2_AWS_61:Old packages are small; no lifecycle
+  count         = local.zip ? 1 : 0
+  bucket        = "${var.name}-code-${data.aws_region.current.region}"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "artifacts" {
+  count                   = local.zip ? 1 : 0
+  bucket                  = aws_s3_bucket.artifacts[0].id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "terraform_data" "upload" {
+  count            = local.zip ? 1 : 0
+  input            = "tiler-${var.zip_tag}.zip"
+  triggers_replace = [var.zip_tag, aws_s3_bucket.artifacts[0].id]
+
+  provisioner "local-exec" {
+    interpreter = ["bash", "-c"]
+    environment = {
+      SRC    = "${var.zip_dir}/tiler.zip"
+      DEST   = "s3://${aws_s3_bucket.artifacts[0].id}/tiler-${var.zip_tag}.zip"
+      REGION = data.aws_region.current.region
+    }
+    command = "aws s3 cp --region \"$REGION\" --only-show-errors \"$SRC\" \"$DEST\""
+  }
+}
+# endregion zip-artifacts
+
 resource "aws_lambda_function" "this" {
   #checkov:skip=CKV_AWS_117:Reads public/Earthdata endpoints over the internet; a VPC would only add a NAT gateway
   #checkov:skip=CKV_AWS_116:Synchronous API; a dead-letter queue does not apply
@@ -100,12 +145,20 @@ resource "aws_lambda_function" "this" {
   #checkov:skip=CKV_AWS_173:Environment holds no credentials (only the CloudFront origin token); credentials come from Secrets Manager at init
   function_name = var.name
   role          = aws_iam_role.lambda.arn
-  package_type  = "Image"
-  image_uri     = var.image_uri
+  package_type  = var.package_type
+  image_uri     = local.zip ? null : var.image_uri
+  s3_bucket     = local.zip ? aws_s3_bucket.artifacts[0].id : null
+  s3_key        = local.zip ? terraform_data.upload[0].output : null
+  runtime       = local.zip ? "python3.14" : null
+  handler       = local.zip ? "ycgs_titiler.lambda_entry.handler" : null
   architectures = [var.architecture]
   memory_size   = var.memory_size
   timeout       = var.timeout
   publish       = true # the alias, SnapStart and version pruning all work on published versions
+
+  ephemeral_storage {
+    size = local.zip ? var.ephemeral_storage_mb : 512
+  }
 
   reserved_concurrent_executions = coalesce(var.reserved_concurrency, -1)
 
@@ -338,14 +391,25 @@ resource "aws_lambda_function" "prune" {
   count         = var.lookup_cache ? 1 : 0
   function_name = "${var.name}-prune"
   role          = aws_iam_role.prune[0].arn
-  package_type  = "Image"
-  image_uri     = var.image_uri
+  package_type  = var.package_type
+  image_uri     = local.zip ? null : var.image_uri
+  s3_bucket     = local.zip ? aws_s3_bucket.artifacts[0].id : null
+  s3_key        = local.zip ? terraform_data.upload[0].output : null
+  runtime       = local.zip ? "python3.14" : null
+  handler       = local.zip ? "ycgs_titiler.lambda_entry.prune" : null
   architectures = [var.architecture]
   memory_size   = 1024
   timeout       = 900
 
-  image_config {
-    command = ["ycgs_titiler.prune.handler"]
+  ephemeral_storage {
+    size = local.zip ? var.ephemeral_storage_mb : 512
+  }
+
+  dynamic "image_config" {
+    for_each = local.zip ? [] : [1]
+    content {
+      command = ["ycgs_titiler.prune.handler"]
+    }
   }
 
   environment {

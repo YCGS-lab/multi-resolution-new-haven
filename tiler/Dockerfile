@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
-# Lambda container image (arm64, Python 3.14 managed base image; SnapStart-capable).
-# Build:  docker buildx build --platform linux/arm64 -t ycgs-titiler .
+# Lambda container image (arm64, Python 3.14 managed base image), and the same
+# app as a zip package for the managed runtime (the default deployment):
+#   docker buildx build --platform linux/arm64 -t ycgs-titiler .
+#   docker buildx build --platform linux/arm64 --target zip --output type=local,dest=DIR .
 
 ARG PYTHON_VERSION=3.14
 
@@ -18,6 +20,23 @@ RUN uv export --frozen --no-dev --no-emit-project --no-hashes --output-file requ
 RUN find /asset -type d \( -name tests -o -name test \) -prune -exec rm -rf {} + \
  && find /asset -name '*.pyi' -delete
 # endregion builder
+
+# region zip
+# ---------------------------------------------------------------------------
+# Zip package for Lambda's managed Python runtime (no container image to load
+# lazily: much faster cold starts without SnapStart). Bytecode only, boto3 from
+# the runtime, dependencies as deps.tar.zst unpacked to /tmp at init
+# (ycgs_titiler.lambda_entry; a zip may hold 250 MB unpacked). Byte-identical
+# across builds. `--target zip --output type=local,dest=DIR` -> DIR/tiler.zip.
+FROM builder AS zipbuild
+COPY package/slim.py /build/slim.py
+COPY src/ycgs_titiler /asset/ycgs_titiler
+RUN mkdir -p /asset/lib && cp /usr/lib64/libexpat.so.1 /asset/lib/ \
+ && python /build/slim.py /asset /tiler.zip --tarball
+
+FROM scratch AS zip
+COPY --from=zipbuild /tiler.zip /
+# endregion zip
 
 # region final
 # ---------------------------------------------------------------------------
