@@ -102,6 +102,7 @@ export default withMermaid(
             { text: "Cost guard", link: "/tiler/guard" },
             { text: "Evaluation: tile cache", link: "/tiler/tile-cache-evaluation" },
             { text: "Evaluation: Icechunk store", link: "/tiler/icechunk-evaluation" },
+            { text: "Evaluation: zip package size", link: "/tiler/package-size-evaluation" },
             { text: "Running and testing", link: "/tiler/operations" },
             { text: "Tiler glossary", link: "/tiler/glossary" },
           ],

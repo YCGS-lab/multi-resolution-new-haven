@@ -41,7 +41,7 @@ locals {
   # with "//terraform/tiler" downloads the whole repository, so the path resolves.
   app_dir = "${path.module}/../../tiler"
   app_files = sort([
-    for f in setunion(fileset(local.app_dir, "src/**"), ["pyproject.toml", "uv.lock", "Dockerfile"]) :
+    for f in setunion(fileset(local.app_dir, "src/**"), fileset(local.app_dir, "package/**"), ["pyproject.toml", "uv.lock", "Dockerfile"]) :
     f if !strcontains(f, "__pycache__")
   ])
   image_tag = substr(sha256(join("\n", [for f in local.app_files : "${f} ${filesha256("${local.app_dir}/${f}")}"])), 0, 16)

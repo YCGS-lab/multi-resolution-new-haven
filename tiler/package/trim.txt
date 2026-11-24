@@ -1,0 +1,34 @@
+# What the zip package leaves out because the tiler never loads it (package/slim.py --trim).
+# Found by running every dataset preset's tiles with an import trace, then checked in a
+# Lambda container (docs/tiler/package-size-evaluation.md). `package NAME` drops a distribution; `path GLOB` drops files.
+# A wrong entry shows up as an ImportError in the zip's import check (Dockerfile, zipcheck).
+
+# starlette-cramjam's compression middleware is never added (cramjam: 4.4 MB)
+package cramjam
+package starlette-cramjam
+
+# extension modules built for other Python versions
+path color_operations/*.cpython-31[0-3]-*.so
+# numpy's test modules, f2py
+path numpy/_core/_*_tests.*.so
+path numpy/_core/_simd.*.so
+path numpy/f2py
+# Pillow (titiler-cmr's time series) needs only PIL.Image: no AVIF, FreeType, LCMS, WebP or Tk
+# plugins, nor the libraries only they link
+path PIL/_avif.*.so
+path PIL/_imagingcms.*.so
+path PIL/_imagingft.*.so
+path PIL/_imagingtk.*.so
+path PIL/_webp.*.so
+path pillow.libs/libavif*
+path pillow.libs/libfreetype*
+path pillow.libs/libharfbuzz*
+path pillow.libs/liblcms2*
+path pillow.libs/libbrotli*
+path pillow.libs/libwebp*
+path pillow.libs/libsharpyuv*
+path pillow.libs/libpng16*
+# rasterio's example module, dask's dataframes, zarr's test helpers
+path rasterio/_example.*.so
+path dask/dataframe
+path zarr/testing
